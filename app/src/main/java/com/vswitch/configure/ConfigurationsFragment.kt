@@ -34,14 +34,14 @@ class ConfigurationsFragment : Fragment() {
     private var savedSerialNumber: String? = null
 
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
-        override fun onAvailable(network: Network) = updateEnrollmentButtonState()
+        override fun onAvailable(network: Network) = scheduleEnrollmentButtonStateUpdate()
 
-        override fun onLost(network: Network) = updateEnrollmentButtonState()
+        override fun onLost(network: Network) = scheduleEnrollmentButtonStateUpdate()
 
         override fun onCapabilitiesChanged(
             network: Network,
             networkCapabilities: NetworkCapabilities
-        ) = updateEnrollmentButtonState()
+        ) = scheduleEnrollmentButtonStateUpdate()
     }
 
     private val locationPermissionLauncher = registerForActivityResult(
@@ -238,6 +238,13 @@ class ConfigurationsFragment : Fragment() {
             return false
         }
         return !currentSsid.startsWith(IOT_SSID_PREFIX)
+    }
+
+    private fun scheduleEnrollmentButtonStateUpdate() {
+        val currentView = view ?: return
+        currentView.post {
+            updateEnrollmentButtonState()
+        }
     }
 
     private fun updateEnrollmentButtonState() {

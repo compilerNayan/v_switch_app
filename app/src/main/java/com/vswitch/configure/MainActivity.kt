@@ -41,6 +41,11 @@ class MainActivity : AppCompatActivity() {
                     getString(R.string.menu_local_commands)
                 )
 
+                R.id.nav_cloud_commands -> showFragment(
+                    CloudCommandsFragment(),
+                    getString(R.string.menu_cloud_commands)
+                )
+
                 else -> return@setNavigationItemSelectedListener false
             }
             binding.drawerLayout.closeDrawer(GravityCompat.START)

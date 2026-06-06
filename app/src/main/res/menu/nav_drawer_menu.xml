@@ -6,4 +6,7 @@
     <item
         android:id="@+id/nav_local_commands"
         android:title="@string/menu_local_commands" />
+    <item
+        android:id="@+id/nav_cloud_commands"
+        android:title="@string/menu_cloud_commands" />
 </menu>

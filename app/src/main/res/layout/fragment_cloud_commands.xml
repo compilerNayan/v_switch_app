@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="24dp">
+
+        <TextView
+            android:id="@+id/cloudCommandsTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="@string/cloud_commands_title"
+            android:textAppearance="?attr/textAppearanceHeadlineSmall"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/turnOnSwitch1Button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:layout_marginEnd="6dp"
+            android:text="@string/turn_on_switch_1"
+            app:layout_constraintEnd_toStartOf="@id/turnOffSwitch1Button"
+            app:layout_constraintHorizontal_chainStyle="spread"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/cloudCommandsTitle" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/turnOffSwitch1Button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:text="@string/turn_off_switch_1"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/turnOnSwitch1Button"
+            app:layout_constraintTop_toTopOf="@id/turnOnSwitch1Button" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/turnOnSwitch2Button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="6dp"
+            android:text="@string/turn_on_switch_2"
+            app:layout_constraintEnd_toStartOf="@id/turnOffSwitch2Button"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/turnOnSwitch1Button" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/turnOffSwitch2Button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:text="@string/turn_off_switch_2"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/turnOnSwitch2Button"
+            app:layout_constraintTop_toTopOf="@id/turnOnSwitch2Button" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/turnOnSwitch3Button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="6dp"
+            android:text="@string/turn_on_switch_3"
+            app:layout_constraintEnd_toStartOf="@id/turnOffSwitch3Button"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/turnOnSwitch2Button" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/turnOffSwitch3Button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:text="@string/turn_off_switch_3"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/turnOnSwitch3Button"
+            app:layout_constraintTop_toTopOf="@id/turnOnSwitch3Button" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/turnOnSwitch4Button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="6dp"
+            android:text="@string/turn_on_switch_4"
+            app:layout_constraintEnd_toStartOf="@id/turnOffSwitch4Button"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/turnOnSwitch3Button" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/turnOffSwitch4Button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:text="@string/turn_off_switch_4"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/turnOnSwitch4Button"
+            app:layout_constraintTop_toTopOf="@id/turnOnSwitch4Button" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>

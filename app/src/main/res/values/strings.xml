@@ -5,7 +5,9 @@
     <string name="navigation_drawer_close">Close navigation menu</string>
     <string name="menu_configurations">Configurations</string>
     <string name="menu_local_commands">Local commands</string>
+    <string name="menu_cloud_commands">Cloud commands</string>
     <string name="local_commands_title">Local commands</string>
+    <string name="cloud_commands_title">Cloud commands</string>
     <string name="turn_on_switch_1">Turn on switch 1</string>
     <string name="turn_off_switch_1">Turn off switch 1</string>
     <string name="turn_on_switch_2">Turn on switch 2</string>
@@ -34,4 +36,9 @@
     <string name="error_enroll_failed">Enrollment failed (HTTP %1$d).</string>
     <string name="error_enroll_network">Could not reach the device. Check you are on the same WiFi network.</string>
     <string name="error_no_serial_for_enroll">No saved serial number. Configure WiFi first.</string>
+    <string name="error_no_serial_for_switch">No saved serial number. Configure WiFi first.</string>
+    <string name="success_switch_on">Switch %1$d turned on.</string>
+    <string name="success_switch_off">Switch %1$d turned off.</string>
+    <string name="error_switch_failed">Switch command failed (HTTP %1$d).</string>
+    <string name="error_switch_network">Could not reach the device. Check you are on the same WiFi network.</string>
 </resources>
