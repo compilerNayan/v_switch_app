@@ -1,12 +1,26 @@
+# Gradle
+.gradle/
+build/
+
+# Local SDK path (machine-specific)
+local.properties
+
+# Android Studio / IntelliJ
 *.iml
-.gradle
-/local.properties
-/.idea/
+.idea/
 .DS_Store
-/build
 /captures
-.externalNativeBuild
-.cxx
+
+# Native build
+.externalNativeBuild/
+.cxx/
+
+# Build outputs
 *.apk
 *.ap_
 *.aab
+*.dex
+*.class
+
+# Logs
+*.log
