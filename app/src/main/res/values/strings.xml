@@ -7,6 +7,7 @@
     <string name="username_hint">Username (home WiFi SSID)</string>
     <string name="password_hint">Password (home WiFi password)</string>
     <string name="configure_wifi">Configure wifi</string>
+    <string name="enroll">Enroll</string>
     <string name="error_not_on_wifi">Connect to WiFi first.</string>
     <string name="error_wrong_hotspot">Connect to an IoT_ device hotspot first.</string>
     <string name="error_empty_credentials">Enter username and password.</string>
@@ -15,4 +16,9 @@
     <string name="error_configure_failed">Configuration failed (HTTP %1$d).</string>
     <string name="error_network">Could not reach the device. Check you are on the IoT hotspot.</string>
     <string name="configuring">Configuring…</string>
+    <string name="enrolling">Enrolling…</string>
+    <string name="success_enrolled">Device enrolled.</string>
+    <string name="error_enroll_failed">Enrollment failed (HTTP %1$d).</string>
+    <string name="error_enroll_network">Could not reach the device. Check you are on the same WiFi network.</string>
+    <string name="error_no_serial_for_enroll">No saved serial number. Configure WiFi first.</string>
 </resources>

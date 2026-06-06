@@ -89,5 +89,16 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/passwordLayout" />
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/enrollButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:enabled="false"
+            android:text="@string/enroll"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/configureWifiButton" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 </ScrollView>

@@ -4,9 +4,10 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.wifi.WifiManager
-import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,6 +24,20 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var devicePreferences: DevicePreferences
     private val wifiCredentialsClient = WifiCredentialsClient()
+    private val enrollmentClient = EnrollmentClient()
+    private lateinit var connectivityManager: ConnectivityManager
+    private var savedSerialNumber: String? = null
+
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) = updateEnrollmentButtonState()
+
+        override fun onLost(network: Network) = updateEnrollmentButtonState()
+
+        override fun onCapabilitiesChanged(
+            network: Network,
+            networkCapabilities: NetworkCapabilities
+        ) = updateEnrollmentButtonState()
+    }
 
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -32,6 +47,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             toast(R.string.error_location_permission)
         }
+        updateEnrollmentButtonState()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,10 +56,13 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         devicePreferences = DevicePreferences(applicationContext)
+        connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
         lifecycleScope.launch {
             devicePreferences.serialNumber.collect { serial ->
+                savedSerialNumber = serial
                 binding.savedSerialText.text = serial ?: getString(R.string.no_serial_saved)
+                updateEnrollmentButtonState()
             }
         }
 
@@ -53,6 +72,61 @@ class MainActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             configureWifi()
+        }
+
+        binding.enrollButton.setOnClickListener {
+            enrollDevice()
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val request = NetworkRequest.Builder()
+            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+            .build()
+        connectivityManager.registerNetworkCallback(request, networkCallback)
+        updateEnrollmentButtonState()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        connectivityManager.unregisterNetworkCallback(networkCallback)
+    }
+
+    private fun enrollDevice() {
+        val serialNumber = savedSerialNumber?.trim().orEmpty()
+        if (serialNumber.isEmpty()) {
+            toast(R.string.error_no_serial_for_enroll)
+            return
+        }
+        if (!canEnableEnrollment()) {
+            return
+        }
+
+        binding.enrollButton.isEnabled = false
+        binding.enrollButton.text = getString(R.string.enrolling)
+
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                enrollmentClient.enroll(serialNumber)
+            }
+
+            binding.enrollButton.text = getString(R.string.enroll)
+            updateEnrollmentButtonState()
+
+            when (result) {
+                EnrollmentClient.Result.Success -> {
+                    toast(R.string.success_enrolled)
+                }
+
+                is EnrollmentClient.Result.HttpError -> {
+                    toast(getString(R.string.error_enroll_failed, result.code))
+                }
+
+                is EnrollmentClient.Result.NetworkError -> {
+                    toast(R.string.error_enroll_network)
+                }
+            }
         }
     }
 
@@ -125,7 +199,32 @@ class MainActivity : AppCompatActivity() {
     private fun getCurrentWifiSsid(): String {
         val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         val rawSsid = wifiManager.connectionInfo?.ssid ?: return ""
-        return rawSsid.trim('"')
+        val ssid = rawSsid.trim('"')
+        if (ssid == WifiManager.UNKNOWN_SSID) {
+            return ""
+        }
+        return ssid
+    }
+
+    private fun canEnableEnrollment(): Boolean {
+        if (savedSerialNumber.isNullOrBlank()) {
+            return false
+        }
+        if (!isConnectedToWifi()) {
+            return false
+        }
+        if (!hasLocationPermission()) {
+            return false
+        }
+        val currentSsid = getCurrentWifiSsid()
+        if (currentSsid.isEmpty()) {
+            return false
+        }
+        return !currentSsid.startsWith(IOT_SSID_PREFIX)
+    }
+
+    private fun updateEnrollmentButtonState() {
+        binding.enrollButton.isEnabled = canEnableEnrollment()
     }
 
     private fun hasLocationPermission(): Boolean {
