@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_configurations"
+        android:title="@string/menu_configurations" />
+    <item
+        android:id="@+id/nav_local_commands"
+        android:title="@string/menu_local_commands" />
+</menu>

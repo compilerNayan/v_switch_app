@@ -1,6 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">V Switch</string>
+    <string name="navigation_drawer_open">Open navigation menu</string>
+    <string name="navigation_drawer_close">Close navigation menu</string>
+    <string name="menu_configurations">Configurations</string>
+    <string name="menu_local_commands">Local commands</string>
+    <string name="local_commands_title">Local commands</string>
+    <string name="turn_on_switch_1">Turn on switch 1</string>
+    <string name="turn_off_switch_1">Turn off switch 1</string>
+    <string name="turn_on_switch_2">Turn on switch 2</string>
+    <string name="turn_off_switch_2">Turn off switch 2</string>
+    <string name="turn_on_switch_3">Turn on switch 3</string>
+    <string name="turn_off_switch_3">Turn off switch 3</string>
+    <string name="turn_on_switch_4">Turn on switch 4</string>
+    <string name="turn_off_switch_4">Turn off switch 4</string>
     <string name="screen_title">Device WiFi setup</string>
     <string name="saved_serial_label">Saved device serial</string>
     <string name="no_serial_saved">None</string>
