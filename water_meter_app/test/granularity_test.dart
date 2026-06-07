@@ -40,11 +40,11 @@ void main() {
 
     test('allowedForRange excludes granularities beyond max range', () {
       final now = DateTime(2026, 6, 6);
-      final from = now.subtract(const Duration(hours: 12));
+      final from = now.subtract(const Duration(hours: 30));
       final allowed = GranularityRules.allowedForRange(from, now);
 
-      expect(allowed, contains(Granularity.m1));
-      expect(allowed, isNot(contains(Granularity.d1)));
+      expect(allowed, contains(Granularity.m5));
+      expect(allowed, isNot(contains(Granularity.m1)));
     });
 
     test('resolve falls back when preferred granularity is invalid', () {

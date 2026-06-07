@@ -1,4 +1,4 @@
-# Flutter
+# Flutter / Dart
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
@@ -9,27 +9,58 @@ build/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 
+# Build binaries & artifacts
+*.apk
+*.aab
+*.ipa
+*.app
+*.dSYM/
+*.dSYM.zip
+*.symbols
+*.so
+*.dylib
+*.dll
+*.exe
+*.o
+*.a
+*.class
+*.jar
+!**/android/gradle/wrapper/gradle-wrapper.jar
+
 # IDE
 .idea/
 *.iml
 .vscode/
 
 # Android
-**/android/**/gradle-wrapper.jar
-**/android/.gradle
+**/android/.gradle/
 **/android/captures/
 **/android/local.properties
 **/android/key.properties
 **/*.jks
+**/*.keystore
 
 # iOS
 **/ios/Pods/
 **/ios/.symlinks/
 **/ios/Flutter/Flutter.framework
 **/ios/Flutter/Flutter.podspec
+**/ios/Flutter/App.framework
+**/ios/Flutter/engine/
+**/ios/ServiceDefinitions.json
+**/ios/Runner/GeneratedPluginRegistrant.*
 
 # macOS
 **/macos/Flutter/ephemeral/
+**/macos/Pods/
+
+# Web
+lib/generated_plugin_registrant.dart
 
 # Coverage
 coverage/
+
+# AWS CDK (infrastructure/)
+infrastructure/node_modules/
+infrastructure/cdk.out/
+infrastructure/dist/

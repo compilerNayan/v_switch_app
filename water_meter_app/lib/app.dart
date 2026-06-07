@@ -5,7 +5,10 @@ import 'package:go_router/go_router.dart';
 import 'core/config/app_config.dart';
 import 'core/providers/app_providers.dart';
 import 'core/theme/app_theme.dart';
-import 'features/auth/onboarding_screen.dart';
+import 'core/utils/onboarding_router.dart';
+import 'features/auth/join_tenant_screen.dart';
+import 'features/auth/role_selection_screen.dart';
+import 'features/auth/sign_in_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/insights/insights_screen.dart';
 import 'features/settings/settings_screen.dart';
@@ -34,20 +37,33 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/',
     refreshListenable: authListenable,
     redirect: (context, state) {
-      final auth = ref.read(authStateProvider);
-      final isOnboarding = state.matchedLocation == '/onboarding';
+      final profileAsync = ref.read(userProfileProvider);
+      if (profileAsync.isLoading) {
+        // Avoid mounting protected tabs while the session is being restored.
+        const protected = {'/', '/usage', '/insights', '/settings'};
+        if (protected.contains(state.matchedLocation)) {
+          return '/auth';
+        }
+        return null;
+      }
 
-      if (auth.isLoading) return null;
-
-      final creds = auth.valueOrNull;
-      if (creds == null && !isOnboarding) return '/onboarding';
-      if (creds != null && isOnboarding) return '/';
-      return null;
+      return OnboardingRouter.redirectForProfile(
+        profileAsync.valueOrNull,
+        state.matchedLocation,
+      );
     },
     routes: [
       GoRoute(
-        path: '/onboarding',
-        builder: (context, state) => const OnboardingScreen(),
+        path: '/auth',
+        builder: (context, state) => const SignInScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding/role',
+        builder: (context, state) => const RoleSelectionScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding/join',
+        builder: (context, state) => const JoinTenantScreen(),
       ),
       GoRoute(
         path: '/settings',
@@ -121,18 +137,3 @@ class _MainShell extends StatelessWidget {
     );
   }
 }
-
-/// Bridges Riverpod auth state to GoRouter refresh.
-class AuthListenable extends ChangeNotifier {
-  AuthListenable(this.ref) {
-    ref.listen(authStateProvider, (_, __) => notifyListeners());
-  }
-
-  final Ref ref;
-}
-
-final authListenableProvider = Provider<AuthListenable>((ref) {
-  final listenable = AuthListenable(ref);
-  ref.onDispose(listenable.dispose);
-  return listenable;
-});

@@ -43,8 +43,8 @@ class MockWaterApiClient implements WaterApiClient {
     final points = _generateBuckets(from, to, granularity);
     final total = points.fold<double>(0, (sum, p) => sum + p.volumeLiters);
     final avg = points.isEmpty ? 0.0 : total / points.length;
-    final peak = points.isEmpty
-        ? PeakBucket(timestamp: from, volumeLiters: 0)
+    final peakPoint = points.isEmpty
+        ? UsageDataPoint(timestamp: from, volumeLiters: 0, avgFlowRateLpm: 0)
         : points.reduce(
             (a, b) => a.volumeLiters >= b.volumeLiters ? a : b,
           );
@@ -69,8 +69,8 @@ class MockWaterApiClient implements WaterApiClient {
         totalVolumeLiters: total,
         averagePerBucketLiters: avg,
         peakBucket: PeakBucket(
-          timestamp: peak.timestamp,
-          volumeLiters: peak.volumeLiters,
+          timestamp: peakPoint.timestamp,
+          volumeLiters: peakPoint.volumeLiters,
         ),
         previousPeriodTotalLiters: prevTotal,
         deltaPercent: delta,
@@ -122,7 +122,7 @@ class MockWaterApiClient implements WaterApiClient {
   }) async {
     await _delay();
     final hours = List.generate(24, (hour) {
-      final base = _hourlyPatternLiters(hour);
+      final base = _hourlyPatternLiters(hour.toDouble());
       final noise = 0.9 + _random.nextDouble() * 0.2;
       return HourlyPatternHour(hour: hour, avgLiters: base * noise);
     });

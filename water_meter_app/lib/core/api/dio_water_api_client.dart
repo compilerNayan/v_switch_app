@@ -30,7 +30,9 @@ class DioWaterApiClient implements WaterApiClient {
           final creds = await _credentialsProvider();
           if (creds != null) {
             options.headers['Authorization'] = 'Bearer ${creds.apiKey}';
-            options.headers['X-Device-Id'] = creds.deviceId;
+            if (creds.deviceId.isNotEmpty) {
+              options.headers['X-Device-Id'] = creds.deviceId;
+            }
           }
           handler.next(options);
         },

@@ -1,0 +1,25 @@
+{
+  "name": "water-meter-infrastructure",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "cdk": "cdk",
+    "deploy": "cdk deploy --require-approval never",
+    "synth": "cdk synth"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.147",
+    "@types/node": "^22.10.0",
+    "aws-cdk": "^2.175.0",
+    "aws-cdk-lib": "^2.175.0",
+    "constructs": "^10.4.2",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.709.0",
+    "@aws-sdk/client-dynamodb": "^3.709.0",
+    "@aws-sdk/lib-dynamodb": "^3.709.0"
+  }
+}
