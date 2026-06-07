@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/water_providers.dart';
 import '../../core/utils/units.dart';
+import '../../shared/widgets/device_scaffold_actions.dart';
 import '../../shared/widgets/usage_chart.dart';
 
 class InsightsScreen extends ConsumerWidget {
@@ -17,7 +18,10 @@ class InsightsScreen extends ConsumerWidget {
     final volumeUnit = ref.watch(volumeUnitProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Insights')),
+      appBar: AppBar(
+        leading: const DeviceBackButton(),
+        title: const DeviceScreenTitle(fallback: 'Insights'),
+      ),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(dailySummaryProvider);

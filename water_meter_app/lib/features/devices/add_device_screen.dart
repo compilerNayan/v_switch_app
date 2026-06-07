@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/iot_device_type.dart';
-import '../../core/providers/app_providers.dart';
 
-class AddDeviceScreen extends ConsumerWidget {
+class AddDeviceScreen extends StatelessWidget {
   const AddDeviceScreen({super.key});
 
   void _onDeviceTap(BuildContext context, IoTDeviceType device) {
@@ -19,15 +17,8 @@ class AddDeviceScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _skip(BuildContext context, WidgetRef ref) async {
-    final prefs = await ref.read(preferencesStorageProvider.future);
-    await prefs.setDeviceOnboardingComplete(true);
-    ref.invalidate(deviceOnboardingCompleteProvider);
-    if (context.mounted) context.go('/');
-  }
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Add a device')),
       body: Column(
@@ -39,7 +30,7 @@ class AddDeviceScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Choose a device type to get started',
+                  'Choose a device type',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 8),
@@ -69,13 +60,6 @@ class AddDeviceScreen extends ConsumerWidget {
                   onTap: () => _onDeviceTap(context, device),
                 );
               },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-            child: TextButton(
-              onPressed: () => _skip(context, ref),
-              child: const Text('Skip for now'),
             ),
           ),
         ],

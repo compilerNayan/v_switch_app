@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/user_device.dart';
 import '../provisioning/enrollment_client.dart';
 import '../provisioning/provisioning_state.dart';
 import '../provisioning/wifi_credentials_client.dart';
 import '../provisioning/wifi_ssid_service.dart';
 import 'app_providers.dart';
+import 'device_providers.dart';
 
 final wifiSsidServiceProvider = Provider<WifiSsidService>((ref) {
   return WifiSsidService();
@@ -16,11 +18,6 @@ final wifiCredentialsClientProvider = Provider<WifiCredentialsClient>((ref) {
 
 final enrollmentClientProvider = Provider<EnrollmentClient>((ref) {
   return EnrollmentClient();
-});
-
-final enrolledDeviceSerialProvider = FutureProvider<String?>((ref) async {
-  final prefs = await ref.watch(preferencesStorageProvider.future);
-  return prefs.enrolledDeviceSerial;
 });
 
 class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
@@ -77,9 +74,6 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
 
       switch (result) {
         case WifiConfigureSuccess():
-          final prefs = await ref.read(preferencesStorageProvider.future);
-          await prefs.setEnrolledDeviceSerial(serial);
-          ref.invalidate(enrolledDeviceSerialProvider);
           state = state.copyWith(
             step: WaterMeterSetupStep.enrollment,
             isLoading: false,
@@ -125,9 +119,7 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
 
       switch (result) {
         case EnrollmentSuccess():
-          final prefs = await ref.read(preferencesStorageProvider.future);
-          await prefs.setEnrolledDeviceSerial(serial);
-          ref.invalidate(enrolledDeviceSerialProvider);
+          await registerWaterMeter(serial);
           state = state.copyWith(
             step: WaterMeterSetupStep.success,
             isLoading: false,
@@ -147,11 +139,20 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
     }
   }
 
-  Future<void> completeOnboarding() async {
+  Future<UserDevice> registerWaterMeter(String serial) async {
     final prefs = await ref.read(preferencesStorageProvider.future);
-    await prefs.setDeviceOnboardingComplete(true);
-    ref.invalidate(deviceOnboardingCompleteProvider);
+    final device = UserDevice(
+      id: 'wm-$serial',
+      typeId: 'water_meter',
+      name: 'Water Meter $serial',
+      deviceId: serial,
+    );
+    final saved = await prefs.addUserDevice(device);
+    ref.invalidate(userDevicesProvider);
+    return saved;
   }
+
+  String? registeredDeviceRouteId(String serial) => 'wm-$serial';
 }
 
 final provisioningNotifierProvider =

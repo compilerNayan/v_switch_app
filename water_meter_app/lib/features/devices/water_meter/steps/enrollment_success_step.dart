@@ -10,6 +10,7 @@ class EnrollmentSuccessStep extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final serial = ref.watch(provisioningNotifierProvider).deviceSerial;
+    final notifier = ref.read(provisioningNotifierProvider.notifier);
 
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -40,13 +41,18 @@ class EnrollmentSuccessStep extends ConsumerWidget {
           ),
           const SizedBox(height: 32),
           FilledButton(
-            onPressed: () async {
-              await ref
-                  .read(provisioningNotifierProvider.notifier)
-                  .completeOnboarding();
-              if (context.mounted) context.go('/');
-            },
+            onPressed: serial == null
+                ? null
+                : () {
+                    final routeId = notifier.registeredDeviceRouteId(serial!);
+                    context.go('/devices/$routeId');
+                  },
             child: const Text('View water usage'),
+          ),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: () => context.go('/'),
+            child: const Text('Back to My Devices'),
           ),
         ],
       ),

@@ -4,31 +4,16 @@ import '../models/user_profile.dart';
 class OnboardingRouter {
   OnboardingRouter._();
 
-  static const deviceOnboardingRoute = '/onboarding/devices';
-
-  static String? redirectForProfile(
-    UserProfile? profile,
-    String location, {
-    bool deviceOnboardingComplete = false,
-  }) {
+  static String? redirectForProfile(UserProfile? profile, String location) {
     if (profile == null || !profile.isAuthenticated) {
       return location == '/auth' ? null : '/auth';
     }
 
     final authRoutes = {'/auth'};
     final tenantOnboardingRoutes = {'/onboarding/role', '/onboarding/join'};
-    final allOnboardingRoutes = {
-      ...tenantOnboardingRoutes,
-      deviceOnboardingRoute,
-    };
 
     if (profile.onboardingComplete) {
-      if (!deviceOnboardingComplete) {
-        if (location == deviceOnboardingRoute) return null;
-        return deviceOnboardingRoute;
-      }
-
-      if (authRoutes.contains(location) || allOnboardingRoutes.contains(location)) {
+      if (authRoutes.contains(location) || tenantOnboardingRoutes.contains(location)) {
         return '/';
       }
       return null;
@@ -43,7 +28,6 @@ class OnboardingRouter {
     }
 
     if (profile.needsTenantCreation) {
-      // Admin tenant creation is handled automatically on role screen
       return location == '/onboarding/role' ? null : '/onboarding/role';
     }
 

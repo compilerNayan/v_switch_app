@@ -7,7 +7,7 @@ void main() {
   group('OnboardingRouter', () {
     test('redirects unauthenticated users to /auth', () {
       expect(OnboardingRouter.redirectForProfile(null, '/'), '/auth');
-      expect(OnboardingRouter.redirectForProfile(null, '/usage'), '/auth');
+      expect(OnboardingRouter.redirectForProfile(null, '/devices/add'), '/auth');
     });
 
     test('allows /auth when not authenticated', () {
@@ -39,7 +39,7 @@ void main() {
       );
     });
 
-    test('redirects to device onboarding when tenant onboarding complete', () {
+    test('allows devices home when tenant onboarding complete', () {
       const profile = UserProfile(
         userId: 'u1',
         email: 'a@b.com',
@@ -48,50 +48,13 @@ void main() {
         tenantId: 'tenant-1',
         onboardingComplete: true,
       );
+      expect(OnboardingRouter.redirectForProfile(profile, '/'), isNull);
       expect(
-        OnboardingRouter.redirectForProfile(profile, '/'),
-        '/onboarding/devices',
-      );
-      expect(
-        OnboardingRouter.redirectForProfile(
-          profile,
-          '/onboarding/devices',
-        ),
-        isNull,
-      );
-    });
-
-    test('allows main app when all onboarding complete', () {
-      const profile = UserProfile(
-        userId: 'u1',
-        email: 'a@b.com',
-        displayName: 'User',
-        role: UserRole.admin,
-        tenantId: 'tenant-1',
-        onboardingComplete: true,
-      );
-      expect(
-        OnboardingRouter.redirectForProfile(
-          profile,
-          '/',
-          deviceOnboardingComplete: true,
-        ),
+        OnboardingRouter.redirectForProfile(profile, '/devices/add'),
         isNull,
       );
       expect(
-        OnboardingRouter.redirectForProfile(
-          profile,
-          '/auth',
-          deviceOnboardingComplete: true,
-        ),
-        '/',
-      );
-      expect(
-        OnboardingRouter.redirectForProfile(
-          profile,
-          '/onboarding/devices',
-          deviceOnboardingComplete: true,
-        ),
+        OnboardingRouter.redirectForProfile(profile, '/auth'),
         '/',
       );
     });

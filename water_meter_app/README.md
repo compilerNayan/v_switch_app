@@ -28,12 +28,13 @@ flutter run
 Flow:
 1. Tap **Continue with Google** (mock sign-in)
 2. Choose **Admin** (creates demo tenant) or **Read-only** (enter invite code `DEMO-1234`)
-3. On **Add a device**, tap **Water Meter** to run the setup wizard, or **Skip for now**
-4. View dashboard, usage, and insights for the enrolled device
+3. Land on **My Devices** (empty state if no devices yet)
+4. Tap **Add your first device** or **Add another device** → pick device type
+5. Tap a device card to view its stats (Dashboard / Usage / Insights tabs)
 
 ## Water meter device setup
 
-After tenant onboarding, tap **Water Meter** on the Add Devices screen:
+From **My Devices**, tap **Add a device** → **Water Meter**:
 
 | Step | Action |
 |------|--------|
@@ -41,7 +42,7 @@ After tenant onboarding, tap **Water Meter** on the Add Devices screen:
 | 2 Connect | Join device hotspot `IoT_<serial>`; app validates SSID on return |
 | 3 Home WiFi | Enter home WiFi credentials; POST to device at `192.168.4.1` |
 | 4 Enroll | Rejoin home WiFi; POST `/enrollment/enroll` to `{serial}.local` |
-| 5 Done | Dashboard shows usage for enrolled device serial |
+| 5 Done | Device appears in My Devices; tap to view stats |
 
 ### Platform requirements
 
@@ -93,8 +94,8 @@ flutter run \
 | 2 | Role selection | Admin or Read-only |
 | 3a | (Admin) | Tenant auto-created in DynamoDB |
 | 3b | (Read-only) | Enter invite code from admin |
-| 4 | Add devices | Pick device type or skip |
-| 5 | Main app | Dashboard / Usage / Insights |
+| 4 | My Devices | Device list home; add or open a device |
+| 5 | Device stats | Per-device Dashboard / Usage / Insights |
 
 ### Tenant API (JWT required)
 
@@ -122,10 +123,11 @@ flutter test
 
 ## App structure
 
-| Tab | Features |
-|-----|----------|
-| Dashboard | Live flow, today's total, delta vs previous period, hourly sparkline |
-| Usage | Date presets, granularity chips, bar / cumulative charts |
-| Insights | 7-day daily comparison, 24-hour usage pattern |
+| Screen | Features |
+|--------|----------|
+| My Devices | Owned device list, add another device |
+| Device Dashboard | Live flow, today's total, delta vs previous period, hourly sparkline |
+| Device Usage | Date presets, granularity chips, bar / cumulative charts |
+| Device Insights | 7-day daily comparison, 24-hour usage pattern |
 
 Settings: account info, tenant ID, invite code (admin), sign out.

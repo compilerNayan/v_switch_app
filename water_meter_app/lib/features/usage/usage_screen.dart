@@ -7,6 +7,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/providers/water_providers.dart';
 import '../../core/utils/granularity.dart';
 import '../../core/utils/units.dart';
+import '../../shared/widgets/device_scaffold_actions.dart';
 import '../../shared/widgets/usage_chart.dart';
 
 class UsageScreen extends ConsumerStatefulWidget {
@@ -55,7 +56,10 @@ class _UsageScreenState extends ConsumerState<UsageScreen> {
     final volumeUnit = ref.watch(volumeUnitProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Usage')),
+      appBar: AppBar(
+        leading: const DeviceBackButton(),
+        title: const DeviceScreenTitle(fallback: 'Usage'),
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

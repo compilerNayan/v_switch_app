@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/user_device.dart';
 import '../utils/units.dart';
 
 class PreferencesStorage {
@@ -7,7 +10,7 @@ class PreferencesStorage {
 
   static const _volumeUnitKey = 'volume_unit';
   static const _timezoneKey = 'timezone';
-  static const _deviceOnboardingKey = 'device_onboarding_complete';
+  static const _userDevicesKey = 'user_devices';
   static const _enrolledDeviceSerialKey = 'enrolled_device_serial';
 
   final SharedPreferences _prefs;
@@ -29,14 +32,48 @@ class PreferencesStorage {
   Future<void> setTimezone(String timezone) =>
       _prefs.setString(_timezoneKey, timezone);
 
-  bool get deviceOnboardingComplete =>
-      _prefs.getBool(_deviceOnboardingKey) ?? false;
+  List<UserDevice> getUserDevices() {
+    final raw = _prefs.getString(_userDevicesKey);
+    if (raw == null || raw.isEmpty) {
+      return _migrateLegacyDevice();
+    }
+    try {
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list
+          .map((e) => UserDevice.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return _migrateLegacyDevice();
+    }
+  }
 
-  Future<void> setDeviceOnboardingComplete(bool value) =>
-      _prefs.setBool(_deviceOnboardingKey, value);
+  List<UserDevice> _migrateLegacyDevice() {
+    final legacy = _prefs.getString(_enrolledDeviceSerialKey);
+    if (legacy == null || legacy.isEmpty) return [];
+    return [
+      UserDevice(
+        id: 'legacy-$legacy',
+        typeId: 'water_meter',
+        name: 'Water Meter $legacy',
+        deviceId: legacy,
+      ),
+    ];
+  }
 
-  String? get enrolledDeviceSerial => _prefs.getString(_enrolledDeviceSerialKey);
+  Future<void> saveUserDevices(List<UserDevice> devices) async {
+    final encoded = jsonEncode(devices.map((d) => d.toJson()).toList());
+    await _prefs.setString(_userDevicesKey, encoded);
+  }
 
-  Future<void> setEnrolledDeviceSerial(String serial) =>
-      _prefs.setString(_enrolledDeviceSerialKey, serial);
+  Future<UserDevice> addUserDevice(UserDevice device) async {
+    final devices = getUserDevices();
+    final exists = devices.any((d) => d.deviceId == device.deviceId);
+    if (exists) {
+      return devices.firstWhere((d) => d.deviceId == device.deviceId);
+    }
+    final updated = [...devices, device];
+    await saveUserDevices(updated);
+    await _prefs.remove(_enrolledDeviceSerialKey);
+    return device;
+  }
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/models/current_reading.dart';
@@ -9,6 +8,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/providers/water_providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/units.dart';
+import '../../shared/widgets/device_scaffold_actions.dart';
 import '../../shared/widgets/usage_chart.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -34,20 +34,15 @@ class DashboardScreen extends ConsumerWidget {
             SliverAppBar(
               expandedHeight: 120,
               pinned: true,
+              leading: const DeviceBackButton(),
               flexibleSpace: FlexibleSpaceBar(
-                title: const Text('Dashboard'),
+                title: const DeviceScreenTitle(fallback: 'Dashboard'),
                 background: Container(
                   decoration: BoxDecoration(
                     gradient: AppTheme.dashboardHeaderGradient(scheme),
                   ),
                 ),
               ),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.settings),
-                  onPressed: () => context.push('/settings'),
-                ),
-              ],
             ),
             SliverPadding(
               padding: const EdgeInsets.all(16),

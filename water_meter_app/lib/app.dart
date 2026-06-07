@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'core/config/app_config.dart';
 import 'core/providers/app_providers.dart';
+import 'core/providers/device_providers.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/onboarding_router.dart';
 import 'features/auth/join_tenant_screen.dart';
@@ -11,6 +12,7 @@ import 'features/auth/role_selection_screen.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/devices/add_device_screen.dart';
+import 'features/devices/devices_home_screen.dart';
 import 'features/devices/water_meter/water_meter_setup_screen.dart';
 import 'features/insights/insights_screen.dart';
 import 'features/settings/settings_screen.dart';
@@ -40,16 +42,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: authListenable,
     redirect: (context, state) {
       final profileAsync = ref.read(userProfileProvider);
-      final deviceOnboardingAsync = ref.read(deviceOnboardingCompleteProvider);
-      final deviceOnboardingComplete = deviceOnboardingAsync.maybeWhen(
-        data: (value) => value,
-        orElse: () => false,
-      );
-
-      if (profileAsync.isLoading || deviceOnboardingAsync.isLoading) {
-        // Avoid mounting protected tabs while the session is being restored.
-        const protected = {'/', '/usage', '/insights', '/settings'};
-        if (protected.contains(state.matchedLocation)) {
+      if (profileAsync.isLoading) {
+        const protected = {'/', '/settings'};
+        if (protected.contains(state.matchedLocation) ||
+            state.matchedLocation.startsWith('/devices/')) {
           return '/auth';
         }
         return null;
@@ -58,7 +54,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       return OnboardingRouter.redirectForProfile(
         profileAsync.valueOrNull,
         state.matchedLocation,
-        deviceOnboardingComplete: deviceOnboardingComplete,
       );
     },
     routes: [
@@ -75,7 +70,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const JoinTenantScreen(),
       ),
       GoRoute(
-        path: '/onboarding/devices',
+        path: '/devices/add',
         builder: (context, state) => const AddDeviceScreen(),
       ),
       GoRoute(
@@ -86,15 +81,25 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/settings',
         builder: (context, state) => const SettingsScreen(),
       ),
+      GoRoute(
+        path: '/',
+        builder: (context, state) => const DevicesHomeScreen(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
-          return _MainShell(navigationShell: navigationShell);
+          final deviceId = state.pathParameters['deviceId']!;
+          return ProviderScope(
+            overrides: [
+              selectedRouteDeviceIdProvider.overrideWithValue(deviceId),
+            ],
+            child: _DeviceShell(navigationShell: navigationShell),
+          );
         },
         branches: [
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/',
+                path: '/devices/:deviceId',
                 builder: (context, state) => const DashboardScreen(),
               ),
             ],
@@ -102,7 +107,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/usage',
+                path: '/devices/:deviceId/usage',
                 builder: (context, state) => const UsageScreen(),
               ),
             ],
@@ -110,7 +115,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/insights',
+                path: '/devices/:deviceId/insights',
                 builder: (context, state) => const InsightsScreen(),
               ),
             ],
@@ -121,8 +126,8 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-class _MainShell extends StatelessWidget {
-  const _MainShell({required this.navigationShell});
+class _DeviceShell extends StatelessWidget {
+  const _DeviceShell({required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 

@@ -40,11 +40,6 @@ final preferencesStorageProvider = FutureProvider<PreferencesStorage>(
   (ref) => PreferencesStorage.create(),
 );
 
-final deviceOnboardingCompleteProvider = FutureProvider<bool>((ref) async {
-  final prefs = await ref.watch(preferencesStorageProvider.future);
-  return prefs.deviceOnboardingComplete;
-});
-
 final volumeUnitProvider = StateProvider<VolumeUnit>((ref) {
   final prefsAsync = ref.watch(preferencesStorageProvider);
   return prefsAsync.maybeWhen(
@@ -75,28 +70,9 @@ final waterApiClientProvider = Provider<WaterApiClient>((ref) {
   );
 });
 
-final deviceIdProvider = Provider<String>((ref) {
-  final prefsAsync = ref.watch(preferencesStorageProvider);
-  final profileAsync = ref.watch(userProfileProvider);
-
-  final enrolledSerial = prefsAsync.maybeWhen(
-    data: (prefs) => prefs.enrolledDeviceSerial,
-    orElse: () => null,
-  );
-  if (enrolledSerial != null && enrolledSerial.isNotEmpty) {
-    return enrolledSerial;
-  }
-
-  return profileAsync.maybeWhen(
-    data: (p) => p?.tenantId ?? 'WM-DEMO',
-    orElse: () => 'WM-DEMO',
-  );
-});
-
 class AuthListenable extends ChangeNotifier {
   AuthListenable(this.ref) {
     ref.listen(userProfileProvider, (_, __) => notifyListeners());
-    ref.listen(deviceOnboardingCompleteProvider, (_, __) => notifyListeners());
   }
 
   final Ref ref;

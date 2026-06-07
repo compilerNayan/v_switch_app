@@ -37,7 +37,7 @@ class _JoinTenantScreenState extends ConsumerState<JoinTenantScreen> {
       final client = ref.read(tenantApiClientProvider);
       await client.joinTenant(_codeController.text.trim());
       ref.invalidate(userProfileProvider);
-      if (mounted) context.go('/onboarding/devices');
+      if (mounted) context.go('/');
     } on ApiException catch (e) {
       setState(() => _error = e.error.message);
     } catch (e) {
