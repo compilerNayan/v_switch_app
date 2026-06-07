@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/config/app_config.dart';
 import '../../../../core/provisioning/provisioning_state.dart';
 import '../../../../core/providers/provisioning_providers.dart';
 
@@ -33,19 +34,22 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
     super.dispose();
   }
 
-  void _continue() {
+  Future<void> _continue() async {
     if (!_formKey.currentState!.validate()) return;
-    ref
-        .read(provisioningNotifierProvider.notifier)
-        .setDeviceDisplayName(_nameController.text);
-    ref
-        .read(provisioningNotifierProvider.notifier)
-        .goToStep(WaterMeterSetupStep.enrollment);
+    final notifier = ref.read(provisioningNotifierProvider.notifier);
+    notifier.setDeviceDisplayName(_nameController.text);
+    if (AppConfig.useMockProvisioning) {
+      await notifier.mockEnrollAndRegister();
+    } else {
+      notifier.goToStep(WaterMeterSetupStep.enrollment);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final serial = ref.watch(provisioningNotifierProvider).deviceSerial ?? '—';
+    final state = ref.watch(provisioningNotifierProvider);
+    final serial = state.deviceSerial ?? '—';
+    final isMock = AppConfig.useMockProvisioning;
 
     return ListView(
       padding: const EdgeInsets.all(24),
@@ -85,10 +89,23 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
                 return null;
               },
             ),
+            if (state.errorMessage != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                state.errorMessage!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
             const SizedBox(height: 24),
             FilledButton(
-              onPressed: _continue,
-              child: const Text('Continue'),
+              onPressed: state.isLoading ? null : _continue,
+              child: state.isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(isMock ? 'Add device (mock)' : 'Continue'),
             ),
             ],
           ),

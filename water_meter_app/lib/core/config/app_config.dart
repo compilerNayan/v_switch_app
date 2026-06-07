@@ -12,6 +12,12 @@ class AppConfig {
     defaultValue: true,
   );
 
+  /// Skips hotspot/WiFi steps; assigns a random serial and mock-enrolls.
+  static const bool useMockProvisioning = bool.fromEnvironment(
+    'USE_MOCK_PROVISIONING',
+    defaultValue: true,
+  );
+
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: 'https://api.example.com/v1',

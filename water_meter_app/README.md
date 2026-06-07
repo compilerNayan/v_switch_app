@@ -17,9 +17,9 @@ flutter create . --project-name water_meter_app --org com.vswitch --platforms=an
 flutter pub get
 ```
 
-## Run (mock auth + mock API — default)
+## Run (mock auth + mock API + mock provisioning — default)
 
-No AWS or Google setup required:
+No AWS, Google, or physical device required:
 
 ```bash
 flutter run
@@ -36,12 +36,22 @@ Flow:
 
 From **My Devices**, tap **Add a device** → **Water Meter**:
 
+**Mock provisioning (default, `USE_MOCK_PROVISIONING=true`):** no hotspot or WiFi steps — a random serial is assigned and enrollment is simulated.
+
+| Step | Action |
+|------|--------|
+| 1 Prepare | Confirm device is ready |
+| 2 Name | Choose a label (e.g. `D205`); tap **Add device (mock)** |
+| 3 Done | Device appears on My Devices |
+
+**Real device provisioning** (`--dart-define=USE_MOCK_PROVISIONING=false`):
+
 | Step | Action |
 |------|--------|
 | 1 Prepare | Confirm green LED; reset instructions if needed |
 | 2 Connect | Join device hotspot `IoT_<serial>`; app validates SSID on return |
 | 3 Home WiFi | Enter home WiFi credentials; POST to device at `192.168.4.1` |
-| 4 Name | Choose a short label (e.g. `D205`, `Kitchen`) shown on the home tile |
+| 4 Name | Choose a short label shown on the home tile |
 | 5 Enroll | Rejoin home WiFi; POST `/enrollment/enroll` to `{serial}.local` |
 | 6 Done | Device appears in My Devices as a tile with inline controls |
 

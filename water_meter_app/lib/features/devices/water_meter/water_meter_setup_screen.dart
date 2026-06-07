@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/provisioning/provisioning_state.dart';
 import '../../../core/providers/provisioning_providers.dart';
 import 'steps/connect_hotspot_step.dart';
@@ -13,7 +14,7 @@ import 'steps/name_device_step.dart';
 class WaterMeterSetupScreen extends ConsumerWidget {
   const WaterMeterSetupScreen({super.key});
 
-  static const _stepLabels = [
+  static const _fullStepLabels = [
     'Prepare',
     'Connect',
     'WiFi',
@@ -22,7 +23,25 @@ class WaterMeterSetupScreen extends ConsumerWidget {
     'Done',
   ];
 
+  static const _mockStepLabels = ['Prepare', 'Name', 'Done'];
+
+  List<String> get _stepLabels =>
+      AppConfig.useMockProvisioning ? _mockStepLabels : _fullStepLabels;
+
   int _stepIndex(WaterMeterSetupStep step) {
+    if (AppConfig.useMockProvisioning) {
+      switch (step) {
+        case WaterMeterSetupStep.devicePrep:
+          return 0;
+        case WaterMeterSetupStep.nameDevice:
+          return 1;
+        case WaterMeterSetupStep.success:
+          return 2;
+        default:
+          return 1;
+      }
+    }
+
     switch (step) {
       case WaterMeterSetupStep.devicePrep:
         return 0;
@@ -92,12 +111,35 @@ class WaterMeterSetupScreen extends ConsumerWidget {
                 }),
               ),
             ),
+          if (AppConfig.useMockProvisioning &&
+              state.step != WaterMeterSetupStep.success)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: MaterialBanner(
+                content: const Text(
+                  'Mock provisioning: no hotspot or WiFi required.',
+                ),
+                leading: const Icon(Icons.science_outlined),
+                backgroundColor: Theme.of(context)
+                    .colorScheme
+                    .secondaryContainer
+                    .withValues(alpha: 0.5),
+                actions: const [SizedBox.shrink()],
+              ),
+            ),
           Expanded(
             child: switch (state.step) {
               WaterMeterSetupStep.devicePrep => DevicePrepStep(
-                  onContinue: () => ref
-                      .read(provisioningNotifierProvider.notifier)
-                      .goToStep(WaterMeterSetupStep.connectHotspot),
+                  onContinue: () {
+                    final notifier =
+                        ref.read(provisioningNotifierProvider.notifier);
+                    if (AppConfig.useMockProvisioning) {
+                      notifier.assignMockSerial();
+                      notifier.goToStep(WaterMeterSetupStep.nameDevice);
+                    } else {
+                      notifier.goToStep(WaterMeterSetupStep.connectHotspot);
+                    }
+                  },
                 ),
               WaterMeterSetupStep.connectHotspot =>
                 const ConnectHotspotStep(),

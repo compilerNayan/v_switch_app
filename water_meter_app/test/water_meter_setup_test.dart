@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:water_meter_app/core/provisioning/mock_enrollment_client.dart';
 import 'package:water_meter_app/core/provisioning/provisioning_state.dart';
 import 'package:water_meter_app/core/providers/provisioning_providers.dart';
 import 'package:water_meter_app/features/devices/water_meter/steps/device_prep_step.dart';
@@ -9,6 +11,11 @@ import 'package:water_meter_app/features/devices/water_meter/steps/name_device_s
 import 'package:water_meter_app/features/devices/water_meter/water_meter_setup_screen.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
   testWidgets('device prep step requires green light confirmation', (tester) async {
     var continued = false;
 
@@ -47,12 +54,16 @@ void main() {
   });
 
   testWidgets('name device step requires a label', (tester) async {
+    ProvisioningNotifier? notifier;
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          mockEnrollmentClientProvider
+              .overrideWithValue(const MockEnrollmentClient(delayMs: 0)),
           provisioningNotifierProvider.overrideWith((ref) {
-            return ProvisioningNotifier(ref)
+            notifier = ProvisioningNotifier(ref)
               ..setDeviceSerial('SERIAL1');
+            return notifier!;
           }),
         ],
         child: const MaterialApp(
@@ -63,16 +74,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Name your device'), findsOneWidget);
-    await tester.tap(find.text('Continue'));
+    await tester.tap(find.text('Add device (mock)'));
     await tester.pumpAndSettle();
 
     expect(find.text('Required'), findsOneWidget);
 
     await tester.enterText(find.byType(TextFormField), 'D205');
-    await tester.tap(find.text('Continue'));
-    await tester.pump();
+    await tester.tap(find.text('Add device (mock)'));
+    await tester.pumpAndSettle();
 
     expect(find.text('Required'), findsNothing);
+    expect(notifier!.state.step, WaterMeterSetupStep.success);
+    expect(notifier!.state.deviceDisplayName, 'D205');
   });
 
   test('provisioning state copyWith clears error when requested', () {
