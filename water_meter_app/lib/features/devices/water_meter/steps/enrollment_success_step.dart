@@ -9,7 +9,9 @@ class EnrollmentSuccessStep extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final serial = ref.watch(provisioningNotifierProvider).deviceSerial;
+    final state = ref.watch(provisioningNotifierProvider);
+    final serial = state.deviceSerial;
+    final displayName = state.deviceDisplayName;
     final notifier = ref.read(provisioningNotifierProvider.notifier);
 
     return Padding(
@@ -31,9 +33,11 @@ class EnrollmentSuccessStep extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            serial != null
-                ? 'Device $serial is ready. You can now view water usage.'
-                : 'Your device is ready. You can now view water usage.',
+            displayName != null
+                ? '$displayName is ready. You can now view water usage.'
+                : serial != null
+                    ? 'Device $serial is ready. You can now view water usage.'
+                    : 'Your device is ready. You can now view water usage.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),

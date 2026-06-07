@@ -33,6 +33,10 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
     state = state.copyWith(deviceSerial: serial, clearError: true);
   }
 
+  void setDeviceDisplayName(String name) {
+    state = state.copyWith(deviceDisplayName: name.trim(), clearError: true);
+  }
+
   void setError(String message) {
     state = state.copyWith(errorMessage: message, isLoading: false);
   }
@@ -75,7 +79,7 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
       switch (result) {
         case WifiConfigureSuccess():
           state = state.copyWith(
-            step: WaterMeterSetupStep.enrollment,
+            step: WaterMeterSetupStep.nameDevice,
             isLoading: false,
             clearError: true,
           );
@@ -119,7 +123,13 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
 
       switch (result) {
         case EnrollmentSuccess():
-          await registerWaterMeter(serial);
+          final displayName = state.deviceDisplayName?.trim();
+          await registerWaterMeter(
+            serial: serial,
+            displayName: displayName != null && displayName.isNotEmpty
+                ? displayName
+                : serial,
+          );
           state = state.copyWith(
             step: WaterMeterSetupStep.success,
             isLoading: false,
@@ -139,12 +149,15 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
     }
   }
 
-  Future<UserDevice> registerWaterMeter(String serial) async {
+  Future<UserDevice> registerWaterMeter({
+    required String serial,
+    required String displayName,
+  }) async {
     final prefs = await ref.read(preferencesStorageProvider.future);
     final device = UserDevice(
       id: 'wm-$serial',
       typeId: 'water_meter',
-      name: 'Water Meter $serial',
+      name: displayName.trim(),
       deviceId: serial,
     );
     final saved = await prefs.addUserDevice(device);

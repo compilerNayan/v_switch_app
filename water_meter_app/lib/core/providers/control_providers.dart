@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_exceptions.dart';
+import '../api/valve_actions.dart';
 import '../models/quota_config.dart';
 import '../models/user_profile.dart';
 import '../models/valve_state.dart';
@@ -61,10 +62,7 @@ class ValveControlNotifier extends AutoDisposeAsyncNotifier<ValveState> {
     try {
       final client = ref.read(waterApiClientProvider);
       final deviceId = ref.read(activeDeviceApiIdProvider);
-      final updated = await client.setValvePressure(
-        deviceId,
-        ValveUpdateRequest(pressurePercent: percent),
-      );
+      final updated = await setDeviceValvePressure(client, deviceId, percent);
       state = AsyncData(updated);
       ref.invalidate(quotaStateProvider);
     } catch (e, st) {
@@ -91,10 +89,7 @@ class ValveControlNotifier extends AutoDisposeAsyncNotifier<ValveState> {
     try {
       final client = ref.read(waterApiClientProvider);
       final deviceId = ref.read(activeDeviceApiIdProvider);
-      final updated = await client.setValvePressure(
-        deviceId,
-        const ValveUpdateRequest(action: 'restore'),
-      );
+      final updated = await restoreDeviceValvePressure(client, deviceId);
       state = AsyncData(updated);
       ref.invalidate(quotaStateProvider);
     } catch (e, st) {

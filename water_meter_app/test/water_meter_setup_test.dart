@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:water_meter_app/core/provisioning/provisioning_state.dart';
+import 'package:water_meter_app/core/providers/provisioning_providers.dart';
 import 'package:water_meter_app/features/devices/water_meter/steps/device_prep_step.dart';
+import 'package:water_meter_app/features/devices/water_meter/steps/name_device_step.dart';
 import 'package:water_meter_app/features/devices/water_meter/water_meter_setup_screen.dart';
 
 void main() {
@@ -42,6 +44,35 @@ void main() {
 
     expect(find.text('Prepare your water meter'), findsOneWidget);
     expect(find.text('Set up water meter'), findsOneWidget);
+  });
+
+  testWidgets('name device step requires a label', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          provisioningNotifierProvider.overrideWith((ref) {
+            return ProvisioningNotifier(ref)
+              ..setDeviceSerial('SERIAL1');
+          }),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: NameDeviceStep()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Name your device'), findsOneWidget);
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Required'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextFormField), 'D205');
+    await tester.tap(find.text('Continue'));
+    await tester.pump();
+
+    expect(find.text('Required'), findsNothing);
   });
 
   test('provisioning state copyWith clears error when requested', () {

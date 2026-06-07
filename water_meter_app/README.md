@@ -29,8 +29,8 @@ Flow:
 1. Tap **Continue with Google** (mock sign-in)
 2. Choose **Admin** (creates demo tenant) or **Read-only** (enter invite code `DEMO-1234`)
 3. Land on **My Devices** (empty state if no devices yet)
-4. Tap **Add your first device** or **Add another device** → pick device type
-5. Tap a device card to view its stats (Dashboard / Usage / Insights / Control tabs)
+4. Tap **Add your first device** or the **Add device** tile → pick device type
+5. Each device tile shows live flow, today's usage vs quota, and an on/off switch — tap the tile for full stats (Dashboard / Usage / Insights / Control tabs)
 
 ## Water meter device setup
 
@@ -41,8 +41,9 @@ From **My Devices**, tap **Add a device** → **Water Meter**:
 | 1 Prepare | Confirm green LED; reset instructions if needed |
 | 2 Connect | Join device hotspot `IoT_<serial>`; app validates SSID on return |
 | 3 Home WiFi | Enter home WiFi credentials; POST to device at `192.168.4.1` |
-| 4 Enroll | Rejoin home WiFi; POST `/enrollment/enroll` to `{serial}.local` |
-| 5 Done | Device appears in My Devices; tap to view stats |
+| 4 Name | Choose a short label (e.g. `D205`, `Kitchen`) shown on the home tile |
+| 5 Enroll | Rejoin home WiFi; POST `/enrollment/enroll` to `{serial}.local` |
+| 6 Done | Device appears in My Devices as a tile with inline controls |
 
 ### Platform requirements
 
@@ -142,7 +143,7 @@ flutter test
 
 | Screen | Features |
 |--------|----------|
-| My Devices | Owned device list, add another device |
+| My Devices | Device tiles with live flow, quota progress, inline on/off switch |
 | Device Dashboard | Live flow, today's total, delta vs previous period, hourly sparkline |
 | Device Usage | Date presets, granularity chips, bar / cumulative charts |
 | Device Insights | 7-day daily comparison, 24-hour usage pattern |

@@ -8,6 +8,7 @@ import 'steps/device_prep_step.dart';
 import 'steps/enrollment_step.dart';
 import 'steps/enrollment_success_step.dart';
 import 'steps/home_wifi_step.dart';
+import 'steps/name_device_step.dart';
 
 class WaterMeterSetupScreen extends ConsumerWidget {
   const WaterMeterSetupScreen({super.key});
@@ -15,7 +16,8 @@ class WaterMeterSetupScreen extends ConsumerWidget {
   static const _stepLabels = [
     'Prepare',
     'Connect',
-    'Home WiFi',
+    'WiFi',
+    'Name',
     'Enroll',
     'Done',
   ];
@@ -28,10 +30,12 @@ class WaterMeterSetupScreen extends ConsumerWidget {
         return 1;
       case WaterMeterSetupStep.homeWifi:
         return 2;
-      case WaterMeterSetupStep.enrollment:
+      case WaterMeterSetupStep.nameDevice:
         return 3;
-      case WaterMeterSetupStep.success:
+      case WaterMeterSetupStep.enrollment:
         return 4;
+      case WaterMeterSetupStep.success:
+        return 5;
     }
   }
 
@@ -98,6 +102,7 @@ class WaterMeterSetupScreen extends ConsumerWidget {
               WaterMeterSetupStep.connectHotspot =>
                 const ConnectHotspotStep(),
               WaterMeterSetupStep.homeWifi => const HomeWifiStep(),
+              WaterMeterSetupStep.nameDevice => const NameDeviceStep(),
               WaterMeterSetupStep.enrollment => const EnrollmentStep(),
               WaterMeterSetupStep.success =>
                 const EnrollmentSuccessStep(),

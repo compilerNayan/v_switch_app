@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/user_device.dart';
 import '../../core/providers/device_providers.dart';
+import 'device_tile.dart';
 
 class DevicesHomeScreen extends ConsumerWidget {
   const DevicesHomeScreen({super.key});
@@ -29,10 +30,8 @@ class DevicesHomeScreen extends ConsumerWidget {
               onAdd: () => context.push('/devices/add'),
             );
           }
-          return _DevicesList(
+          return _DevicesGrid(
             devices: devices,
-            onDeviceTap: (device) =>
-                context.go('/devices/${device.id}/dashboard'),
             onAddDevice: () => context.push('/devices/add'),
           );
         },
@@ -85,91 +84,35 @@ class _EmptyDevicesState extends StatelessWidget {
   }
 }
 
-class _DevicesList extends StatelessWidget {
-  const _DevicesList({
+class _DevicesGrid extends StatelessWidget {
+  const _DevicesGrid({
     required this.devices,
-    required this.onDeviceTap,
     required this.onAddDevice,
   });
 
   final List<UserDevice> devices;
-  final void Function(UserDevice device) onDeviceTap;
   final VoidCallback onAddDevice;
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text(
-          '${devices.length} device${devices.length == 1 ? '' : 's'}',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 12),
-        ...devices.map(
-          (device) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _DeviceListCard(
-              device: device,
-              onTap: () => onDeviceTap(device),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: onAddDevice,
-          icon: const Icon(Icons.add),
-          label: const Text('Add another device'),
-        ),
-      ],
-    );
-  }
-}
+    final width = MediaQuery.sizeOf(context).width;
+    final crossAxisCount = width >= 600 ? 2 : 1;
 
-class _DeviceListCard extends StatelessWidget {
-  const _DeviceListCard({
-    required this.device,
-    required this.onTap,
-  });
-
-  final UserDevice device;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final type = iconForDeviceType(device.typeId);
-    final icon = type?.icon ?? Icons.device_hub;
-
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(icon, size: 40, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(device.name, style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 4),
-                    Text(
-                      device.deviceId,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right),
-            ],
-          ),
+    return GridView.builder(
+        padding: const EdgeInsets.all(16),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: crossAxisCount,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: crossAxisCount == 1 ? 2.2 : 1.35,
         ),
-      ),
+        itemCount: devices.length + 1,
+        itemBuilder: (context, index) {
+          if (index == devices.length) {
+            return AddDeviceTile(onTap: onAddDevice);
+          }
+          return DeviceTile(device: devices[index]);
+        },
     );
   }
 }
