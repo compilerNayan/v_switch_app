@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/dio_water_api_client.dart';
@@ -11,6 +12,7 @@ import '../auth/mock_auth_service.dart';
 import '../config/app_config.dart';
 import '../models/user_profile.dart';
 import '../storage/preferences_storage.dart';
+import '../theme/app_theme.dart';
 import '../utils/units.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) {
@@ -54,6 +56,19 @@ final timezoneProvider = StateProvider<String>((ref) {
     data: (prefs) => prefs.timezone,
     orElse: () => DateTime.now().timeZoneName,
   );
+});
+
+final appThemeIdProvider = StateProvider<AppThemeId>((ref) {
+  final prefsAsync = ref.watch(preferencesStorageProvider);
+  return prefsAsync.maybeWhen(
+    data: (prefs) => prefs.appThemeId,
+    orElse: () => AppThemeId.ocean,
+  );
+});
+
+final appThemeProvider = Provider<ThemeData>((ref) {
+  final themeId = ref.watch(appThemeIdProvider);
+  return AppTheme.themeFor(themeId);
 });
 
 final waterApiClientProvider = Provider<WaterApiClient>((ref) {

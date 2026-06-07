@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'core/config/app_config.dart';
 import 'core/providers/app_providers.dart';
 import 'core/providers/device_providers.dart';
-import 'core/theme/app_theme.dart';
 import 'core/utils/onboarding_router.dart';
 import 'features/auth/join_tenant_screen.dart';
 import 'features/auth/role_selection_screen.dart';
@@ -28,7 +27,7 @@ class WaterMeterApp extends ConsumerWidget {
 
     return MaterialApp.router(
       title: AppConfig.appName,
-      theme: AppTheme.light(),
+      theme: ref.watch(appThemeProvider),
       routerConfig: router,
       debugShowCheckedModeBanner: false,
     );

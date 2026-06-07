@@ -21,36 +21,29 @@ class _UsageScreenState extends ConsumerState<UsageScreen> {
   DateRangePreset _preset = DateRangePreset.today;
   Granularity? _selectedGranularity;
   ChartDisplayMode _chartMode = ChartDisplayMode.bar;
+  bool _queryInitialized = false;
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final range = _preset.range(now);
-    final allowed = GranularityRules.allowedForRange(range.from, range.to);
-    final granularity = GranularityRules.resolve(
-      range.from,
-      range.to,
-      _selectedGranularity,
-    );
-
-    if (_selectedGranularity != null &&
-        !GranularityRules.isAllowed(_selectedGranularity!, range.from, range.to)) {
+    if (!_queryInitialized) {
+      _queryInitialized = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Granularity adjusted to ${granularity.label} for this range',
-            ),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        setState(() => _selectedGranularity = granularity);
-        _updateQuery(range.from, range.to, granularity);
+        _updateQueryForPreset(DateTime.now());
       });
-    } else {
-      _ensureQuery(range.from, range.to, granularity);
     }
+
+    final query = ref.watch(usageQueryProvider);
+    final range = query != null
+        ? (from: query.from, to: query.to)
+        : _preset.range(DateTime.now());
+    final allowed = GranularityRules.allowedForRange(range.from, range.to);
+    final granularity = query?.granularity ??
+        GranularityRules.resolve(
+          range.from,
+          range.to,
+          _selectedGranularity,
+        );
 
     final usageAsync = ref.watch(usageResponseProvider);
     final volumeUnit = ref.watch(volumeUnitProvider);
@@ -78,9 +71,7 @@ class _UsageScreenState extends ConsumerState<UsageScreen> {
                         _preset = preset;
                         _selectedGranularity = null;
                       });
-                      final r = preset.range(now);
-                      final g = GranularityRules.defaultForRange(r.from, r.to);
-                      _updateQuery(r.from, r.to, g);
+                      _updateQueryForPreset(DateTime.now());
                     },
                   ),
                 );
@@ -99,7 +90,7 @@ class _UsageScreenState extends ConsumerState<UsageScreen> {
                     selected: granularity == g,
                     onSelected: (_) {
                       setState(() => _selectedGranularity = g);
-                      _updateQuery(range.from, range.to, g);
+                      _updateQueryForPreset(DateTime.now(), granularity: g);
                     },
                   ),
                 );
@@ -143,21 +134,21 @@ class _UsageScreenState extends ConsumerState<UsageScreen> {
     );
   }
 
-  void _ensureQuery(DateTime from, DateTime to, Granularity granularity) {
-    final current = ref.read(usageQueryProvider);
-    if (current == null ||
-        current.from != from ||
-        current.to != to ||
-        current.granularity != granularity) {
-      _updateQuery(from, to, granularity);
-    }
-  }
-
-  void _updateQuery(DateTime from, DateTime to, Granularity granularity) {
+  void _updateQueryForPreset(
+    DateTime now, {
+    Granularity? granularity,
+  }) {
+    final range = _preset.range(now);
+    final resolved = granularity ??
+        GranularityRules.resolve(
+          range.from,
+          range.to,
+          _selectedGranularity,
+        );
     ref.read(usageQueryProvider.notifier).state = UsageQuery(
-      from: from,
-      to: to,
-      granularity: granularity,
+      from: range.from,
+      to: range.to,
+      granularity: resolved,
     );
     ref.invalidate(usageResponseProvider);
   }

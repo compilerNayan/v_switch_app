@@ -149,6 +149,14 @@ flutter build web --release
 flutter test
 ```
 
+## Settings
+
+Open **Settings** from the home screen gear icon. Preferences include:
+
+- **Theme** — choose from 5 professional palettes (Ocean, Slate, Forest, Indigo, Midnight). Selection applies instantly and persists across launches.
+- **Volume unit** — liters or US gallons
+- **Timezone** — used for usage date ranges
+
 ## App structure
 
 | Screen | Features |
@@ -159,4 +167,4 @@ flutter test
 | Device Insights | 7-day daily comparison, 24-hour usage pattern |
 | Device Control | Tap on/off, pressure slider (0–100%), live pressure, daily quota progress and admin step editor |
 
-Settings: account info, tenant ID, invite code (admin), sign out.
+Settings: theme picker, account info, tenant ID, invite code (admin), sign out.

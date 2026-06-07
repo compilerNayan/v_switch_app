@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/user_device.dart';
+import '../theme/app_theme.dart';
 import '../utils/units.dart';
 
 class PreferencesStorage {
@@ -10,6 +11,7 @@ class PreferencesStorage {
 
   static const _volumeUnitKey = 'volume_unit';
   static const _timezoneKey = 'timezone';
+  static const _appThemeKey = 'app_theme';
   static const _userDevicesKey = 'user_devices';
   static const _enrolledDeviceSerialKey = 'enrolled_device_serial';
 
@@ -31,6 +33,12 @@ class PreferencesStorage {
 
   Future<void> setTimezone(String timezone) =>
       _prefs.setString(_timezoneKey, timezone);
+
+  AppThemeId get appThemeId =>
+      AppThemeId.fromStorage(_prefs.getString(_appThemeKey));
+
+  Future<void> setAppThemeId(AppThemeId id) =>
+      _prefs.setString(_appThemeKey, id.toStorage());
 
   List<UserDevice> getUserDevices() {
     final raw = _prefs.getString(_userDevicesKey);

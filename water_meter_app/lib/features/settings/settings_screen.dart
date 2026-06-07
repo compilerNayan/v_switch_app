@@ -7,6 +7,7 @@ import '../../core/config/app_config.dart';
 import '../../core/models/user_profile.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/utils/units.dart';
+import 'theme_picker.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -15,6 +16,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final volumeUnit = ref.watch(volumeUnitProvider);
     final timezone = ref.watch(timezoneProvider);
+    final themeId = ref.watch(appThemeIdProvider);
     final profileAsync = ref.watch(userProfileProvider);
     final prefsAsync = ref.watch(preferencesStorageProvider);
 
@@ -95,6 +97,25 @@ class SettingsScreen extends ConsumerWidget {
                         : 'API: ${AppConfig.apiBaseUrl}',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Appearance', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 4),
+                  Text(
+                    themeId.description,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 16),
+                  const ThemePicker(),
                 ],
               ),
             ),
