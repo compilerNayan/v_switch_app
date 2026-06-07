@@ -1,9 +1,25 @@
 import '../models/current_reading.dart';
 import '../models/daily_summary.dart';
+import '../models/quota_config.dart';
 import '../models/usage_response.dart';
+import '../models/valve_state.dart';
 
 abstract class WaterApiClient {
   Future<CurrentReading> getCurrentReading(String deviceId);
+
+  Future<ValveState> getValveState(String deviceId);
+
+  Future<ValveState> setValvePressure(
+    String deviceId,
+    ValveUpdateRequest request,
+  );
+
+  Future<QuotaResponse> getQuota(String deviceId);
+
+  Future<QuotaResponse> updateQuota(
+    String deviceId,
+    QuotaUpdateRequest request,
+  );
 
   Future<UsageResponse> getUsage({
     required String deviceId,

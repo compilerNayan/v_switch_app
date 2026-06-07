@@ -4,7 +4,9 @@ import 'package:intl/intl.dart';
 
 import '../../core/models/current_reading.dart';
 import '../../core/models/usage_response.dart';
+import '../../core/models/quota_config.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/providers/control_providers.dart';
 import '../../core/providers/water_providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/units.dart';
@@ -18,6 +20,7 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentAsync = ref.watch(currentReadingProvider);
     final hourlyAsync = ref.watch(todayHourlyUsageProvider);
+    final quotaAsync = ref.watch(quotaStateProvider);
     final volumeUnit = ref.watch(volumeUnitProvider);
     final scheme = Theme.of(context).colorScheme;
 
@@ -27,6 +30,7 @@ class DashboardScreen extends ConsumerWidget {
           ref.invalidate(currentReadingProvider);
           ref.invalidate(todayHourlyUsageProvider);
           ref.invalidate(usageResponseProvider);
+          ref.invalidate(quotaStateProvider);
         },
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -58,6 +62,7 @@ class DashboardScreen extends ConsumerWidget {
                     data: (usage) => _TodaySummaryCard(
                       usage: usage,
                       unit: volumeUnit,
+                      quota: quotaAsync.valueOrNull,
                     ),
                     loading: () => const _LoadingCard(height: 160),
                     error: (e, _) => _ErrorCard(message: e.toString()),
@@ -152,10 +157,15 @@ class _LiveFlowCard extends StatelessWidget {
 }
 
 class _TodaySummaryCard extends StatelessWidget {
-  const _TodaySummaryCard({required this.usage, required this.unit});
+  const _TodaySummaryCard({
+    required this.usage,
+    required this.unit,
+    this.quota,
+  });
 
   final UsageResponse usage;
   final VolumeUnit unit;
+  final QuotaResponse? quota;
 
   @override
   Widget build(BuildContext context) {
@@ -196,6 +206,27 @@ class _TodaySummaryCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (quota != null && quota!.enabled) ...[
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: quota!.dailyLimitLiters == 0
+                      ? 0
+                      : (quota!.status.usedLiters / quota!.dailyLimitLiters)
+                          .clamp(0.0, 1.0)
+                          .toDouble(),
+                  minHeight: 6,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Daily quota: ${VolumeFormatter.format(quota!.status.usedLiters, unit, decimals: 0)} / '
+                '${VolumeFormatter.format(quota!.dailyLimitLiters, unit, decimals: 0)} · '
+                'See Control tab',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
             const SizedBox(height: 12),
             SparklineChart(
               dataPoints: usage.dataPoints,

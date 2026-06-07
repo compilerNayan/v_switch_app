@@ -3,7 +3,9 @@ import 'package:dio/dio.dart';
 import '../config/app_config.dart';
 import '../models/current_reading.dart';
 import '../models/daily_summary.dart';
+import '../models/quota_config.dart';
 import '../models/usage_response.dart';
+import '../models/valve_state.dart';
 import 'api_exceptions.dart';
 import 'water_api_client.dart';
 
@@ -93,6 +95,46 @@ class DioWaterApiClient implements WaterApiClient {
   }
 
   @override
+  Future<ValveState> getValveState(String deviceId) async {
+    final data = await _get<Map<String, dynamic>>(
+      '/devices/$deviceId/water/valve',
+    );
+    return ValveState.fromJson(data);
+  }
+
+  @override
+  Future<ValveState> setValvePressure(
+    String deviceId,
+    ValveUpdateRequest request,
+  ) async {
+    final data = await _put<Map<String, dynamic>>(
+      '/devices/$deviceId/water/valve',
+      body: request.toJson(),
+    );
+    return ValveState.fromJson(data);
+  }
+
+  @override
+  Future<QuotaResponse> getQuota(String deviceId) async {
+    final data = await _get<Map<String, dynamic>>(
+      '/devices/$deviceId/water/quota',
+    );
+    return QuotaResponse.fromJson(data);
+  }
+
+  @override
+  Future<QuotaResponse> updateQuota(
+    String deviceId,
+    QuotaUpdateRequest request,
+  ) async {
+    final data = await _put<Map<String, dynamic>>(
+      '/devices/$deviceId/water/quota',
+      body: request.toJson(),
+    );
+    return QuotaResponse.fromJson(data);
+  }
+
+  @override
   Future<HourlyPatternResponse> getHourlyPattern({
     required String deviceId,
     required DateTime from,
@@ -114,11 +156,23 @@ class DioWaterApiClient implements WaterApiClient {
     String path, {
     Map<String, dynamic>? queryParameters,
   }) async {
+    return _request<T>(
+      () => _dio.get<T>(path, queryParameters: queryParameters),
+    );
+  }
+
+  Future<T> _put<T>(
+    String path, {
+    required Map<String, dynamic> body,
+  }) async {
+    return _request<T>(
+      () => _dio.put<T>(path, data: body),
+    );
+  }
+
+  Future<T> _request<T>(Future<Response<T>> Function() call) async {
     try {
-      final response = await _dio.get<T>(
-        path,
-        queryParameters: queryParameters,
-      );
+      final response = await call();
       return response.data as T;
     } on DioException catch (e) {
       if (e.type == DioExceptionType.connectionError ||

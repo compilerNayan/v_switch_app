@@ -10,6 +10,7 @@ import 'core/utils/onboarding_router.dart';
 import 'features/auth/join_tenant_screen.dart';
 import 'features/auth/role_selection_screen.dart';
 import 'features/auth/sign_in_screen.dart';
+import 'features/control/control_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/devices/add_device_screen.dart';
 import 'features/devices/devices_home_screen.dart';
@@ -128,6 +129,14 @@ final routerProvider = Provider<GoRouter>((ref) {
                   ),
                 ],
               ),
+              StatefulShellBranch(
+                routes: [
+                  GoRoute(
+                    path: 'control',
+                    builder: (context, state) => const ControlScreen(),
+                  ),
+                ],
+              ),
             ],
           ),
         ],
@@ -192,6 +201,11 @@ class _DeviceShellState extends ConsumerState<_DeviceShell> {
             icon: Icon(Icons.insights_outlined),
             selectedIcon: Icon(Icons.insights),
             label: 'Insights',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.tune_outlined),
+            selectedIcon: Icon(Icons.tune),
+            label: 'Control',
           ),
         ],
       ),

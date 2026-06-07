@@ -58,7 +58,13 @@ final timezoneProvider = StateProvider<String>((ref) {
 
 final waterApiClientProvider = Provider<WaterApiClient>((ref) {
   if (AppConfig.useMockApi) {
-    return MockWaterApiClient();
+    final auth = ref.watch(authServiceProvider);
+    return MockWaterApiClient(
+      canManageQuota: () async {
+        final profile = await auth.getCurrentUser();
+        return profile?.role == UserRole.admin;
+      },
+    );
   }
   final auth = ref.watch(authServiceProvider);
   return DioWaterApiClient(

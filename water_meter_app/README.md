@@ -30,7 +30,7 @@ Flow:
 2. Choose **Admin** (creates demo tenant) or **Read-only** (enter invite code `DEMO-1234`)
 3. Land on **My Devices** (empty state if no devices yet)
 4. Tap **Add your first device** or **Add another device** → pick device type
-5. Tap a device card to view its stats (Dashboard / Usage / Insights tabs)
+5. Tap a device card to view its stats (Dashboard / Usage / Insights / Control tabs)
 
 ## Water meter device setup
 
@@ -95,7 +95,7 @@ flutter run \
 | 3a | (Admin) | Tenant auto-created in DynamoDB |
 | 3b | (Read-only) | Enter invite code from admin |
 | 4 | My Devices | Device list home; add or open a device |
-| 5 | Device stats | Per-device Dashboard / Usage / Insights |
+| 5 | Device stats | Per-device Dashboard / Usage / Insights / Control |
 
 ### Tenant API (JWT required)
 
@@ -107,6 +107,23 @@ flutter run \
 | POST | `/tenants/join` | Join by invite code (read-only) |
 
 Water usage API uses `Authorization: Bearer <Cognito ID token>`.
+
+### Water device API (JWT required)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/devices/{id}/water/current` | Live flow reading |
+| GET | `/devices/{id}/water/usage` | Time-series usage |
+| GET | `/devices/{id}/water/daily` | Daily totals |
+| GET | `/devices/{id}/water/hourly-pattern` | 24h pattern |
+| GET | `/devices/{id}/water/valve` | Tap pressure state (target, actual, quota cap) |
+| PUT | `/devices/{id}/water/valve` | Set pressure 0–100% or `{ "action": "restore" }` |
+| GET | `/devices/{id}/water/quota` | Daily quota config + today's status |
+| PUT | `/devices/{id}/water/quota` | Update quota rules (admin only) |
+
+**Valve PUT:** `0` turns off (stores last pressure); `1–100` sets pressure; `restore` returns to last non-zero setpoint.
+
+**Quota steps:** Each `reduce_pressure` step subtracts its `value` from 100% (cumulative). `turn_off` sets cap to 0%. Device/cloud enforces rules; app configures and displays status.
 
 ## Build
 
@@ -129,5 +146,6 @@ flutter test
 | Device Dashboard | Live flow, today's total, delta vs previous period, hourly sparkline |
 | Device Usage | Date presets, granularity chips, bar / cumulative charts |
 | Device Insights | 7-day daily comparison, 24-hour usage pattern |
+| Device Control | Tap on/off, pressure slider (0–100%), live pressure, daily quota progress and admin step editor |
 
 Settings: account info, tenant ID, invite code (admin), sign out.
