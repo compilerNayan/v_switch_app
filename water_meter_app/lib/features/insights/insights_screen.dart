@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/providers/app_providers.dart';
+import '../../core/providers/insights_providers.dart';
+import '../../core/providers/unit_providers.dart';
 import '../../core/providers/water_providers.dart';
 import '../../core/utils/units.dart';
 import '../../shared/widgets/device_scaffold_actions.dart';
@@ -16,6 +18,9 @@ class InsightsScreen extends ConsumerWidget {
     final dailyAsync = ref.watch(dailySummaryProvider);
     final hourlyAsync = ref.watch(hourlyPatternProvider);
     final volumeUnit = ref.watch(volumeUnitProvider);
+    final deviceId = ref.watch(activeDeviceApiIdProvider);
+    final insightCards = ref.watch(unitInsightCardsProvider(deviceId));
+    final vsAvg = ref.watch(unitVsAverageProvider(deviceId));
 
     return Scaffold(
       appBar: AppBar(
@@ -31,6 +36,53 @@ class InsightsScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
+            vsAvg.when(
+              data: (data) => Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('vs building average',
+                          style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Today: ${VolumeFormatter.format(data.unit, volumeUnit)} '
+                        '(avg ${VolumeFormatter.format(data.average, volumeUnit)})',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
+            const SizedBox(height: 12),
+            insightCards.when(
+              data: (cards) => Column(
+                children: cards
+                    .map(
+                      (c) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Card(
+                          child: ListTile(
+                            leading: Icon(
+                              c.severity == 'warning'
+                                  ? Icons.warning_amber
+                                  : Icons.info_outline,
+                            ),
+                            title: Text(c.title),
+                            subtitle: Text(c.description),
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
+            const SizedBox(height: 12),
             dailyAsync.when(
               data: (daily) {
                 final values = daily.days

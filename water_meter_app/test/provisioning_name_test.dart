@@ -25,7 +25,7 @@ void main() {
     expect(device.id, 'wm-ABC123');
 
     final prefs = await container.read(preferencesStorageProvider.future);
-    final devices = await prefs.getUserDevices();
+    final devices = prefs.getWaterUnits();
     expect(devices.single.name, 'D205');
   });
 }

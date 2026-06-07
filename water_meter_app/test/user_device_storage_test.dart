@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:water_meter_app/core/models/user_device.dart';
+import 'package:water_meter_app/core/models/water_unit.dart';
 import 'package:water_meter_app/core/storage/preferences_storage.dart';
 
 void main() {
@@ -11,32 +11,40 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  test('addUserDevice persists and dedupes by deviceId', () async {
+  test('addWaterUnit persists and dedupes by deviceId', () async {
     final storage = await PreferencesStorage.create();
-    const device = UserDevice(
-      id: 'wm-001',
-      typeId: 'water_meter',
-      name: 'Water Meter 001',
-      deviceId: '001',
+    const unit = WaterUnit(
+      id: 'wm-ABC',
+      name: 'D205',
+      deviceId: 'ABC123',
     );
 
-    await storage.addUserDevice(device);
-    await storage.addUserDevice(device);
+    await storage.addWaterUnit(unit);
+    await storage.addWaterUnit(unit);
 
-    final devices = storage.getUserDevices();
-    expect(devices, hasLength(1));
-    expect(devices.first.deviceId, '001');
+    final units = storage.getWaterUnits();
+    expect(units, hasLength(1));
+    expect(units.first.name, 'D205');
+    expect(units.first.unitInviteCode, isNotNull);
   });
 
-  test('migrates legacy enrolled serial to user device list', () async {
+  test('migrates legacy enrolled serial', () async {
     SharedPreferences.setMockInitialValues({
-      'enrolled_device_serial': 'LEGACY01',
+      'enrolled_device_serial': 'OLD99',
     });
     final storage = await PreferencesStorage.create();
+    final units = storage.getWaterUnits();
+    expect(units, hasLength(1));
+    expect(units.first.deviceId, 'OLD99');
+  });
 
-    final devices = storage.getUserDevices();
-    expect(devices, hasLength(1));
-    expect(devices.first.deviceId, 'LEGACY01');
-    expect(devices.first.typeId, 'water_meter');
+  test('migrates legacy user_devices JSON with typeId', () async {
+    SharedPreferences.setMockInitialValues({
+      'user_devices':
+          '[{"id":"wm-X","typeId":"water_meter","name":"Kitchen","deviceId":"X"}]',
+    });
+    final storage = await PreferencesStorage.create();
+    final units = storage.getWaterUnits();
+    expect(units.single.name, 'Kitchen');
   });
 }

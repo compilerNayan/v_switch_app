@@ -5,7 +5,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/models/user_profile.dart';
+import '../../core/models/alert_event.dart';
+import '../../core/models/tariff_config.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/providers/building_providers.dart';
+import '../../core/providers/control_providers.dart';
 import '../../core/utils/units.dart';
 import 'theme_picker.dart';
 
@@ -17,6 +21,8 @@ class SettingsScreen extends ConsumerWidget {
     final volumeUnit = ref.watch(volumeUnitProvider);
     final timezone = ref.watch(timezoneProvider);
     final themeId = ref.watch(appThemeIdProvider);
+    final tariff = ref.watch(tariffConfigProvider);
+    final isAdmin = ref.watch(isDeviceAdminProvider);
     final profileAsync = ref.watch(userProfileProvider);
     final prefsAsync = ref.watch(preferencesStorageProvider);
 
@@ -163,6 +169,45 @@ class SettingsScreen extends ConsumerWidget {
               ],
             ),
           ),
+          if (isAdmin) ...[
+            const SizedBox(height: 12),
+            Card(
+              child: Column(
+                children: [
+                  ListTile(
+                    title: const Text('Billing tariff'),
+                    subtitle: Text(
+                      '${tariff.currencySymbol}${tariff.costPerLiter.toStringAsFixed(3)} per liter',
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.edit),
+                      onPressed: prefsAsync.hasValue
+                          ? () => _editTariff(context, ref, tariff, prefsAsync.value!)
+                          : null,
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    title: const Text('Alert preferences'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _editAlertPrefs(context, ref, prefsAsync),
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    title: const Text('Audit log'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push('/audit'),
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    title: const Text('Policies'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push('/policies'),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: () async {
@@ -177,6 +222,98 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+Future<void> _editTariff(
+  BuildContext context,
+  WidgetRef ref,
+  TariffConfig current,
+  dynamic prefs,
+) async {
+  final costController =
+      TextEditingController(text: current.costPerLiter.toString());
+  final symbolController =
+      TextEditingController(text: current.currencySymbol);
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Billing tariff'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: symbolController,
+            decoration: const InputDecoration(labelText: 'Currency symbol'),
+          ),
+          TextField(
+            controller: costController,
+            decoration: const InputDecoration(labelText: 'Cost per liter'),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save')),
+      ],
+    ),
+  );
+  if (ok == true) {
+    final updated = current.copyWith(
+      currencySymbol: symbolController.text.trim(),
+      costPerLiter: double.tryParse(costController.text) ?? current.costPerLiter,
+    );
+    await prefs.setTariffConfig(updated);
+    ref.read(tariffConfigProvider.notifier).state = updated;
+  }
+}
+
+Future<void> _editAlertPrefs(
+  BuildContext context,
+  WidgetRef ref,
+  AsyncValue prefsAsync,
+) async {
+  if (!prefsAsync.hasValue) return;
+  var prefs = prefsAsync.value!.alertPreferences;
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) => AlertDialog(
+        title: const Text('Alert preferences'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: AlertType.values.map((type) {
+              return CheckboxListTile(
+                title: Text(type.label),
+                value: prefs.enabledTypes.contains(type),
+                onChanged: (v) {
+                  setState(() {
+                    final types = Set<AlertType>.from(prefs.enabledTypes);
+                    if (v == true) {
+                      types.add(type);
+                    } else {
+                      types.remove(type);
+                    }
+                    prefs = prefs.copyWith(enabledTypes: types);
+                  });
+                },
+              );
+            }).toList(),
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () async {
+              await prefsAsync.value!.setAlertPreferences(prefs);
+              Navigator.pop(ctx);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _InfoRow extends StatelessWidget {

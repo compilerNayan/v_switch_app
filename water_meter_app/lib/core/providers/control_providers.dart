@@ -6,7 +6,8 @@ import '../models/quota_config.dart';
 import '../models/user_profile.dart';
 import '../models/valve_state.dart';
 import 'app_providers.dart';
-import 'device_providers.dart';
+import '../services/audit_logger.dart';
+import 'unit_providers.dart';
 
 final isDeviceAdminProvider = Provider<bool>((ref) {
   final profile = ref.watch(userProfileProvider);

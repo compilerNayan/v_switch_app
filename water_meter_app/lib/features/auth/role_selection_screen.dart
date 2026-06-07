@@ -78,10 +78,18 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
             const SizedBox(height: 12),
             _RoleCard(
               icon: Icons.visibility,
-              title: 'Read-only',
+              title: 'Resident',
               description:
-                  'View water usage for an existing organization using an invite code.',
+                  'View your unit water usage using a building or unit invite code.',
               onTap: _isLoading ? null : () => _selectRole(UserRole.readonly),
+            ),
+            const SizedBox(height: 12),
+            _RoleCard(
+              icon: Icons.build,
+              title: 'Maintenance',
+              description:
+                  'View all units and control assigned meters for repairs.',
+              onTap: _isLoading ? null : () => _selectRole(UserRole.maintenance),
             ),
             if (_isLoading) ...[
               const SizedBox(height: 24),

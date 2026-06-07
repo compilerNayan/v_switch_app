@@ -55,6 +55,9 @@ class TenantApiClient {
       var user = await mock.setRole(role);
       if (role == UserRole.admin) {
         user = await mock.createTenant();
+      } else if (role == UserRole.maintenance) {
+        user = (await mock.joinTenant(MockAuthService.mockInviteCode))
+            .copyWith(role: UserRole.maintenance);
       }
       return user;
     }

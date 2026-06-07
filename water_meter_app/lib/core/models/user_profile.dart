@@ -1,6 +1,7 @@
 enum UserRole {
   admin,
-  readonly;
+  readonly,
+  maintenance;
 
   static UserRole? fromString(String? value) {
     switch (value) {
@@ -8,6 +9,8 @@ enum UserRole {
         return UserRole.admin;
       case 'readonly':
         return UserRole.readonly;
+      case 'maintenance':
+        return UserRole.maintenance;
       default:
         return null;
     }
@@ -19,6 +22,8 @@ enum UserRole {
         return 'admin';
       case UserRole.readonly:
         return 'readonly';
+      case UserRole.maintenance:
+        return 'maintenance';
     }
   }
 
@@ -27,7 +32,9 @@ enum UserRole {
       case UserRole.admin:
         return 'Admin';
       case UserRole.readonly:
-        return 'Read-only';
+        return 'Resident';
+      case UserRole.maintenance:
+        return 'Maintenance';
     }
   }
 }
@@ -42,6 +49,8 @@ class UserProfile {
     this.inviteCode,
     this.onboardingComplete = false,
     this.idToken,
+    this.assignedUnitIds = const [],
+    this.maintainableUnitIds = const [],
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -53,6 +62,14 @@ class UserProfile {
       tenantId: json['tenantId'] as String?,
       inviteCode: json['inviteCode'] as String?,
       onboardingComplete: json['onboardingComplete'] as bool? ?? false,
+      assignedUnitIds: (json['assignedUnitIds'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
+      maintainableUnitIds: (json['maintainableUnitIds'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
     );
   }
 
@@ -64,6 +81,8 @@ class UserProfile {
   final String? inviteCode;
   final bool onboardingComplete;
   final String? idToken;
+  final List<String> assignedUnitIds;
+  final List<String> maintainableUnitIds;
 
   bool get isAuthenticated => userId.isNotEmpty;
   bool get needsRoleSelection => !onboardingComplete && role == null;
@@ -81,6 +100,8 @@ class UserProfile {
     String? inviteCode,
     bool? onboardingComplete,
     String? idToken,
+    List<String>? assignedUnitIds,
+    List<String>? maintainableUnitIds,
   }) {
     return UserProfile(
       userId: userId ?? this.userId,
@@ -91,6 +112,8 @@ class UserProfile {
       inviteCode: inviteCode ?? this.inviteCode,
       onboardingComplete: onboardingComplete ?? this.onboardingComplete,
       idToken: idToken ?? this.idToken,
+      assignedUnitIds: assignedUnitIds ?? this.assignedUnitIds,
+      maintainableUnitIds: maintainableUnitIds ?? this.maintainableUnitIds,
     );
   }
 
@@ -102,5 +125,7 @@ class UserProfile {
         'tenantId': tenantId,
         'inviteCode': inviteCode,
         'onboardingComplete': onboardingComplete,
+        'assignedUnitIds': assignedUnitIds,
+        'maintainableUnitIds': maintainableUnitIds,
       };
 }

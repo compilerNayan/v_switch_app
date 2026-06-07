@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/valve_actions.dart';
 import '../models/current_reading.dart';
+import '../models/device_health.dart';
 import '../models/quota_config.dart';
 import '../models/usage_response.dart';
 import '../models/valve_state.dart';
@@ -42,13 +43,25 @@ final deviceValveProvider =
   return client.getValveState(deviceId);
 });
 
+final deviceHealthProvider =
+    FutureProvider.autoDispose.family<DeviceHealth, String>((ref, deviceId) async {
+  final reading = await ref.watch(deviceCurrentReadingProvider(deviceId).future);
+  return DeviceHealth.fromReading(
+    unitId: deviceId,
+    readingTimestamp: reading.timestamp.toLocal(),
+  );
+});
+
 Future<ValveState> toggleDeviceValveForId(
   WidgetRef ref,
-  String deviceId,
-) async {
+  String deviceId, {
+  bool forceOff = false,
+}) async {
   final client = ref.read(waterApiClientProvider);
   final current = await ref.read(deviceValveProvider(deviceId).future);
-  final updated = await toggleDeviceValve(client, deviceId, current);
+  final updated = forceOff
+      ? await setDeviceValvePressure(client, deviceId, 0)
+      : await toggleDeviceValve(client, deviceId, current);
   ref.invalidate(deviceValveProvider(deviceId));
   return updated;
 }

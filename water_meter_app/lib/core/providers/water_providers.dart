@@ -4,7 +4,7 @@ import '../../core/models/current_reading.dart';
 import '../../core/models/daily_summary.dart';
 import '../../core/models/usage_response.dart';
 import '../../core/providers/app_providers.dart';
-import '../../core/providers/device_providers.dart';
+import '../../core/providers/unit_providers.dart';
 import '../../core/utils/granularity.dart';
 
 final currentReadingProvider =

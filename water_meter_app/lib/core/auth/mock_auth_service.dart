@@ -74,14 +74,16 @@ class MockAuthService implements AuthService {
     return user;
   }
 
-  Future<UserProfile> joinTenant(String inviteCode) async {
-    if (inviteCode.trim().toUpperCase() != mockInviteCode) {
+  Future<UserProfile> joinTenant(String inviteCode, {String? unitId}) async {
+    final code = inviteCode.trim().toUpperCase();
+    if (code != mockInviteCode && !code.contains('-')) {
       throw TenantJoinException('Invalid invite code');
     }
     var user = (await getCurrentUser())!;
     user = user.copyWith(
       tenantId: 'tenant-shared-demo',
       onboardingComplete: true,
+      assignedUnitIds: unitId != null ? [unitId] : const [],
     );
     _cached = user;
     await _storage.saveProfile(user);

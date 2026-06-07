@@ -3,14 +3,14 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/app_config.dart';
-import '../models/user_device.dart';
+import '../models/water_unit.dart';
 import '../provisioning/enrollment_client.dart';
 import '../provisioning/mock_enrollment_client.dart';
 import '../provisioning/provisioning_state.dart';
 import '../provisioning/wifi_credentials_client.dart';
 import '../provisioning/wifi_ssid_service.dart';
 import 'app_providers.dart';
-import 'device_providers.dart';
+import 'unit_providers.dart';
 
 final wifiSsidServiceProvider = Provider<WifiSsidService>((ref) {
   return WifiSsidService();
@@ -207,19 +207,19 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
     }
   }
 
-  Future<UserDevice> registerWaterMeter({
+  Future<WaterUnit> registerWaterMeter({
     required String serial,
     required String displayName,
   }) async {
     final prefs = await ref.read(preferencesStorageProvider.future);
-    final device = UserDevice(
+    final unit = WaterUnit(
       id: 'wm-$serial',
-      typeId: 'water_meter',
       name: displayName.trim(),
       deviceId: serial,
+      flatNumber: displayName.trim(),
     );
-    final saved = await prefs.addUserDevice(device);
-    ref.invalidate(userDevicesProvider);
+    final saved = await prefs.addWaterUnit(unit);
+    ref.invalidate(waterUnitsProvider);
     return saved;
   }
 

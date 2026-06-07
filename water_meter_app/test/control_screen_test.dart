@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:water_meter_app/core/models/quota_config.dart';
 import 'package:water_meter_app/core/models/valve_state.dart';
 import 'package:water_meter_app/core/providers/control_providers.dart';
-import 'package:water_meter_app/core/providers/device_providers.dart';
+import 'package:water_meter_app/core/providers/unit_providers.dart';
 import 'package:water_meter_app/features/control/control_screen.dart';
 
 void main() {

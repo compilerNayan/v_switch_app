@@ -6,14 +6,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:water_meter_app/core/api/mock_water_api_client.dart';
 import 'package:water_meter_app/core/models/current_reading.dart';
+import 'package:water_meter_app/core/models/device_health.dart';
 import 'package:water_meter_app/core/models/quota_config.dart';
-import 'package:water_meter_app/core/models/user_device.dart';
+import 'package:water_meter_app/core/models/user_profile.dart';
 import 'package:water_meter_app/core/models/valve_state.dart';
+import 'package:water_meter_app/core/models/water_unit.dart';
 import 'package:water_meter_app/core/providers/app_providers.dart';
 import 'package:water_meter_app/core/providers/control_providers.dart';
-import 'package:water_meter_app/core/providers/device_providers.dart';
 import 'package:water_meter_app/core/providers/device_tile_providers.dart';
-import 'package:water_meter_app/features/devices/devices_home_screen.dart';
+import 'package:water_meter_app/core/providers/unit_providers.dart';
+import 'package:water_meter_app/features/building/building_home_screen.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -22,29 +24,25 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('shows empty state with add first device button', (tester) async {
+  testWidgets('shows empty state with add water meter button', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          userDevicesProvider.overrideWith((ref) async => []),
+          waterUnitsProvider.overrideWith((ref) async => []),
+          userProfileProvider.overrideWith((ref) async => null),
         ],
-        child: const MaterialApp(home: DevicesHomeScreen()),
+        child: const MaterialApp(home: BuildingHomeScreen()),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('No devices yet'), findsOneWidget);
-    expect(find.text('Add your first device'), findsOneWidget);
+    expect(find.text('No water meters yet'), findsOneWidget);
+    expect(find.text('Add water meter'), findsOneWidget);
   });
 
-  testWidgets('shows device tile with name and switch', (tester) async {
-    const devices = [
-      UserDevice(
-        id: 'wm-001',
-        typeId: 'water_meter',
-        name: 'D205',
-        deviceId: '001',
-      ),
+  testWidgets('shows unit tile with name and switch', (tester) async {
+    const units = [
+      WaterUnit(id: 'wm-001', name: 'D205', deviceId: '001'),
     ];
 
     final valve = ValveState(
@@ -83,7 +81,17 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          userDevicesProvider.overrideWith((ref) async => devices),
+          waterUnitsProvider.overrideWith((ref) async => units),
+          userProfileProvider.overrideWith(
+            (ref) async => const UserProfile(
+              userId: 'admin',
+              email: 'a@test.com',
+              displayName: 'Admin',
+              role: UserRole.admin,
+              tenantId: 't1',
+              onboardingComplete: true,
+            ),
+          ),
           waterApiClientProvider.overrideWithValue(MockWaterApiClient(seed: 1)),
           isDeviceAdminProvider.overrideWith((ref) => true),
           deviceValveProvider('001').overrideWith((ref) async => valve),
@@ -91,21 +99,19 @@ void main() {
           deviceTodayUsageProvider('001').overrideWith((ref) async => 50),
           deviceCurrentReadingProvider('001')
               .overrideWith((ref) async => reading),
+          deviceHealthProvider('001').overrideWith(
+            (ref) async => DeviceHealth.fromReading(
+              unitId: '001',
+              readingTimestamp: reading.timestamp.toLocal(),
+            ),
+          ),
         ],
         child: MaterialApp.router(
           routerConfig: GoRouter(
             routes: [
               GoRoute(
                 path: '/',
-                builder: (_, __) => const DevicesHomeScreen(),
-              ),
-              GoRoute(
-                path: '/devices/add',
-                builder: (_, __) => const Scaffold(body: Text('Add screen')),
-              ),
-              GoRoute(
-                path: '/devices/:deviceId/dashboard',
-                builder: (_, __) => const Scaffold(body: Text('Dashboard')),
+                builder: (_, __) => const BuildingHomeScreen(),
               ),
             ],
           ),
@@ -116,7 +122,6 @@ void main() {
 
     expect(find.text('D205'), findsOneWidget);
     expect(find.byType(Switch), findsOneWidget);
-    expect(find.text('Add device'), findsOneWidget);
-    expect(find.text('Tap for details →'), findsOneWidget);
+    expect(find.text('Add water meter'), findsOneWidget);
   });
 }

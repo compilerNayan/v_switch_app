@@ -38,7 +38,7 @@ void main() {
     expect(state.deviceSerial, isNotNull);
 
     final prefs = await container.read(preferencesStorageProvider.future);
-    final devices = await prefs.getUserDevices();
+    final devices = prefs.getWaterUnits();
     expect(devices.single.name, 'D205');
   });
 }
