@@ -4,10 +4,8 @@ import '../models/iot_device_type.dart';
 import '../models/user_device.dart';
 import 'app_providers.dart';
 
-/// Route param `:deviceId` (UserDevice.id). Overridden inside device shell routes.
-final selectedRouteDeviceIdProvider = Provider<String>((ref) {
-  throw StateError('selectedRouteDeviceIdProvider must be overridden in device routes');
-});
+/// Route param `:deviceId` (UserDevice.id). Set while a device shell route is active.
+final selectedRouteDeviceIdProvider = StateProvider<String?>((ref) => null);
 
 final userDevicesProvider = FutureProvider<List<UserDevice>>((ref) async {
   final prefs = await ref.watch(preferencesStorageProvider.future);
@@ -16,6 +14,7 @@ final userDevicesProvider = FutureProvider<List<UserDevice>>((ref) async {
 
 final activeUserDeviceProvider = Provider<UserDevice?>((ref) {
   final routeId = ref.watch(selectedRouteDeviceIdProvider);
+  if (routeId == null) return null;
   final devicesAsync = ref.watch(userDevicesProvider);
   return devicesAsync.maybeWhen(
     data: (devices) {

@@ -85,38 +85,48 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/',
         builder: (context, state) => const DevicesHomeScreen(),
       ),
-      StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) {
+      GoRoute(
+        path: '/devices/:deviceId',
+        redirect: (context, state) {
           final deviceId = state.pathParameters['deviceId']!;
-          return ProviderScope(
-            overrides: [
-              selectedRouteDeviceIdProvider.overrideWithValue(deviceId),
-            ],
-            child: _DeviceShell(navigationShell: navigationShell),
-          );
+          if (state.uri.path == '/devices/$deviceId') {
+            return '/devices/$deviceId/dashboard';
+          }
+          return null;
         },
-        branches: [
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/devices/:deviceId',
-                builder: (context, state) => const DashboardScreen(),
+        routes: [
+          StatefulShellRoute.indexedStack(
+            builder: (context, state, navigationShell) {
+              final deviceId = state.pathParameters['deviceId']!;
+              return _DeviceShell(
+                deviceId: deviceId,
+                navigationShell: navigationShell,
+              );
+            },
+            branches: [
+              StatefulShellBranch(
+                routes: [
+                  GoRoute(
+                    path: 'dashboard',
+                    builder: (context, state) => const DashboardScreen(),
+                  ),
+                ],
               ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/devices/:deviceId/usage',
-                builder: (context, state) => const UsageScreen(),
+              StatefulShellBranch(
+                routes: [
+                  GoRoute(
+                    path: 'usage',
+                    builder: (context, state) => const UsageScreen(),
+                  ),
+                ],
               ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/devices/:deviceId/insights',
-                builder: (context, state) => const InsightsScreen(),
+              StatefulShellBranch(
+                routes: [
+                  GoRoute(
+                    path: 'insights',
+                    builder: (context, state) => const InsightsScreen(),
+                  ),
+                ],
               ),
             ],
           ),
@@ -126,18 +136,47 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-class _DeviceShell extends StatelessWidget {
-  const _DeviceShell({required this.navigationShell});
+class _DeviceShell extends ConsumerStatefulWidget {
+  const _DeviceShell({
+    required this.deviceId,
+    required this.navigationShell,
+  });
 
+  final String deviceId;
   final StatefulNavigationShell navigationShell;
+
+  @override
+  ConsumerState<_DeviceShell> createState() => _DeviceShellState();
+}
+
+class _DeviceShellState extends ConsumerState<_DeviceShell> {
+  @override
+  void initState() {
+    super.initState();
+    ref.read(selectedRouteDeviceIdProvider.notifier).state = widget.deviceId;
+  }
+
+  @override
+  void didUpdateWidget(covariant _DeviceShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.deviceId != widget.deviceId) {
+      ref.read(selectedRouteDeviceIdProvider.notifier).state = widget.deviceId;
+    }
+  }
+
+  @override
+  void dispose() {
+    ref.read(selectedRouteDeviceIdProvider.notifier).state = null;
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: navigationShell,
+      body: widget.navigationShell,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: navigationShell.goBranch,
+        selectedIndex: widget.navigationShell.currentIndex,
+        onDestinationSelected: widget.navigationShell.goBranch,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),

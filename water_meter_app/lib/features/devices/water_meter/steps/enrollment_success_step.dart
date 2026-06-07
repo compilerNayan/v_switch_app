@@ -45,7 +45,7 @@ class EnrollmentSuccessStep extends ConsumerWidget {
                 ? null
                 : () {
                     final routeId = notifier.registeredDeviceRouteId(serial!);
-                    context.go('/devices/$routeId');
+                    context.go('/devices/$routeId/dashboard');
                   },
             child: const Text('View water usage'),
           ),

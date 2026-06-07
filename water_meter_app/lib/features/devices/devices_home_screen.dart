@@ -31,7 +31,8 @@ class DevicesHomeScreen extends ConsumerWidget {
           }
           return _DevicesList(
             devices: devices,
-            onDeviceTap: (device) => context.go('/devices/${device.id}'),
+            onDeviceTap: (device) =>
+                context.go('/devices/${device.id}/dashboard'),
             onAddDevice: () => context.push('/devices/add'),
           );
         },
