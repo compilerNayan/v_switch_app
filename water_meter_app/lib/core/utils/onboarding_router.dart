@@ -4,16 +4,31 @@ import '../models/user_profile.dart';
 class OnboardingRouter {
   OnboardingRouter._();
 
-  static String? redirectForProfile(UserProfile? profile, String location) {
+  static const deviceOnboardingRoute = '/onboarding/devices';
+
+  static String? redirectForProfile(
+    UserProfile? profile,
+    String location, {
+    bool deviceOnboardingComplete = false,
+  }) {
     if (profile == null || !profile.isAuthenticated) {
       return location == '/auth' ? null : '/auth';
     }
 
     final authRoutes = {'/auth'};
-    final onboardingRoutes = {'/onboarding/role', '/onboarding/join'};
+    final tenantOnboardingRoutes = {'/onboarding/role', '/onboarding/join'};
+    final allOnboardingRoutes = {
+      ...tenantOnboardingRoutes,
+      deviceOnboardingRoute,
+    };
 
     if (profile.onboardingComplete) {
-      if (authRoutes.contains(location) || onboardingRoutes.contains(location)) {
+      if (!deviceOnboardingComplete) {
+        if (location == deviceOnboardingRoute) return null;
+        return deviceOnboardingRoute;
+      }
+
+      if (authRoutes.contains(location) || allOnboardingRoutes.contains(location)) {
         return '/';
       }
       return null;

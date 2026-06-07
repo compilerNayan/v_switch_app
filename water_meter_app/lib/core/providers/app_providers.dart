@@ -40,6 +40,11 @@ final preferencesStorageProvider = FutureProvider<PreferencesStorage>(
   (ref) => PreferencesStorage.create(),
 );
 
+final deviceOnboardingCompleteProvider = FutureProvider<bool>((ref) async {
+  final prefs = await ref.watch(preferencesStorageProvider.future);
+  return prefs.deviceOnboardingComplete;
+});
+
 final volumeUnitProvider = StateProvider<VolumeUnit>((ref) {
   final prefsAsync = ref.watch(preferencesStorageProvider);
   return prefsAsync.maybeWhen(
@@ -81,6 +86,7 @@ final deviceIdProvider = Provider<String>((ref) {
 class AuthListenable extends ChangeNotifier {
   AuthListenable(this.ref) {
     ref.listen(userProfileProvider, (_, __) => notifyListeners());
+    ref.listen(deviceOnboardingCompleteProvider, (_, __) => notifyListeners());
   }
 
   final Ref ref;

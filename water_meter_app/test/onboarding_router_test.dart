@@ -39,7 +39,7 @@ void main() {
       );
     });
 
-    test('allows main app when onboarding complete', () {
+    test('redirects to device onboarding when tenant onboarding complete', () {
       const profile = UserProfile(
         userId: 'u1',
         email: 'a@b.com',
@@ -48,9 +48,50 @@ void main() {
         tenantId: 'tenant-1',
         onboardingComplete: true,
       );
-      expect(OnboardingRouter.redirectForProfile(profile, '/'), isNull);
       expect(
-        OnboardingRouter.redirectForProfile(profile, '/auth'),
+        OnboardingRouter.redirectForProfile(profile, '/'),
+        '/onboarding/devices',
+      );
+      expect(
+        OnboardingRouter.redirectForProfile(
+          profile,
+          '/onboarding/devices',
+        ),
+        isNull,
+      );
+    });
+
+    test('allows main app when all onboarding complete', () {
+      const profile = UserProfile(
+        userId: 'u1',
+        email: 'a@b.com',
+        displayName: 'User',
+        role: UserRole.admin,
+        tenantId: 'tenant-1',
+        onboardingComplete: true,
+      );
+      expect(
+        OnboardingRouter.redirectForProfile(
+          profile,
+          '/',
+          deviceOnboardingComplete: true,
+        ),
+        isNull,
+      );
+      expect(
+        OnboardingRouter.redirectForProfile(
+          profile,
+          '/auth',
+          deviceOnboardingComplete: true,
+        ),
+        '/',
+      );
+      expect(
+        OnboardingRouter.redirectForProfile(
+          profile,
+          '/onboarding/devices',
+          deviceOnboardingComplete: true,
+        ),
         '/',
       );
     });

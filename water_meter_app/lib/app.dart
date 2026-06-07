@@ -10,6 +10,7 @@ import 'features/auth/join_tenant_screen.dart';
 import 'features/auth/role_selection_screen.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
+import 'features/devices/add_device_screen.dart';
 import 'features/insights/insights_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/usage/usage_screen.dart';
@@ -38,7 +39,13 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: authListenable,
     redirect: (context, state) {
       final profileAsync = ref.read(userProfileProvider);
-      if (profileAsync.isLoading) {
+      final deviceOnboardingAsync = ref.read(deviceOnboardingCompleteProvider);
+      final deviceOnboardingComplete = deviceOnboardingAsync.maybeWhen(
+        data: (value) => value,
+        orElse: () => false,
+      );
+
+      if (profileAsync.isLoading || deviceOnboardingAsync.isLoading) {
         // Avoid mounting protected tabs while the session is being restored.
         const protected = {'/', '/usage', '/insights', '/settings'};
         if (protected.contains(state.matchedLocation)) {
@@ -50,6 +57,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       return OnboardingRouter.redirectForProfile(
         profileAsync.valueOrNull,
         state.matchedLocation,
+        deviceOnboardingComplete: deviceOnboardingComplete,
       );
     },
     routes: [
@@ -64,6 +72,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/onboarding/join',
         builder: (context, state) => const JoinTenantScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding/devices',
+        builder: (context, state) => const AddDeviceScreen(),
       ),
       GoRoute(
         path: '/settings',

@@ -31,6 +31,8 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
       if (!mounted) return;
       if (role == UserRole.readonly && !profile.onboardingComplete) {
         context.go('/onboarding/join');
+      } else if (profile.onboardingComplete) {
+        context.go('/onboarding/devices');
       } else {
         context.go('/');
       }
