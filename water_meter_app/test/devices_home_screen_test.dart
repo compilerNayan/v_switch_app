@@ -120,7 +120,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('D205'), findsOneWidget);
+    expect(find.text('D205'), findsWidgets);
     expect(find.byType(Switch), findsOneWidget);
     expect(find.text('Add water meter'), findsOneWidget);
   });

@@ -1,6 +1,6 @@
-# Water Meter App
+# Water Monitor App
 
-Cross-platform Flutter app (Android + iOS) for viewing water consumption statistics from a cloud REST API.
+Cross-platform Flutter app for apartment admins to monitor and control water consumption across many units.
 
 ## Prerequisites
 
@@ -9,162 +9,98 @@ Cross-platform Flutter app (Android + iOS) for viewing water consumption statist
 
 ## First-time setup
 
-**macOS 12 note:** Flutter stable (3.41+) requires macOS 14+. On macOS 12, use Flutter **3.38.10** (e.g. via [FVM](https://fvm.app): `fvm use 3.38.10`).
-
 ```bash
 cd v_switch_app/water_meter_app
-flutter create . --project-name water_meter_app --org com.vswitch --platforms=android,ios,web
 flutter pub get
 ```
 
-## Run (mock auth + mock API + mock provisioning — default)
-
-No AWS, Google, or physical device required:
+## Run (mock mode — default)
 
 ```bash
-flutter run
+/tmp/flutter-sdk/bin/flutter run
 ```
 
-Flow:
-1. Tap **Continue with Google** (mock sign-in)
-2. Choose **Admin** (creates demo tenant) or **Read-only** (enter invite code `DEMO-1234`)
-3. Land on **My Devices** (empty state if no devices yet)
-4. Tap **Add your first device** or the **Add device** tile → pick device type
-5. Each device tile shows live flow, today's usage vs quota, and an on/off switch — tap the tile for full stats (Dashboard / Usage / Insights / Control tabs)
+1. **Sign in** (mock Google)
+2. Choose role: **Admin**, **Resident**, or **Maintenance**
+3. **Building** home — portfolio summary, searchable unit grid, alerts
+4. Tap a unit → Dashboard / Usage / Insights / Control (admin only)
 
-## Water meter device setup
+### Roles
 
-From **My Devices**, tap **Add a device** → **Water Meter**:
-
-**Mock provisioning (default, `USE_MOCK_PROVISIONING=true`):** no hotspot or WiFi steps — a random serial is assigned and enrollment is simulated.
-
-| Step | Action |
+| Role | Access |
 |------|--------|
-| 1 Prepare | Confirm device is ready |
-| 2 Name | Choose a label (e.g. `D205`); tap **Add device (mock)** |
-| 3 Done | Device appears on My Devices |
+| Admin | Full building overview, controls, policies, reports, audit |
+| Resident | Own unit only (usage + insights, read-only) |
+| Maintenance | Building view, valve control on assigned units |
 
-**Real device provisioning** (`--dart-define=USE_MOCK_PROVISIONING=false`):
+Invite codes: building `DEMO-1234`; per-unit codes generated on enroll (e.g. `D205-1234`).
 
-| Step | Action |
-|------|--------|
-| 1 Prepare | Confirm green LED; reset instructions if needed |
-| 2 Connect | Join device hotspot `IoT_<serial>`; app validates SSID on return |
-| 3 Home WiFi | Enter home WiFi credentials; POST to device at `192.168.4.1` |
-| 4 Name | Choose a short label shown on the home tile |
-| 5 Enroll | Rejoin home WiFi; POST `/enrollment/enroll` to `{serial}.local` |
-| 6 Done | Device appears in My Devices as a tile with inline controls |
+## Add a water meter
 
-### Platform requirements
+**Mock provisioning (default):** Prepare → Name → Add device (mock). No WiFi/device required.
 
-**Android:** Location permission (SSID read), WiFi settings access, cleartext HTTP to `192.168.4.1` and `*.local` (configured in `network_security_config.xml`).
+**Real provisioning:** `--dart-define=USE_MOCK_PROVISIONING=false` — full hotspot/WiFi/enroll flow.
 
-**iOS:** Enable **Access WiFi Information** capability in Xcode (`Runner.entitlements`). Location and local network usage strings are in `Info.plist`. iOS cannot deep-link to the WiFi panel — users join `IoT_*` manually in Settings.
+## Features
 
-Logic mirrors the native [`v_switch_app`](../app/) enrollment clients (`WifiCredentialsClient`, `EnrollmentClient`).
+### Building overview
+- Total usage today / this month, online/offline counts
+- Top consumers, search, filter (flowing, quota, offline, alerts), sort
 
-## Run against AWS (production auth)
+### Per unit
+- Live flow, quota bar, valve switch, health (last seen)
+- Edit metadata: flat, floor, wing, resident, notes, maintenance mode
 
-### 1. Deploy AWS infrastructure
+### Alerts (in-app + local push)
+- Quota warning/exceeded, possible leak, unusual spike, offline, valve mismatch
+- Inbox at `/alerts`; preferences in Settings
 
-See [`infrastructure/README.md`](infrastructure/README.md).
+### Policies (admin)
+- Quota templates (apply to all units)
+- Emergency shutoff
+- Night pressure schedule
 
-```bash
-cd infrastructure
-npm install
-export GOOGLE_CLIENT_ID="..."
-export GOOGLE_CLIENT_SECRET="..."
-npm run deploy
-```
+### Billing reports
+- Tariff (₹/L configurable in Settings)
+- Monthly report + CSV export
 
-### 2. Configure Google Cloud OAuth
+### Audit log
+- Valve, quota, template, shutoff, unit edit events
+- Filter + CSV export
 
-1. Create OAuth clients: **Web** (for Cognito IdP), **Android**, **iOS**
-2. Add redirect URI: `https://<CognitoDomain>/oauth2/idpresponse`
-3. Android: package `com.vswitch.water_meter_app` + SHA-1 fingerprint
-4. iOS: bundle ID + URL scheme `com.vswitch.watermeter`
+### Insights
+- Unit vs building average, anomaly cards, month-over-month
 
-### 3. Run Flutter app
+## Settings
 
-```bash
-flutter run \
-  --dart-define=USE_MOCK_AUTH=false \
-  --dart-define=USE_MOCK_API=true \
-  --dart-define=COGNITO_USER_POOL_ID=<UserPoolId> \
-  --dart-define=COGNITO_CLIENT_ID=<UserPoolClientId> \
-  --dart-define=COGNITO_DOMAIN=<domain>.auth.<region>.amazoncognito.com \
-  --dart-define=COGNITO_REGION=us-east-1 \
-  --dart-define=API_BASE_URL=<ApiUrl>
-```
-
-## Auth flow
-
-| Step | Screen | Action |
-|------|--------|--------|
-| 1 | Sign in | Google OAuth via Cognito |
-| 2 | Role selection | Admin or Read-only |
-| 3a | (Admin) | Tenant auto-created in DynamoDB |
-| 3b | (Read-only) | Enter invite code from admin |
-| 4 | My Devices | Device list home; add or open a device |
-| 5 | Device stats | Per-device Dashboard / Usage / Insights / Control |
-
-### Tenant API (JWT required)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/users/me` | Current profile |
-| POST | `/users/role` | Set role; admin auto-creates tenant |
-| POST | `/tenants` | Create tenant (admin) |
-| POST | `/tenants/join` | Join by invite code (read-only) |
-
-Water usage API uses `Authorization: Bearer <Cognito ID token>`.
-
-### Water device API (JWT required)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/devices/{id}/water/current` | Live flow reading |
-| GET | `/devices/{id}/water/usage` | Time-series usage |
-| GET | `/devices/{id}/water/daily` | Daily totals |
-| GET | `/devices/{id}/water/hourly-pattern` | 24h pattern |
-| GET | `/devices/{id}/water/valve` | Tap pressure state (target, actual, quota cap) |
-| PUT | `/devices/{id}/water/valve` | Set pressure 0–100% or `{ "action": "restore" }` |
-| GET | `/devices/{id}/water/quota` | Daily quota config + today's status |
-| PUT | `/devices/{id}/water/quota` | Update quota rules (admin only) |
-
-**Valve PUT:** `0` turns off (stores last pressure); `1–100` sets pressure; `restore` returns to last non-zero setpoint.
-
-**Quota steps:** Each `reduce_pressure` step subtracts its `value` from 100% (cumulative). `turn_off` sets cap to 0%. Device/cloud enforces rules; app configures and displays status.
+- Theme (5 palettes), volume unit, timezone
+- Billing tariff, alert preferences
+- Links to audit log and policies
 
 ## Build
 
 ```bash
-flutter build apk --release
-flutter build web --release
+/tmp/flutter-sdk/bin/flutter build apk --release
 ```
 
 ## Tests
 
 ```bash
-flutter test
+/tmp/flutter-sdk/bin/flutter test
 ```
 
-## Settings
+## Future cloud API (mock-first today)
 
-Open **Settings** from the home screen gear icon. Preferences include:
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/tenants/{id}/building/summary` | Building totals |
+| GET | `/tenants/{id}/building/rankings` | Usage rankings |
+| GET | `/tenants/{id}/alerts` | Alert events |
+| GET | `/tenants/{id}/audit` | Audit log |
+| POST | `/users/me/push-token` | FCM registration |
 
-- **Theme** — choose from 5 professional palettes (Ocean, Slate, Forest, Indigo, Midnight). Selection applies instantly and persists across launches.
-- **Volume unit** — liters or US gallons
-- **Timezone** — used for usage date ranges
+Water device API unchanged: `/devices/{id}/water/*`
 
-## App structure
+## Push notifications (production)
 
-| Screen | Features |
-|--------|----------|
-| My Devices | Device tiles with live flow, quota progress, inline on/off switch |
-| Device Dashboard | Live flow, today's total, delta vs previous period, hourly sparkline |
-| Device Usage | Date presets, granularity chips, bar / cumulative charts |
-| Device Insights | 7-day daily comparison, 24-hour usage pattern |
-| Device Control | Tap on/off, pressure slider (0–100%), live pressure, daily quota progress and admin step editor |
-
-Settings: theme picker, account info, tenant ID, invite code (admin), sign out.
+Add `google-services.json` (Android) and enable Firebase; mock mode uses `flutter_local_notifications` only.
