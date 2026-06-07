@@ -11,6 +11,7 @@ import 'features/auth/role_selection_screen.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/devices/add_device_screen.dart';
+import 'features/devices/water_meter/water_meter_setup_screen.dart';
 import 'features/insights/insights_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/usage/usage_screen.dart';
@@ -76,6 +77,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/onboarding/devices',
         builder: (context, state) => const AddDeviceScreen(),
+      ),
+      GoRoute(
+        path: '/devices/water-meter/setup',
+        builder: (context, state) => const WaterMeterSetupScreen(),
       ),
       GoRoute(
         path: '/settings',

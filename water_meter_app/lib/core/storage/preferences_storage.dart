@@ -8,6 +8,7 @@ class PreferencesStorage {
   static const _volumeUnitKey = 'volume_unit';
   static const _timezoneKey = 'timezone';
   static const _deviceOnboardingKey = 'device_onboarding_complete';
+  static const _enrolledDeviceSerialKey = 'enrolled_device_serial';
 
   final SharedPreferences _prefs;
 
@@ -33,4 +34,9 @@ class PreferencesStorage {
 
   Future<void> setDeviceOnboardingComplete(bool value) =>
       _prefs.setBool(_deviceOnboardingKey, value);
+
+  String? get enrolledDeviceSerial => _prefs.getString(_enrolledDeviceSerialKey);
+
+  Future<void> setEnrolledDeviceSerial(String serial) =>
+      _prefs.setString(_enrolledDeviceSerialKey, serial);
 }

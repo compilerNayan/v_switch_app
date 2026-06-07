@@ -76,8 +76,18 @@ final waterApiClientProvider = Provider<WaterApiClient>((ref) {
 });
 
 final deviceIdProvider = Provider<String>((ref) {
-  final profile = ref.watch(userProfileProvider);
-  return profile.maybeWhen(
+  final prefsAsync = ref.watch(preferencesStorageProvider);
+  final profileAsync = ref.watch(userProfileProvider);
+
+  final enrolledSerial = prefsAsync.maybeWhen(
+    data: (prefs) => prefs.enrolledDeviceSerial,
+    orElse: () => null,
+  );
+  if (enrolledSerial != null && enrolledSerial.isNotEmpty) {
+    return enrolledSerial;
+  }
+
+  return profileAsync.maybeWhen(
     data: (p) => p?.tenantId ?? 'WM-DEMO',
     orElse: () => 'WM-DEMO',
   );

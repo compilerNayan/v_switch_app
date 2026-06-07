@@ -20,6 +20,10 @@ dependencies:
   shared_preferences: ^2.3.3
   amplify_flutter: ^2.6.0
   amplify_auth_cognito: ^2.6.0
+  network_info_plus: ^6.1.4
+  permission_handler: ^11.4.0
+  connectivity_plus: ^6.1.4
+  app_settings: ^5.2.0
 
 dev_dependencies:
   flutter_test:

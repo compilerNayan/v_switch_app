@@ -17,6 +17,8 @@ void main() {
       'sensor',
       'hub',
     ]));
-    expect(IoTDeviceType.catalog.every((d) => !d.isSupported), isTrue);
+    expect(IoTDeviceType.catalog.every((d) => !d.isSupported), isFalse);
+    final waterMeter = IoTDeviceType.catalog.firstWhere((d) => d.id == 'water_meter');
+    expect(waterMeter.isSupported, isTrue);
   });
 }

@@ -39,6 +39,7 @@ class IoTDeviceType {
       name: 'Water Meter',
       description: 'Track water usage and flow',
       icon: Icons.water_drop_outlined,
+      isSupported: true,
     ),
     IoTDeviceType(
       id: 'light',

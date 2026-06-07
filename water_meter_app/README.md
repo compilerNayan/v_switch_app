@@ -28,7 +28,28 @@ flutter run
 Flow:
 1. Tap **Continue with Google** (mock sign-in)
 2. Choose **Admin** (creates demo tenant) or **Read-only** (enter invite code `DEMO-1234`)
-3. View dashboard, usage, and insights
+3. On **Add a device**, tap **Water Meter** to run the setup wizard, or **Skip for now**
+4. View dashboard, usage, and insights for the enrolled device
+
+## Water meter device setup
+
+After tenant onboarding, tap **Water Meter** on the Add Devices screen:
+
+| Step | Action |
+|------|--------|
+| 1 Prepare | Confirm green LED; reset instructions if needed |
+| 2 Connect | Join device hotspot `IoT_<serial>`; app validates SSID on return |
+| 3 Home WiFi | Enter home WiFi credentials; POST to device at `192.168.4.1` |
+| 4 Enroll | Rejoin home WiFi; POST `/enrollment/enroll` to `{serial}.local` |
+| 5 Done | Dashboard shows usage for enrolled device serial |
+
+### Platform requirements
+
+**Android:** Location permission (SSID read), WiFi settings access, cleartext HTTP to `192.168.4.1` and `*.local` (configured in `network_security_config.xml`).
+
+**iOS:** Enable **Access WiFi Information** capability in Xcode (`Runner.entitlements`). Location and local network usage strings are in `Info.plist`. iOS cannot deep-link to the WiFi panel — users join `IoT_*` manually in Settings.
+
+Logic mirrors the native [`v_switch_app`](../app/) enrollment clients (`WifiCredentialsClient`, `EnrollmentClient`).
 
 ## Run against AWS (production auth)
 
@@ -72,7 +93,8 @@ flutter run \
 | 2 | Role selection | Admin or Read-only |
 | 3a | (Admin) | Tenant auto-created in DynamoDB |
 | 3b | (Read-only) | Enter invite code from admin |
-| 4 | Main app | Dashboard / Usage / Insights |
+| 4 | Add devices | Pick device type or skip |
+| 5 | Main app | Dashboard / Usage / Insights |
 
 ### Tenant API (JWT required)
 
