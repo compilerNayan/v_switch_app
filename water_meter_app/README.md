@@ -100,15 +100,22 @@ Covers:
 - Alerts, audit log, policies, billing/tariff
 - Bulk operations, push tokens, caching notes
 
-To point at a real backend and Cognito:
+## Run against real Cognito + Lambda API
+
+```bash
+chmod +x scripts/run_with_cognito.sh
+./scripts/run_with_cognito.sh
+```
+
+Or manually:
 
 ```bash
 flutter run \
-  --dart-define=USE_MOCK_API=false \
   --dart-define=USE_MOCK_AUTH=false \
+  --dart-define=USE_MOCK_API=false \
   --dart-define=API_BASE_URL=https://9n5clkjldd.execute-api.ap-south-1.amazonaws.com/Prod \
   --dart-define=COGNITO_USER_POOL_ID=ap-south-1_vm19Xv95r \
-  --dart-define=COGNITO_CLIENT_ID=<your-client-id> \
+  --dart-define=COGNITO_CLIENT_ID=46865gj4jba5bp42cc04fo14k1 \
   --dart-define=COGNITO_REGION=ap-south-1
 ```
 

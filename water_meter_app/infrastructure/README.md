@@ -25,16 +25,19 @@ Note the outputs: `UserPoolId`, `UserPoolClientId`, `CognitoDomain`, `ApiUrl`.
 
 ## Configure Flutter app
 
-Pass deploy outputs as dart-defines:
+Pass deploy outputs as dart-defines (password auth — no Cognito domain needed):
 
 ```bash
 flutter run \
   --dart-define=USE_MOCK_AUTH=false \
-  --dart-define=COGNITO_USER_POOL_ID=<UserPoolId> \
-  --dart-define=COGNITO_CLIENT_ID=<UserPoolClientId> \
-  --dart-define=COGNITO_DOMAIN=<CognitoDomain> \
-  --dart-define=API_BASE_URL=<ApiUrl>
+  --dart-define=USE_MOCK_API=false \
+  --dart-define=COGNITO_USER_POOL_ID=ap-south-1_vm19Xv95r \
+  --dart-define=COGNITO_CLIENT_ID=46865gj4jba5bp42cc04fo14k1 \
+  --dart-define=COGNITO_REGION=ap-south-1 \
+  --dart-define=API_BASE_URL=https://9n5clkjldd.execute-api.ap-south-1.amazonaws.com/Prod
 ```
+
+Or use `./scripts/run_with_cognito.sh` from the app root.
 
 ## Google Cloud Console setup
 

@@ -351,6 +351,15 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
                 hintText: '+919876543210',
               ),
               keyboardType: TextInputType.phone,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Phone is required (E.164 format, e.g. +91...)';
+                }
+                if (!RegExp(r'^\+[1-9]\d{7,14}$').hasMatch(value.trim())) {
+                  return 'Use E.164 format, e.g. +919876543210';
+                }
+                return null;
+              },
             ),
             const SizedBox(height: 12),
             TextFormField(
