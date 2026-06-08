@@ -10,8 +10,10 @@ import '../../core/providers/control_providers.dart';
 import '../../core/providers/device_tile_providers.dart';
 import '../../core/providers/unit_providers.dart';
 import '../../core/services/alert_evaluator.dart';
+import '../../core/utils/unit_filters.dart';
 import '../units/unit_tile.dart';
 import 'building_summary_header.dart';
+import 'unit_location_filter_bar.dart';
 
 class BuildingHomeScreen extends ConsumerStatefulWidget {
   const BuildingHomeScreen({super.key});
@@ -38,6 +40,8 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
     final search = ref.watch(unitSearchQueryProvider);
     final filter = ref.watch(unitFilterProvider);
     final sort = ref.watch(unitSortModeProvider);
+    final selectedBlocks = ref.watch(selectedBlocksProvider);
+    final selectedWings = ref.watch(selectedWingsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -75,13 +79,21 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
                   onAdd: () => context.push('/devices/water-meter/setup'),
                 );
               }
-              final filtered = _applyFilters(units, search, filter, ref);
+              final filtered = _applyFilters(
+                units,
+                search,
+                filter,
+                selectedBlocks,
+                selectedWings,
+                ref,
+              );
               final sorted = _applySort(filtered, sort, ref);
 
               return RefreshIndicator(
                 onRefresh: () async {
                   ref.invalidate(waterUnitsProvider);
                   ref.invalidate(buildingSummaryProvider);
+                  ref.invalidate(topConsumersRankingsProvider);
                   await ref.read(alertEvaluatorProvider).evaluateAll();
                 },
                 child: CustomScrollView(
@@ -103,6 +115,7 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
                       ),
                     ),
                     SliverToBoxAdapter(child: _FilterSortBar()),
+                    const SliverToBoxAdapter(child: UnitLocationFilterButton()),
                     SliverPadding(
                       padding: const EdgeInsets.all(16),
                       sliver: SliverGrid(
@@ -153,18 +166,20 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
     List<WaterUnit> units,
     String search,
     UnitFilter filter,
+    Set<String> selectedBlocks,
+    Set<String> selectedWings,
     WidgetRef ref,
   ) {
     var result = units;
     if (search.isNotEmpty) {
-      final q = search.toLowerCase();
-      result = result.where((u) {
-        return u.name.toLowerCase().contains(q) ||
-            u.flatNumber.toLowerCase().contains(q) ||
-            u.floor.toLowerCase().contains(q) ||
-            u.deviceId.toLowerCase().contains(q);
-      }).toList();
+      result =
+          result.where((u) => unitMatchesSearch(u, search)).toList();
     }
+    result = applyLocationFilters(
+      result,
+      selectedBlocks: selectedBlocks,
+      selectedWings: selectedWings,
+    );
     if (filter == UnitFilter.all) return result;
     return result.where((u) => _matchesFilter(u, filter, ref)).toList();
   }

@@ -3,7 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/building_api_client.dart';
 import '../api/mock_building_api_client.dart';
 import '../models/tariff_config.dart';
+import '../models/top_consumers_config.dart';
+import '../utils/top_consumers_rankings.dart';
+import '../utils/unit_filters.dart';
 import 'app_providers.dart';
+import 'device_tile_providers.dart';
+import 'unit_providers.dart';
 
 enum UnitSortMode {
   usageDesc,
@@ -37,9 +42,23 @@ final buildingRankingsProvider =
   );
 });
 
-final unitSortModeProvider = StateProvider<UnitSortMode>((ref) => UnitSortMode.usageDesc);
+final unitSortModeProvider =
+    StateProvider<UnitSortMode>((ref) => UnitSortMode.usageDesc);
 final unitFilterProvider = StateProvider<UnitFilter>((ref) => UnitFilter.all);
 final unitSearchQueryProvider = StateProvider<String>((ref) => '');
+final selectedBlocksProvider = StateProvider<Set<String>>((ref) => {});
+final selectedWingsProvider = StateProvider<Set<String>>((ref) => {});
+
+final distinctBlocksProvider = Provider<List<String>>((ref) {
+  final units = ref.watch(waterUnitsProvider).valueOrNull ?? [];
+  return distinctBlocksFromUnits(units);
+});
+
+final distinctWingsProvider = Provider<List<String>>((ref) {
+  final units = ref.watch(waterUnitsProvider).valueOrNull ?? [];
+  final selectedBlocks = ref.watch(selectedBlocksProvider);
+  return distinctWingsFromUnits(units, blocks: selectedBlocks);
+});
 
 final tariffConfigProvider = StateProvider<TariffConfig>((ref) {
   final prefsAsync = ref.watch(preferencesStorageProvider);
@@ -47,4 +66,42 @@ final tariffConfigProvider = StateProvider<TariffConfig>((ref) {
     data: (prefs) => prefs.tariffConfig,
     orElse: () => const TariffConfig(),
   );
+});
+
+class TopConsumersConfigNotifier
+    extends StateNotifier<TopConsumersDashboardConfig> {
+  TopConsumersConfigNotifier(this.ref)
+      : super(const TopConsumersDashboardConfig()) {
+    _load();
+  }
+
+  final Ref ref;
+
+  Future<void> _load() async {
+    final prefs = await ref.read(preferencesStorageProvider.future);
+    state = prefs.topConsumersConfig;
+  }
+
+  Future<void> updateConfig(TopConsumersDashboardConfig config) async {
+    state = config;
+    final prefs = await ref.read(preferencesStorageProvider.future);
+    await prefs.setTopConsumersConfig(config);
+  }
+}
+
+final topConsumersConfigProvider = StateNotifierProvider<
+    TopConsumersConfigNotifier, TopConsumersDashboardConfig>((ref) {
+  return TopConsumersConfigNotifier(ref);
+});
+
+final topConsumersRankingsProvider =
+    FutureProvider<List<UnitUsage>>((ref) async {
+  final units = await ref.watch(waterUnitsProvider.future);
+  final rankings = <UnitUsage>[];
+  for (final unit in units) {
+    final liters =
+        await ref.watch(deviceTodayUsageProvider(unit.deviceId).future);
+    rankings.add((unit: unit, liters: liters));
+  }
+  return sortByUsageDesc(rankings);
 });

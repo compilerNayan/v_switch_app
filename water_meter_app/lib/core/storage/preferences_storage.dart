@@ -7,6 +7,7 @@ import '../models/audit_event.dart';
 import '../models/quota_template.dart';
 import '../models/schedule_rule.dart';
 import '../models/tariff_config.dart';
+import '../models/top_consumers_config.dart';
 import '../models/water_unit.dart';
 import '../theme/app_theme.dart';
 import '../utils/units.dart';
@@ -27,6 +28,7 @@ class PreferencesStorage {
   static const _quotaTemplatesKey = 'quota_templates';
   static const _scheduleRulesKey = 'schedule_rules';
   static const _tenantAdminsKey = 'tenant_admins';
+  static const _topConsumersConfigKey = 'top_consumers_config';
 
   static const maxAuditEntries = 500;
   static const maxAlertEntries = 200;
@@ -81,6 +83,21 @@ class PreferencesStorage {
 
   Future<void> setAlertPreferences(AlertPreferences prefs) =>
       _prefs.setString(_alertPrefsKey, jsonEncode(prefs.toJson()));
+
+  TopConsumersDashboardConfig get topConsumersConfig {
+    final raw = _prefs.getString(_topConsumersConfigKey);
+    if (raw == null) return const TopConsumersDashboardConfig();
+    try {
+      return TopConsumersDashboardConfig.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+    } catch (_) {
+      return const TopConsumersDashboardConfig();
+    }
+  }
+
+  Future<void> setTopConsumersConfig(TopConsumersDashboardConfig config) =>
+      _prefs.setString(_topConsumersConfigKey, jsonEncode(config.toJson()));
 
   List<WaterUnit> getWaterUnits() {
     final raw = _prefs.getString(_waterUnitsKey);

@@ -51,6 +51,14 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
     state = state.copyWith(deviceDisplayName: name.trim(), clearError: true);
   }
 
+  void setBlock(String block) {
+    state = state.copyWith(block: block.trim(), clearError: true);
+  }
+
+  void setWing(String wing) {
+    state = state.copyWith(wing: wing.trim(), clearError: true);
+  }
+
   void assignMockSerial() {
     setDeviceSerial(generateMockDeviceSerial());
   }
@@ -210,6 +218,8 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
   Future<WaterUnit> registerWaterMeter({
     required String serial,
     required String displayName,
+    String? block,
+    String? wing,
   }) async {
     final prefs = await ref.read(preferencesStorageProvider.future);
     final unit = WaterUnit(
@@ -217,6 +227,8 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
       name: displayName.trim(),
       deviceId: serial,
       flatNumber: displayName.trim(),
+      block: block?.trim() ?? state.block?.trim() ?? '',
+      wing: wing?.trim() ?? state.wing?.trim() ?? '',
     );
     final saved = await prefs.addWaterUnit(unit);
     ref.invalidate(waterUnitsProvider);

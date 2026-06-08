@@ -8,6 +8,7 @@ class WaterUnit {
     this.wing = '',
     this.block = '',
     this.residentName,
+    this.phoneNumber,
     this.notes,
     this.maintenanceMode = false,
     this.assignedUserIds = const [],
@@ -24,6 +25,7 @@ class WaterUnit {
       wing: json['wing'] as String? ?? '',
       block: json['block'] as String? ?? '',
       residentName: json['residentName'] as String?,
+      phoneNumber: json['phoneNumber'] as String?,
       notes: json['notes'] as String?,
       maintenanceMode: json['maintenanceMode'] as bool? ?? false,
       assignedUserIds: (json['assignedUserIds'] as List<dynamic>?)
@@ -51,6 +53,7 @@ class WaterUnit {
   final String wing;
   final String block;
   final String? residentName;
+  final String? phoneNumber;
   final String? notes;
   final bool maintenanceMode;
   final List<String> assignedUserIds;
@@ -75,6 +78,7 @@ class WaterUnit {
         'wing': wing,
         'block': block,
         if (residentName != null) 'residentName': residentName,
+        if (phoneNumber != null) 'phoneNumber': phoneNumber,
         if (notes != null) 'notes': notes,
         'maintenanceMode': maintenanceMode,
         'assignedUserIds': assignedUserIds,
@@ -90,11 +94,13 @@ class WaterUnit {
     String? wing,
     String? block,
     String? residentName,
+    String? phoneNumber,
     String? notes,
     bool? maintenanceMode,
     List<String>? assignedUserIds,
     String? unitInviteCode,
     bool clearResidentName = false,
+    bool clearPhoneNumber = false,
     bool clearNotes = false,
   }) {
     return WaterUnit(
@@ -107,6 +113,8 @@ class WaterUnit {
       block: block ?? this.block,
       residentName:
           clearResidentName ? null : (residentName ?? this.residentName),
+      phoneNumber:
+          clearPhoneNumber ? null : (phoneNumber ?? this.phoneNumber),
       notes: clearNotes ? null : (notes ?? this.notes),
       maintenanceMode: maintenanceMode ?? this.maintenanceMode,
       assignedUserIds: assignedUserIds ?? this.assignedUserIds,

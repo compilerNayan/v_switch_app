@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/models/current_reading.dart';
 import '../../core/models/water_unit.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/control_providers.dart';
 import '../../core/providers/device_tile_providers.dart';
+import '../../core/utils/contact_launcher.dart';
 import '../../core/utils/units.dart';
 
 class UnitTile extends ConsumerStatefulWidget {
@@ -20,6 +20,42 @@ class UnitTile extends ConsumerStatefulWidget {
 
 class _UnitTileState extends ConsumerState<UnitTile> {
   bool _togglingValve = false;
+
+  void _showNoPhoneMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('No phone number on file. Add one in Edit unit.'),
+      ),
+    );
+  }
+
+  Future<void> _onCallPressed() async {
+    final phone = widget.unit.phoneNumber;
+    if (!hasCallablePhone(phone)) {
+      _showNoPhoneMessage();
+      return;
+    }
+    final launched = await launchPhoneCall(phone!);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not start phone call')),
+      );
+    }
+  }
+
+  Future<void> _onWhatsAppPressed() async {
+    final phone = widget.unit.phoneNumber;
+    if (!hasCallablePhone(phone)) {
+      _showNoPhoneMessage();
+      return;
+    }
+    final launched = await launchWhatsAppChat(phone!);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open WhatsApp')),
+      );
+    }
+  }
 
   Future<void> _onValveToggle(bool turnOn) async {
     if (!ref.read(isDeviceAdminProvider) || _togglingValve) return;
@@ -36,6 +72,7 @@ class _UnitTileState extends ConsumerState<UnitTile> {
     final scheme = Theme.of(context).colorScheme;
     final isAdmin = ref.watch(isDeviceAdminProvider);
     final healthAsync = ref.watch(deviceHealthProvider(widget.unit.deviceId));
+    final hasPhone = hasCallablePhone(widget.unit.phoneNumber);
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -68,6 +105,20 @@ class _UnitTileState extends ConsumerState<UnitTile> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  if (isAdmin) ...[
+                    _ContactIconButton(
+                      icon: Icons.phone_outlined,
+                      tooltip: 'Call resident',
+                      enabled: hasPhone,
+                      onPressed: _onCallPressed,
+                    ),
+                    _ContactIconButton(
+                      icon: Icons.chat_outlined,
+                      tooltip: 'WhatsApp',
+                      enabled: hasPhone,
+                      onPressed: _onWhatsAppPressed,
+                    ),
+                  ],
                   if (isAdmin)
                     PopupMenuButton<String>(
                       onSelected: (v) {
@@ -133,6 +184,37 @@ class _UnitTileState extends ConsumerState<UnitTile> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ContactIconButton extends StatelessWidget {
+  const _ContactIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return IconButton(
+      icon: Icon(
+        icon,
+        size: 20,
+        color: enabled ? scheme.primary : scheme.outline,
+      ),
+      tooltip: tooltip,
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      onPressed: onPressed,
     );
   }
 }

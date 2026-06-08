@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/building_providers.dart';
 import '../../core/utils/units.dart';
+import 'top_consumers_dashboard.dart';
 
 class BuildingSummaryHeader extends ConsumerWidget {
   const BuildingSummaryHeader({super.key});
@@ -84,50 +85,8 @@ class BuildingSummaryHeader extends ConsumerWidget {
                   ),
                 ],
               ),
-              if (summary.topConsumers.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text(
-                  'Top consumers today',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const SizedBox(height: 8),
-                ...summary.topConsumers.asMap().entries.map((entry) {
-                  final rank = entry.key + 1;
-                  final consumer = entry.value;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 12,
-                          backgroundColor: scheme.primaryContainer,
-                          child: Text(
-                            '$rank',
-                            style: Theme.of(context).textTheme.labelSmall,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            consumer.name,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        Text(
-                          VolumeFormatter.formatCompact(
-                            consumer.liters,
-                            volumeUnit,
-                          ),
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-              ],
+              const SizedBox(height: 16),
+              const TopConsumersDashboard(),
             ],
           ),
         ),

@@ -12,6 +12,8 @@ class ProvisioningState {
     this.step = WaterMeterSetupStep.devicePrep,
     this.deviceSerial,
     this.deviceDisplayName,
+    this.block,
+    this.wing,
     this.errorMessage,
     this.isLoading = false,
   });
@@ -19,6 +21,8 @@ class ProvisioningState {
   final WaterMeterSetupStep step;
   final String? deviceSerial;
   final String? deviceDisplayName;
+  final String? block;
+  final String? wing;
   final String? errorMessage;
   final bool isLoading;
 
@@ -26,6 +30,8 @@ class ProvisioningState {
     WaterMeterSetupStep? step,
     String? deviceSerial,
     String? deviceDisplayName,
+    String? block,
+    String? wing,
     String? errorMessage,
     bool? isLoading,
     bool clearError = false,
@@ -34,6 +40,8 @@ class ProvisioningState {
       step: step ?? this.step,
       deviceSerial: deviceSerial ?? this.deviceSerial,
       deviceDisplayName: deviceDisplayName ?? this.deviceDisplayName,
+      block: block ?? this.block,
+      wing: wing ?? this.wing,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       isLoading: isLoading ?? this.isLoading,
     );

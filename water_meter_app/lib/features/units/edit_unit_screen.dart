@@ -8,6 +8,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/providers/control_providers.dart';
 import '../../core/providers/unit_providers.dart';
 import '../../core/services/audit_logger.dart';
+import '../../core/utils/contact_launcher.dart';
 
 class EditUnitScreen extends ConsumerStatefulWidget {
   const EditUnitScreen({super.key, required this.unitId});
@@ -26,6 +27,7 @@ class _EditUnitScreenState extends ConsumerState<EditUnitScreen> {
   late final TextEditingController _wingController;
   late final TextEditingController _blockController;
   late final TextEditingController _residentController;
+  late final TextEditingController _phoneController;
   late final TextEditingController _notesController;
   bool _maintenanceMode = false;
   bool _saving = false;
@@ -40,6 +42,7 @@ class _EditUnitScreenState extends ConsumerState<EditUnitScreen> {
     _wingController = TextEditingController();
     _blockController = TextEditingController();
     _residentController = TextEditingController();
+    _phoneController = TextEditingController();
     _notesController = TextEditingController();
   }
 
@@ -51,6 +54,7 @@ class _EditUnitScreenState extends ConsumerState<EditUnitScreen> {
     _wingController.dispose();
     _blockController.dispose();
     _residentController.dispose();
+    _phoneController.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -64,6 +68,7 @@ class _EditUnitScreenState extends ConsumerState<EditUnitScreen> {
     _wingController.text = unit.wing;
     _blockController.text = unit.block;
     _residentController.text = unit.residentName ?? '';
+    _phoneController.text = unit.phoneNumber ?? '';
     _notesController.text = unit.notes ?? '';
     _maintenanceMode = unit.maintenanceMode;
   }
@@ -82,11 +87,15 @@ class _EditUnitScreenState extends ConsumerState<EditUnitScreen> {
         residentName: _residentController.text.trim().isEmpty
             ? null
             : _residentController.text.trim(),
+        phoneNumber: _phoneController.text.trim().isEmpty
+            ? null
+            : _phoneController.text.trim(),
         notes: _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
         maintenanceMode: _maintenanceMode,
         clearResidentName: _residentController.text.trim().isEmpty,
+        clearPhoneNumber: _phoneController.text.trim().isEmpty,
         clearNotes: _notesController.text.trim().isEmpty,
       );
 
@@ -229,6 +238,8 @@ class _EditUnitScreenState extends ConsumerState<EditUnitScreen> {
                                   labelText: 'Wing',
                                   border: OutlineInputBorder(),
                                 ),
+                                validator: (v) =>
+                                    v == null || v.trim().isEmpty ? 'Required' : null,
                               ),
                             ),
                           ],
@@ -240,6 +251,8 @@ class _EditUnitScreenState extends ConsumerState<EditUnitScreen> {
                             labelText: 'Block',
                             border: OutlineInputBorder(),
                           ),
+                          validator: (v) =>
+                              v == null || v.trim().isEmpty ? 'Required' : null,
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
@@ -248,6 +261,20 @@ class _EditUnitScreenState extends ConsumerState<EditUnitScreen> {
                             labelText: 'Resident name',
                             border: OutlineInputBorder(),
                           ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _phoneController,
+                          decoration: const InputDecoration(
+                            labelText: 'Phone number',
+                            hintText: 'e.g. +91 98765 43210',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.phone_outlined),
+                          ),
+                          keyboardType: TextInputType.phone,
+                          validator: (v) => isValidPhoneInput(v)
+                              ? null
+                              : 'Enter a valid phone number',
                         ),
                         const SizedBox(height: 12),
                         TextFormField(

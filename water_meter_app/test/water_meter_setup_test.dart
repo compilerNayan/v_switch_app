@@ -77,15 +77,20 @@ void main() {
     await tester.tap(find.text('Add device (mock)'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Required'), findsOneWidget);
+    expect(find.text('Required'), findsWidgets);
 
-    await tester.enterText(find.byType(TextFormField), 'D205');
+    final fields = find.byType(TextFormField);
+    await tester.enterText(fields.at(0), 'D205');
+    await tester.enterText(fields.at(1), 'A');
+    await tester.enterText(fields.at(2), 'East');
     await tester.tap(find.text('Add device (mock)'));
     await tester.pumpAndSettle();
 
     expect(find.text('Required'), findsNothing);
     expect(notifier!.state.step, WaterMeterSetupStep.success);
     expect(notifier!.state.deviceDisplayName, 'D205');
+    expect(notifier!.state.block, 'A');
+    expect(notifier!.state.wing, 'East');
   });
 
   test('provisioning state copyWith clears error when requested', () {
