@@ -84,6 +84,19 @@ class TenantApiClient {
     return profile.copyWith(idToken: token);
   }
 
+  Future<void> preEnrollDevice({
+    required String tenantId,
+    required String serialNumber,
+  }) async {
+    if (AppConfig.useMockApi) {
+      return;
+    }
+    await _post<Map<String, dynamic>>(
+      '/tenants/$tenantId/devices/pre-enroll',
+      {'serialNumber': serialNumber},
+    );
+  }
+
   Future<bool> tenantExists() async {
     if (AppConfig.useMockAuth) {
       final prefs = await _prefsProvider();

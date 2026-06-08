@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../config/app_config.dart';
+import '../api/api_exceptions.dart';
 import '../models/water_unit.dart';
 import '../provisioning/enrollment_client.dart';
 import '../provisioning/mock_enrollment_client.dart';
@@ -44,7 +44,11 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
   }
 
   void setDeviceSerial(String serial) {
-    state = state.copyWith(deviceSerial: serial, clearError: true);
+    state = state.copyWith(
+      deviceSerial: serial,
+      clearError: true,
+      resetProvisioningFlags: true,
+    );
   }
 
   void setDeviceDisplayName(String name) {
@@ -135,84 +139,97 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
         return false;
       }
 
-      final client = ref.read(wifiCredentialsClientProvider);
-      final result = await client.configureWifi(
-        homeWifiSsid: homeSsid,
-        homeWifiPassword: homePassword,
-        deviceSerialNumber: serial,
-      );
-
-      switch (result) {
-        case WifiConfigureSuccess():
-          state = state.copyWith(
-            step: WaterMeterSetupStep.nameDevice,
-            isLoading: false,
-            clearError: true,
-          );
-          return true;
-        case WifiConfigureHttpError(:final code):
-          setError('WiFi configuration failed (HTTP $code).');
-          return false;
-        case WifiConfigureNetworkError(:final message):
-          setError('Network error: $message');
-          return false;
+      final profile = await ref.read(userProfileProvider.future);
+      final tenantId = profile?.tenantId;
+      if (tenantId == null || tenantId.isEmpty) {
+        setError('No tenant found. Sign in and complete registration first.');
+        return false;
       }
+
+      final wifiClient = ref.read(wifiCredentialsClientProvider);
+      final tenantApi = ref.read(tenantApiClientProvider);
+
+      WifiConfigureResult? wifiResult;
+      Object? preEnrollError;
+
+      await Future.wait([
+        wifiClient
+            .configureWifi(
+              homeWifiSsid: homeSsid,
+              homeWifiPassword: homePassword,
+              deviceSerialNumber: serial,
+            )
+            .then((result) => wifiResult = result),
+        tenantApi
+            .preEnrollDevice(tenantId: tenantId, serialNumber: serial)
+            .catchError((Object error) => preEnrollError = error),
+      ]);
+
+      final wifiOk = wifiResult is WifiConfigureSuccess;
+      final tenantOk = preEnrollError == null;
+
+      if (!wifiOk && !tenantOk) {
+        setError(_wifiErrorMessage(wifiResult) +
+            ' Also failed to register device with your building.');
+        return false;
+      }
+      if (!wifiOk) {
+        setError(_wifiErrorMessage(wifiResult));
+        state = state.copyWith(
+          tenantAssociated: tenantOk,
+          isLoading: false,
+        );
+        return false;
+      }
+      if (!tenantOk) {
+        setError(_preEnrollErrorMessage(preEnrollError));
+        state = state.copyWith(
+          wifiConfigured: true,
+          isLoading: false,
+        );
+        return false;
+      }
+
+      state = state.copyWith(
+        step: WaterMeterSetupStep.nameDevice,
+        wifiConfigured: true,
+        tenantAssociated: true,
+        isLoading: false,
+        clearError: true,
+      );
+      return true;
     } catch (error) {
       setError(error.toString());
       return false;
     }
   }
 
+  String _wifiErrorMessage(WifiConfigureResult? result) {
+    return switch (result) {
+      WifiConfigureHttpError(:final code) =>
+        'WiFi configuration failed (HTTP $code).',
+      WifiConfigureNetworkError(:final message) => 'Network error: $message',
+      _ => 'WiFi configuration failed.',
+    };
+  }
+
+  String _preEnrollErrorMessage(Object? error) {
+    if (error is ApiException) {
+      return error.error.message;
+    }
+    if (error is NetworkException) {
+      return error.message;
+    }
+    return error?.toString() ?? 'Failed to register device with your building.';
+  }
+
+  /// Dummy enroll — prerequisites must be met; no device or cloud enroll yet.
   Future<bool> enrollDevice() async {
-    final serial = state.deviceSerial;
-    if (serial == null || serial.isEmpty) {
-      setError('No device serial saved.');
+    if (!state.canEnroll) {
+      setError('Configure device WiFi and register with your building first.');
       return false;
     }
-
-    setLoading(true);
-    try {
-      final ssidService = ref.read(wifiSsidServiceProvider);
-      final currentSsid = await ssidService.getCurrentSsid();
-      final onWifi = await ssidService.isConnectedToWifi();
-      if (!WifiSsidService.canEnroll(
-        savedSerial: serial,
-        currentSsid: currentSsid,
-        isOnWifi: onWifi,
-      )) {
-        setError('Reconnect to your home WiFi, then try again.');
-        return false;
-      }
-
-      final client = ref.read(enrollmentClientProvider);
-      final result = await client.enroll(serial);
-
-      switch (result) {
-        case EnrollmentSuccess():
-          final displayName = state.deviceDisplayName?.trim();
-          await registerWaterMeter(
-            serial: serial,
-            displayName: displayName != null && displayName.isNotEmpty
-                ? displayName
-                : serial,
-          );
-          state = state.copyWith(
-            step: WaterMeterSetupStep.success,
-            isLoading: false,
-            clearError: true,
-          );
-          return true;
-        case EnrollmentHttpError(:final code):
-          setError('Enrollment failed (HTTP $code).');
-          return false;
-        case EnrollmentNetworkError(:final message):
-          setError('Network error: $message');
-          return false;
-      }
-    } catch (error) {
-      setError(error.toString());
-      return false;
-    }
+    return true;
   }
 
   Future<WaterUnit> registerWaterMeter({

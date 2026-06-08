@@ -60,5 +60,15 @@ void main() {
       final me = await client.getMe();
       expect(me.tenantId, profile.tenantId);
     });
+
+    test('preEnrollDevice succeeds in mock API mode', () async {
+      await expectLater(
+        client.preEnrollDevice(
+          tenantId: 'tenant-mock',
+          serialNumber: 'WM123456',
+        ),
+        completes,
+      );
+    });
   });
 }

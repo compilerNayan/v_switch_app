@@ -1,67 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/provisioning/wifi_ssid_service.dart';
 import '../../../../core/providers/provisioning_providers.dart';
 
-class EnrollmentStep extends ConsumerStatefulWidget {
+class EnrollmentStep extends ConsumerWidget {
   const EnrollmentStep({super.key});
 
-  @override
-  ConsumerState<EnrollmentStep> createState() => _EnrollmentStepState();
-}
-
-class _EnrollmentStepState extends ConsumerState<EnrollmentStep>
-    with WidgetsBindingObserver {
-  bool _canEnroll = false;
-  String? _currentSsid;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _updateEnrollState());
+  String _statusMessage({
+    required bool wifiConfigured,
+    required bool tenantAssociated,
+  }) {
+    if (wifiConfigured && tenantAssociated) {
+      return 'Ready to enroll (coming soon). Tap Enroll to confirm prerequisites.';
+    }
+    if (!wifiConfigured && !tenantAssociated) {
+      return 'Configure device WiFi and register with your building first.';
+    }
+    if (!wifiConfigured) {
+      return 'Device WiFi is not configured yet. Go back and complete the WiFi step.';
+    }
+    return 'Device is not registered with your building yet. Go back and complete the WiFi step.';
   }
 
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _updateEnrollState();
+  Future<void> _enroll(BuildContext context, WidgetRef ref) async {
+    final ok = await ref.read(provisioningNotifierProvider.notifier).enrollDevice();
+    if (ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enrollment will be enabled in a future update.'),
+        ),
+      );
     }
   }
 
-  Future<void> _updateEnrollState() async {
-    final serial = ref.read(provisioningNotifierProvider).deviceSerial;
-    final ssidService = ref.read(wifiSsidServiceProvider);
-    final onWifi = await ssidService.isConnectedToWifi();
-    final ssid = await ssidService.getCurrentSsid();
-    final canEnroll = WifiSsidService.canEnroll(
-      savedSerial: serial,
-      currentSsid: ssid,
-      isOnWifi: onWifi,
-    );
-    if (mounted) {
-      setState(() {
-        _canEnroll = canEnroll;
-        _currentSsid = ssid.isEmpty ? null : ssid;
-      });
-    }
-  }
-
-  Future<void> _enroll() async {
-    await ref.read(provisioningNotifierProvider.notifier).enrollDevice();
-  }
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(provisioningNotifierProvider);
     final serial = state.deviceSerial ?? '—';
+    final canEnroll = state.canEnroll;
 
     return ListView(
       padding: const EdgeInsets.all(24),
@@ -72,25 +48,56 @@ class _EnrollmentStepState extends ConsumerState<EnrollmentStep>
         ),
         const SizedBox(height: 8),
         Text(
-          'Reconnect your phone to your home WiFi, then enroll the device.',
+          'Enroll is enabled after device WiFi is configured and the meter is '
+          'registered with your building.',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
         ),
         const SizedBox(height: 16),
         Text('Device serial: $serial'),
-        if (_currentSsid != null) ...[
-          const SizedBox(height: 8),
-          Text('Current network: $_currentSsid'),
-        ],
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Text(
-              _canEnroll
-                  ? 'Ready to enroll. Tap Enroll to register this device.'
-                  : 'Switch to your home WiFi (not IoT_) to enable enrollment.',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      state.wifiConfigured ? Icons.check_circle : Icons.circle_outlined,
+                      color: state.wifiConfigured
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text('Device WiFi configured'),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(
+                      state.tenantAssociated
+                          ? Icons.check_circle
+                          : Icons.circle_outlined,
+                      color: state.tenantAssociated
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text('Registered with building'),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _statusMessage(
+                    wifiConfigured: state.wifiConfigured,
+                    tenantAssociated: state.tenantAssociated,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -103,7 +110,9 @@ class _EnrollmentStepState extends ConsumerState<EnrollmentStep>
         ],
         const SizedBox(height: 24),
         FilledButton(
-          onPressed: state.isLoading || !_canEnroll ? null : _enroll,
+          onPressed: state.isLoading || !canEnroll
+              ? null
+              : () => _enroll(context, ref),
           child: state.isLoading
               ? const SizedBox(
                   height: 20,
@@ -111,11 +120,6 @@ class _EnrollmentStepState extends ConsumerState<EnrollmentStep>
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Text('Enroll'),
-        ),
-        const SizedBox(height: 12),
-        OutlinedButton(
-          onPressed: _updateEnrollState,
-          child: const Text('Refresh connection status'),
         ),
       ],
     );

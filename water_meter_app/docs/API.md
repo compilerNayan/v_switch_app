@@ -566,14 +566,41 @@ Query: `from`, `to`, `timezone` — pre-aggregated billing rows.
 
 ---
 
-## 11. Device provisioning (LAN — not cloud)
+## 11. Device provisioning
+
+### Cloud pre-enrollment (before LAN enroll)
+
+**`POST /tenants/{tenantId}/devices/pre-enroll`** (authenticated)
+
+Called in parallel with device WiFi configuration while the phone is on the `IoT_<serial>` hotspot. Reserves the serial for the tenant (pending AWS IoT enrollment).
+
+**Request:**
+```json
+{ "serialNumber": "WM000123" }
+```
+
+**Response 201:**
+```json
+{
+  "tenantId": "tenant_abc",
+  "serialNumber": "WM000123",
+  "status": "pending",
+  "expiresAt": "2026-06-08T15:00:00Z"
+}
+```
+
+Idempotent: re-calling for the same serial refreshes the pending record.
+
+### LAN device APIs (not cloud)
 
 | Method | URL | Body |
 |--------|-----|------|
 | POST | `http://192.168.4.1:8080/wifi-credentials` | `{ "ssid", "password" }` |
 | POST | `http://{serial}.local:8080/enrollment/enroll` | empty |
 
-After enrollment: `POST /tenants/{tenantId}/units` links device serial.
+**App flow (current):** WiFi credentials + pre-enroll run in parallel. Enroll button is enabled when both succeed; device enroll click is a placeholder until IoT Core integration.
+
+After real enrollment: `POST /tenants/{tenantId}/units` links device serial.
 
 ---
 
@@ -600,6 +627,7 @@ After enrollment: `POST /tenants/{tenantId}/units` links device serial.
 | POST | `/tenants` |
 | GET | `/tenants/{tenantId}` |
 | PUT | `/tenants/{tenantId}/structure` |
+| POST | `/tenants/{tenantId}/devices/pre-enroll` |
 | POST | `/tenants/{tenantId}/admin-invites` |
 | POST | `/tenants/join/admin` |
 | GET/POST | `/tenants/{tenantId}/units` |
