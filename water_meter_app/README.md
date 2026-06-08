@@ -89,17 +89,28 @@ Invite codes: building `DEMO-1234`; per-unit codes generated on enroll (e.g. `D2
 /tmp/flutter-sdk/bin/flutter test
 ```
 
-## Future cloud API (mock-first today)
+## Backend API contract
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/tenants/{id}/building/summary` | Building totals |
-| GET | `/tenants/{id}/building/rankings` | Usage rankings |
-| GET | `/tenants/{id}/alerts` | Alert events |
-| GET | `/tenants/{id}/audit` | Audit log |
-| POST | `/users/me/push-token` | FCM registration |
+The app is mock-first today. Most tenant/building data lives in local storage; device telemetry uses `/devices/{id}/water/*` when `USE_MOCK_API=false`.
 
-Water device API unchanged: `/devices/{id}/water/*`
+**Full REST API specification:** [docs/API.md](docs/API.md)
+
+Covers:
+- Auth, tenant onboarding, and user profile
+- Water unit inventory (CRUD, invite codes, resident phone)
+- Building summary and top-consumer rankings
+- Device telemetry, valve, and quota (8 endpoints — already implemented in client)
+- Alerts, audit log, policies, billing/tariff
+- Bulk operations, push tokens, caching notes
+
+To point at a real backend:
+
+```bash
+flutter run \
+  --dart-define=USE_MOCK_API=false \
+  --dart-define=USE_MOCK_AUTH=false \
+  --dart-define=API_BASE_URL=https://your-api.example.com/v1
+```
 
 ## Push notifications (production)
 
