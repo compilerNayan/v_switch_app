@@ -4,6 +4,7 @@ enum AuditAction {
   quotaUpdate,
   templateApply,
   emergencyShutoff,
+  emergencyRestore,
   unitEdit,
   maintenanceMode,
   scheduleUpdate;
@@ -20,6 +21,8 @@ enum AuditAction {
         return 'Template applied';
       case AuditAction.emergencyShutoff:
         return 'Emergency shutoff';
+      case AuditAction.emergencyRestore:
+        return 'Emergency restore';
       case AuditAction.unitEdit:
         return 'Unit edited';
       case AuditAction.maintenanceMode:

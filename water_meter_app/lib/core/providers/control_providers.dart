@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/api_exceptions.dart';
 import '../api/valve_actions.dart';
 import '../models/quota_config.dart';
-import '../models/user_profile.dart';
 import '../models/valve_state.dart';
 import 'app_providers.dart';
 import '../services/audit_logger.dart';
@@ -12,7 +11,7 @@ import 'unit_providers.dart';
 final isDeviceAdminProvider = Provider<bool>((ref) {
   final profile = ref.watch(userProfileProvider);
   return profile.maybeWhen(
-    data: (p) => p?.role == UserRole.admin,
+    data: (p) => p?.onboardingComplete == true && p?.tenantId != null,
     orElse: () => false,
   );
 });

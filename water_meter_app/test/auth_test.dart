@@ -1,51 +1,81 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:water_meter_app/core/auth/mock_auth_service.dart';
-import 'package:water_meter_app/core/models/user_profile.dart';
+import 'package:water_meter_app/core/models/tenant_config.dart';
+import 'package:water_meter_app/core/storage/preferences_storage.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   FlutterSecureStorage.setMockInitialValues({});
+  SharedPreferences.setMockInitialValues({});
 
   group('MockAuthService tenant flow', () {
     late MockAuthService auth;
+    late PreferencesStorage prefs;
 
     setUp(() async {
-      auth = MockAuthService();
+      SharedPreferences.setMockInitialValues({});
+      prefs = await PreferencesStorage.create();
+      auth = MockAuthService(prefs: prefs);
       await auth.initialize();
     });
 
     test('sign in creates unboarded profile', () async {
       final profile = await auth.signInWithGoogle();
       expect(profile.onboardingComplete, isFalse);
-      expect(profile.role, isNull);
+      expect(profile.tenantId, isNull);
     });
 
-    test('admin flow creates tenant', () async {
+    test('create tenant flow', () async {
       await auth.signInWithGoogle();
-      await auth.setRole(UserRole.admin);
-      final profile = await auth.createTenant();
-      expect(profile.role, UserRole.admin);
-      expect(profile.tenantId, isNotNull);
-      expect(profile.inviteCode, MockAuthService.mockInviteCode);
+      final profile = await auth.createTenant(
+        name: 'Demo Building',
+        structure: const TenantStructure(
+          blocks: [TenantBlock(id: 'A', label: 'Tower A', wings: ['East'])],
+        ),
+        prefs: prefs,
+      );
       expect(profile.onboardingComplete, isTrue);
-    });
-
-    test('readonly join with valid invite code', () async {
-      await auth.signInWithGoogle();
-      await auth.setRole(UserRole.readonly);
-      final profile = await auth.joinTenant(MockAuthService.mockInviteCode);
-      expect(profile.role, UserRole.readonly);
+      expect(profile.isTenantOwner, isTrue);
       expect(profile.tenantId, isNotNull);
-      expect(profile.onboardingComplete, isTrue);
+      expect(prefs.getTenantConfig()?.name, 'Demo Building');
     });
 
-    test('readonly join rejects invalid invite code', () async {
+    test('join as admin with valid invite code', () async {
       await auth.signInWithGoogle();
-      await auth.setRole(UserRole.readonly);
+      await auth.createTenant(
+        name: 'Demo Building',
+        structure: const TenantStructure(),
+        prefs: prefs,
+      );
+      await auth.signOut();
+      auth = MockAuthService(prefs: prefs);
+      await auth.initialize();
+      await auth.signInWithGoogle();
+      final profile = await auth.joinAsAdmin(
+        inviteCode: MockAuthService.mockAdminInviteCode,
+        prefs: prefs,
+      );
+      expect(profile.onboardingComplete, isTrue);
+      expect(profile.isTenantOwner, isFalse);
+      expect(profile.tenantId, isNotNull);
+    });
+
+    test('join rejects invalid invite code', () async {
+      await auth.signInWithGoogle();
+      await auth.createTenant(
+        name: 'Demo Building',
+        structure: const TenantStructure(),
+        prefs: prefs,
+      );
+      await auth.signOut();
+      auth = MockAuthService(prefs: prefs);
+      await auth.initialize();
+      await auth.signInWithGoogle();
       expect(
-        () => auth.joinTenant('BAD-CODE'),
+        () => auth.joinAsAdmin(inviteCode: 'BAD-CODE', prefs: prefs),
         throwsA(isA<TenantJoinException>()),
       );
     });

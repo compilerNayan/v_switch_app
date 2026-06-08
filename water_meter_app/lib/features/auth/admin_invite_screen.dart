@@ -6,16 +6,16 @@ import '../../core/api/api_exceptions.dart';
 import '../../core/auth/mock_auth_service.dart';
 import '../../core/config/app_config.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/providers/tenant_providers.dart';
 
-class JoinTenantScreen extends ConsumerStatefulWidget {
-  const JoinTenantScreen({super.key});
+class AdminInviteScreen extends ConsumerStatefulWidget {
+  const AdminInviteScreen({super.key});
 
   @override
-  ConsumerState<JoinTenantScreen> createState() => _JoinTenantScreenState();
+  ConsumerState<AdminInviteScreen> createState() => _AdminInviteScreenState();
 }
 
-class _JoinTenantScreenState extends ConsumerState<JoinTenantScreen> {
-  final _formKey = GlobalKey<FormState>();
+class _AdminInviteScreenState extends ConsumerState<AdminInviteScreen> {
   final _codeController = TextEditingController();
   bool _isLoading = false;
   String? _error;
@@ -27,16 +27,22 @@ class _JoinTenantScreenState extends ConsumerState<JoinTenantScreen> {
   }
 
   Future<void> _join() async {
-    if (!_formKey.currentState!.validate()) return;
+    final code = _codeController.text.trim();
+    if (code.isEmpty) {
+      setState(() => _error = 'Enter the admin invite code');
+      return;
+    }
 
     setState(() {
       _isLoading = true;
       _error = null;
     });
+
     try {
       final client = ref.read(tenantApiClientProvider);
-      await client.joinTenant(_codeController.text.trim());
+      await client.joinAsAdmin(code);
       ref.invalidate(userProfileProvider);
+      ref.invalidate(tenantConfigProvider);
       if (mounted) context.go('/');
     } on ApiException catch (e) {
       setState(() => _error = e.error.message);
@@ -50,65 +56,61 @@ class _JoinTenantScreenState extends ConsumerState<JoinTenantScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Join organization')),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
+      appBar: AppBar(title: const Text('Join as admin')),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Enter invite code',
-                style: Theme.of(context).textTheme.titleLarge,
+                'Admin invite required',
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 8),
               Text(
-                'Ask your organization admin for the invite code.',
+                'This building already has an admin. Enter the invite code '
+                'they shared to join as a co-admin.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
               ),
-              if (AppConfig.useMockAuth) ...[
-                const SizedBox(height: 8),
+              const SizedBox(height: 24),
+              if (_error != null) ...[
                 Text(
-                  'Demo code: ${MockAuthService.mockInviteCode}',
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+                const SizedBox(height: 16),
+              ],
+              TextField(
+                controller: _codeController,
+                decoration: const InputDecoration(
+                  labelText: 'Admin invite code',
+                  prefixIcon: Icon(Icons.vpn_key_outlined),
+                ),
+                textCapitalization: TextCapitalization.characters,
+                onSubmitted: (_) => _join(),
+              ),
+              if (AppConfig.useMockAuth) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Demo code: ${MockAuthService.mockAdminInviteCode}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
               ],
-              const SizedBox(height: 24),
-              TextFormField(
-                controller: _codeController,
-                decoration: const InputDecoration(
-                  labelText: 'Invite code',
-                  hintText: 'XXXX-XXXX',
-                  prefixIcon: Icon(Icons.vpn_key),
-                ),
-                textCapitalization: TextCapitalization.characters,
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Required';
-                  if (!RegExp(r'^[A-Za-z0-9]{4}-[A-Za-z0-9]{4}$').hasMatch(v.trim())) {
-                    return 'Format: XXXX-XXXX';
-                  }
-                  return null;
-                },
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 12),
-                Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-              ],
-              const SizedBox(height: 24),
+              const Spacer(),
               FilledButton(
                 onPressed: _isLoading ? null : _join,
                 child: _isLoading
                     ? const SizedBox(
-                        height: 20,
                         width: 20,
+                        height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Join'),
+                    : const Text('Join building'),
               ),
             ],
           ),

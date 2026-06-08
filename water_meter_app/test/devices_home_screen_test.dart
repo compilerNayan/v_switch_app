@@ -11,7 +11,9 @@ import 'package:water_meter_app/core/models/quota_config.dart';
 import 'package:water_meter_app/core/models/user_profile.dart';
 import 'package:water_meter_app/core/models/valve_state.dart';
 import 'package:water_meter_app/core/models/water_unit.dart';
+import 'package:water_meter_app/core/api/building_api_client.dart';
 import 'package:water_meter_app/core/providers/app_providers.dart';
+import 'package:water_meter_app/core/providers/building_providers.dart';
 import 'package:water_meter_app/core/providers/control_providers.dart';
 import 'package:water_meter_app/core/providers/device_tile_providers.dart';
 import 'package:water_meter_app/core/providers/unit_providers.dart';
@@ -87,7 +89,6 @@ void main() {
               userId: 'admin',
               email: 'a@test.com',
               displayName: 'Admin',
-              role: UserRole.admin,
               tenantId: 't1',
               onboardingComplete: true,
             ),
@@ -105,6 +106,18 @@ void main() {
               readingTimestamp: reading.timestamp.toLocal(),
             ),
           ),
+          buildingSummaryProvider.overrideWith(
+            (ref) async => const BuildingSummary(
+              totalTodayLiters: 100,
+              totalMonthLiters: 1000,
+              activeAlerts: 0,
+              unitsOnline: 1,
+              unitsOffline: 0,
+              unitsTotal: 1,
+              topConsumers: [],
+            ),
+          ),
+          topConsumersRankingsProvider.overrideWith((ref) async => []),
         ],
         child: MaterialApp.router(
           routerConfig: GoRouter(

@@ -35,7 +35,10 @@ final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
 
 final tenantApiClientProvider = Provider<TenantApiClient>((ref) {
   final auth = ref.watch(authServiceProvider);
-  return TenantApiClient(authService: auth);
+  return TenantApiClient(
+    authService: auth,
+    prefsProvider: () => ref.read(preferencesStorageProvider.future),
+  );
 });
 
 final preferencesStorageProvider = FutureProvider<PreferencesStorage>(
@@ -77,7 +80,7 @@ final waterApiClientProvider = Provider<WaterApiClient>((ref) {
     return MockWaterApiClient(
       canManageQuota: () async {
         final profile = await auth.getCurrentUser();
-        return profile?.role == UserRole.admin;
+        return profile?.onboardingComplete == true && profile?.tenantId != null;
       },
     );
   }

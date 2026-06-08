@@ -7,6 +7,8 @@ import '../models/audit_event.dart';
 import '../models/quota_template.dart';
 import '../models/schedule_rule.dart';
 import '../models/tariff_config.dart';
+import '../models/bulk_valve_snapshot.dart';
+import '../models/tenant_config.dart';
 import '../models/top_consumers_config.dart';
 import '../models/water_unit.dart';
 import '../theme/app_theme.dart';
@@ -29,6 +31,9 @@ class PreferencesStorage {
   static const _scheduleRulesKey = 'schedule_rules';
   static const _tenantAdminsKey = 'tenant_admins';
   static const _topConsumersConfigKey = 'top_consumers_config';
+  static const _tenantConfigKey = 'tenant_config';
+  static const _adminInviteCodeKey = 'admin_invite_code';
+  static const _bulkValveSnapshotKey = 'bulk_valve_snapshot';
 
   static const maxAuditEntries = 500;
   static const maxAlertEntries = 200;
@@ -295,6 +300,47 @@ class PreferencesStorage {
 
   Future<void> setTenantAdmins(List<String> emails) =>
       _prefs.setStringList(_tenantAdminsKey, emails);
+
+  TenantConfig? getTenantConfig() {
+    final raw = _prefs.getString(_tenantConfigKey);
+    if (raw == null) return null;
+    try {
+      return TenantConfig.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool get tenantExists => getTenantConfig() != null;
+
+  Future<void> setTenantConfig(TenantConfig config) =>
+      _prefs.setString(_tenantConfigKey, jsonEncode(config.toJson()));
+
+  String? getAdminInviteCode() => _prefs.getString(_adminInviteCodeKey);
+
+  Future<void> setAdminInviteCode(String code) =>
+      _prefs.setString(_adminInviteCodeKey, code);
+
+  BulkValveSnapshot? getBulkValveSnapshot() {
+    final raw = _prefs.getString(_bulkValveSnapshotKey);
+    if (raw == null) return null;
+    try {
+      return BulkValveSnapshot.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setBulkValveSnapshot(BulkValveSnapshot? snapshot) async {
+    if (snapshot == null) {
+      await _prefs.remove(_bulkValveSnapshotKey);
+      return;
+    }
+    await _prefs.setString(
+      _bulkValveSnapshotKey,
+      jsonEncode(snapshot.toJson()),
+    );
+  }
 
   // Legacy aliases for gradual migration
   List<WaterUnit> getUserDevices() => getWaterUnits();

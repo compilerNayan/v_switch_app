@@ -71,7 +71,6 @@ void main() {
               userId: 'admin',
               email: 'admin@test.com',
               displayName: 'Admin',
-              role: UserRole.admin,
               tenantId: 'demo',
               onboardingComplete: true,
             ),

@@ -1,16 +1,20 @@
+import '../models/tenant_config.dart';
 import '../models/user_profile.dart';
+import '../storage/preferences_storage.dart';
 import '../storage/session_storage.dart';
 import 'auth_service.dart';
 
 /// In-memory + secure-storage auth for local development without AWS.
 class MockAuthService implements AuthService {
-  MockAuthService({SessionStorage? storage})
-      : _storage = storage ?? SessionStorage();
+  MockAuthService({SessionStorage? storage, PreferencesStorage? prefs})
+      : _storage = storage ?? SessionStorage(),
+        _prefs = prefs;
 
   final SessionStorage _storage;
+  final PreferencesStorage? _prefs;
   UserProfile? _cached;
 
-  static const mockInviteCode = 'DEMO-1234';
+  static const mockAdminInviteCode = 'ADMIN-DEMO';
 
   @override
   Future<void> initialize() async {
@@ -53,46 +57,72 @@ class MockAuthService implements AuthService {
     _cached = await _storage.readProfile();
   }
 
-  Future<UserProfile> setRole(UserRole role) async {
-    var user = (await getCurrentUser())!;
-    user = user.copyWith(role: role);
-    _cached = user;
-    await _storage.saveProfile(user);
-    return user;
-  }
+  Future<bool> tenantExists(PreferencesStorage prefs) => Future.value(prefs.tenantExists);
 
-  Future<UserProfile> createTenant() async {
+  Future<UserProfile> createTenant({
+    required String name,
+    required TenantStructure structure,
+    required PreferencesStorage prefs,
+  }) async {
+    if (prefs.tenantExists) {
+      throw TenantSetupException('Tenant already exists');
+    }
     var user = (await getCurrentUser())!;
     final tenantId = 'tenant-${user.userId.substring(0, 8)}';
+    await prefs.setTenantConfig(
+      TenantConfig(tenantId: tenantId, name: name, structure: structure),
+    );
+    await prefs.setAdminInviteCode(mockAdminInviteCode);
     user = user.copyWith(
       tenantId: tenantId,
-      inviteCode: mockInviteCode,
       onboardingComplete: true,
+      isTenantOwner: true,
     );
     _cached = user;
     await _storage.saveProfile(user);
     return user;
   }
 
-  Future<UserProfile> joinTenant(String inviteCode, {String? unitId}) async {
-    final code = inviteCode.trim().toUpperCase();
-    if (code != mockInviteCode && !code.contains('-')) {
-      throw TenantJoinException('Invalid invite code');
+  Future<UserProfile> joinAsAdmin({
+    required String inviteCode,
+    required PreferencesStorage prefs,
+  }) async {
+    final config = prefs.getTenantConfig();
+    if (config == null) {
+      throw TenantJoinException('No tenant configured');
+    }
+    final expected = prefs.getAdminInviteCode() ?? mockAdminInviteCode;
+    if (inviteCode.trim().toUpperCase() != expected.toUpperCase()) {
+      throw TenantJoinException('Invalid admin invite code');
     }
     var user = (await getCurrentUser())!;
     user = user.copyWith(
-      tenantId: 'tenant-shared-demo',
+      tenantId: config.tenantId,
       onboardingComplete: true,
-      assignedUnitIds: unitId != null ? [unitId] : const [],
+      isTenantOwner: false,
     );
     _cached = user;
     await _storage.saveProfile(user);
     return user;
+  }
+
+  Future<String> generateAdminInvite(PreferencesStorage prefs) async {
+    final code = 'ADMIN-${DateTime.now().millisecondsSinceEpoch % 100000}';
+    await prefs.setAdminInviteCode(code);
+    return code;
   }
 }
 
 class TenantJoinException implements Exception {
   TenantJoinException(this.message);
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+class TenantSetupException implements Exception {
+  TenantSetupException(this.message);
   final String message;
 
   @override

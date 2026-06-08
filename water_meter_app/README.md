@@ -21,19 +21,16 @@ flutter pub get
 ```
 
 1. **Sign in** (mock Google)
-2. Choose role: **Admin**, **Resident**, or **Maintenance**
+2. Complete tenant setup (first user) or enter admin invite code
 3. **Building** home — portfolio summary, searchable unit grid, alerts
 4. Tap a unit → Dashboard / Usage / Insights / Control (admin only)
 
-### Roles
+### Access model (single tenant)
 
-| Role | Access |
-|------|--------|
-| Admin | Full building overview, controls, policies, reports, audit |
-| Resident | Own unit only (usage + insights, read-only) |
-| Maintenance | Building view, valve control on assigned units |
-
-Invite codes: building `DEMO-1234`; per-unit codes generated on enroll (e.g. `D205-1234`).
+- **One tenant** per deployment; all users are **admins**
+- **First sign-in** creates the tenant (building name + optional block/wing layout)
+- **Additional admins** join with an owner-generated admin invite code
+- **Meter invite codes** are generated per unit (resident onboarding is future work)
 
 ## Add a water meter
 

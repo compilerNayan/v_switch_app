@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/top_consumers_config.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/building_providers.dart';
+import '../../core/providers/tenant_providers.dart';
 import '../../core/utils/top_consumers_rankings.dart';
 import '../../core/utils/units.dart';
 
@@ -37,7 +38,18 @@ class _TopConsumersDashboardState extends ConsumerState<TopConsumersDashboard> {
     final rankingsAsync = ref.watch(topConsumersRankingsProvider);
     final volumeUnit = ref.watch(volumeUnitProvider);
     final blocks = ref.watch(distinctBlocksProvider);
-    final pages = config.enabledPages;
+    final tenantConfig = ref.watch(tenantConfigProvider).valueOrNull;
+    var pages = config.enabledPages.where((page) {
+      switch (page) {
+        case TopConsumersPageType.overall:
+          return true;
+        case TopConsumersPageType.byBlock:
+          return tenantConfig?.hasBlocks ?? blocks.isNotEmpty;
+        case TopConsumersPageType.byWing:
+          return tenantConfig?.hasWings ?? blocks.isNotEmpty;
+      }
+    }).toList();
+    if (pages.isEmpty) pages = [TopConsumersPageType.overall];
 
     if (_currentPage >= pages.length) {
       WidgetsBinding.instance.addPostFrameCallback((_) {

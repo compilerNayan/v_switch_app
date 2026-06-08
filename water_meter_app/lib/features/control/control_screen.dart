@@ -4,6 +4,7 @@ import '../../core/models/quota_config.dart';
 import '../../core/models/valve_state.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/control_providers.dart';
+import '../../core/providers/unit_providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/units.dart';
 import '../../shared/widgets/device_scaffold_actions.dart';
@@ -24,6 +25,9 @@ class _ControlScreenState extends ConsumerState<ControlScreen> {
     final valveAsync = ref.watch(valveControlNotifierProvider);
     final quotaAsync = ref.watch(quotaStateProvider);
     final isAdmin = ref.watch(isDeviceAdminProvider);
+    final maintenanceLocked =
+        ref.watch(activeWaterUnitProvider)?.maintenanceMode ?? false;
+    final canControlValve = isAdmin && !maintenanceLocked;
     final volumeUnit = ref.watch(volumeUnitProvider);
 
     final quotaData = quotaAsync.valueOrNull;
@@ -66,12 +70,13 @@ class _ControlScreenState extends ConsumerState<ControlScreen> {
                   valveAsync.when(
                     data: (valve) => _TapControlCard(
                       valve: valve,
-                      isAdmin: isAdmin,
+                      canControlValve: canControlValve,
+                      maintenanceLocked: maintenanceLocked,
                       sliderValue: _sliderValue ?? valve.targetPressurePercent,
-                      onSliderChanged: isAdmin
+                      onSliderChanged: canControlValve
                           ? (value) => setState(() => _sliderValue = value)
                           : null,
-                      onSliderCommitted: isAdmin
+                      onSliderCommitted: canControlValve
                           ? (value) {
                               setState(() => _sliderValue = value);
                               ref
@@ -79,7 +84,7 @@ class _ControlScreenState extends ConsumerState<ControlScreen> {
                                   .setPressure(value);
                             }
                           : null,
-                      onTogglePower: isAdmin
+                      onTogglePower: canControlValve
                           ? () => ref
                               .read(valveControlNotifierProvider.notifier)
                               .togglePower()
@@ -142,7 +147,8 @@ class _ControlScreenState extends ConsumerState<ControlScreen> {
 class _TapControlCard extends StatelessWidget {
   const _TapControlCard({
     required this.valve,
-    required this.isAdmin,
+    required this.canControlValve,
+    required this.maintenanceLocked,
     required this.sliderValue,
     this.onSliderChanged,
     this.onSliderCommitted,
@@ -150,7 +156,8 @@ class _TapControlCard extends StatelessWidget {
   });
 
   final ValveState valve;
-  final bool isAdmin;
+  final bool canControlValve;
+  final bool maintenanceLocked;
   final double sliderValue;
   final ValueChanged<double>? onSliderChanged;
   final ValueChanged<double>? onSliderCommitted;
@@ -185,7 +192,7 @@ class _TapControlCard extends StatelessWidget {
               children: [
                 _PowerButton(
                   isOn: isOn,
-                  enabled: isAdmin && onTogglePower != null,
+                  enabled: canControlValve && onTogglePower != null,
                   onPressed: onTogglePower,
                 ),
                 const SizedBox(width: 24),
@@ -203,12 +210,17 @@ class _TapControlCard extends StatelessWidget {
                         'Target: ${valve.targetPressurePercent.toStringAsFixed(0)}%',
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
-                      if (valve.isOff)
+                      if (maintenanceLocked)
                         Text(
-                          'Tap is off — maintenance mode',
+                          'Maintenance mode — valve locked off',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: scheme.error,
                               ),
+                        )
+                      else if (valve.isOff)
+                        Text(
+                          'Tap is off',
+                          style: Theme.of(context).textTheme.bodySmall,
                         )
                       else if (valve.controlMode == ValveControlMode.quota)
                         Text(
@@ -241,16 +253,6 @@ class _TapControlCard extends StatelessWidget {
                 Text('100%', style: Theme.of(context).textTheme.bodySmall),
               ],
             ),
-            if (!isAdmin)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Read-only access — controls are disabled',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.outline,
-                      ),
-                ),
-              ),
           ],
         ),
       ),

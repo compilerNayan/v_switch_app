@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/audit_event.dart';
 import '../../core/models/water_unit.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/providers/building_providers.dart';
 import '../../core/providers/control_providers.dart';
+import '../../core/providers/device_tile_providers.dart';
+import '../../core/providers/tenant_providers.dart';
 import '../../core/providers/unit_providers.dart';
 import '../../core/services/audit_logger.dart';
 import '../../core/utils/contact_launcher.dart';
@@ -99,6 +103,10 @@ class _EditUnitScreenState extends ConsumerState<EditUnitScreen> {
         clearNotes: _notesController.text.trim().isEmpty,
       );
 
+      if (_maintenanceMode && !_unit!.maintenanceMode) {
+        await toggleDeviceValveForId(ref, updated.deviceId, forceOff: true);
+      }
+
       final prefs = await ref.read(preferencesStorageProvider.future);
       await prefs.updateWaterUnit(updated);
       ref.invalidate(waterUnitsProvider);
@@ -137,6 +145,9 @@ class _EditUnitScreenState extends ConsumerState<EditUnitScreen> {
   Widget build(BuildContext context) {
     final isAdmin = ref.watch(isDeviceAdminProvider);
     final unitsAsync = ref.watch(waterUnitsProvider);
+    final tenantConfig = ref.watch(tenantConfigProvider).valueOrNull;
+    final blockOptions = ref.watch(distinctBlocksProvider);
+    final wingOptions = ref.watch(distinctWingsProvider);
 
     if (!isAdmin) {
       return Scaffold(
@@ -178,7 +189,8 @@ class _EditUnitScreenState extends ConsumerState<EditUnitScreen> {
           if (unit == null) {
             return const Center(child: Text('Unit not found'));
           }
-          _populateForm(unit);
+          final currentUnit = unit;
+          _populateForm(currentUnit);
 
           return Form(
             key: _formKey,
@@ -197,7 +209,7 @@ class _EditUnitScreenState extends ConsumerState<EditUnitScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          unit.deviceId,
+                          currentUnit.deviceId,
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         const SizedBox(height: 16),
@@ -232,28 +244,100 @@ class _EditUnitScreenState extends ConsumerState<EditUnitScreen> {
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: TextFormField(
-                                controller: _wingController,
+                              child: tenantConfig != null &&
+                                      tenantConfig.hasWings &&
+                                      wingOptions.isNotEmpty
+                                  ? DropdownButtonFormField<String>(
+                                      value: _wingController.text.isEmpty
+                                          ? null
+                                          : _wingController.text,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Wing',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      items: wingOptions
+                                          .map(
+                                            (w) => DropdownMenuItem(
+                                              value: w,
+                                              child: Text(w),
+                                            ),
+                                          )
+                                          .toList(),
+                                      onChanged: (v) => setState(
+                                        () => _wingController.text = v ?? '',
+                                      ),
+                                      validator: (v) =>
+                                          v == null || v.isEmpty ? 'Required' : null,
+                                    )
+                                  : TextFormField(
+                                      controller: _wingController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Wing',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      validator: (v) => v == null || v.trim().isEmpty
+                                          ? 'Required'
+                                          : null,
+                                    ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        tenantConfig != null &&
+                                tenantConfig.hasBlocks &&
+                                blockOptions.isNotEmpty
+                            ? DropdownButtonFormField<String>(
+                                value: _blockController.text.isEmpty
+                                    ? null
+                                    : _blockController.text,
                                 decoration: const InputDecoration(
-                                  labelText: 'Wing',
+                                  labelText: 'Block',
+                                  border: OutlineInputBorder(),
+                                ),
+                                items: blockOptions
+                                    .map(
+                                      (b) => DropdownMenuItem(
+                                        value: b,
+                                        child: Text(b),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (v) => setState(
+                                  () => _blockController.text = v ?? '',
+                                ),
+                                validator: (v) =>
+                                    v == null || v.isEmpty ? 'Required' : null,
+                              )
+                            : TextFormField(
+                                controller: _blockController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Block',
                                   border: OutlineInputBorder(),
                                 ),
                                 validator: (v) =>
                                     v == null || v.trim().isEmpty ? 'Required' : null,
                               ),
+                        if (unit.unitInviteCode != null) ...[
+                          const SizedBox(height: 12),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Meter invite code'),
+                            subtitle: Text(unit.unitInviteCode!),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.copy),
+                              onPressed: () {
+                                Clipboard.setData(
+                                  ClipboardData(text: currentUnit.unitInviteCode!),
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Invite code copied'),
+                                  ),
+                                );
+                              },
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _blockController,
-                          decoration: const InputDecoration(
-                            labelText: 'Block',
-                            border: OutlineInputBorder(),
                           ),
-                          validator: (v) =>
-                              v == null || v.trim().isEmpty ? 'Required' : null,
-                        ),
+                        ],
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _residentController,
@@ -294,7 +378,7 @@ class _EditUnitScreenState extends ConsumerState<EditUnitScreen> {
                   child: SwitchListTile(
                     title: const Text('Maintenance mode'),
                     subtitle: const Text(
-                      'Suppress alerts and exclude from automated policies',
+                      'Turns water off, locks valve on, excludes from bulk actions',
                     ),
                     value: _maintenanceMode,
                     onChanged: (v) => setState(() => _maintenanceMode = v),

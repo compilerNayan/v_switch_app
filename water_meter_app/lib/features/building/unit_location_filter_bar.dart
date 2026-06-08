@@ -10,6 +10,12 @@ class UnitLocationFilterButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final allBlocks = ref.watch(distinctBlocksProvider);
+    final allWings = ref.watch(distinctWingsProvider);
+    if (allBlocks.isEmpty && allWings.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     final selectedBlocks = ref.watch(selectedBlocksProvider);
     final selectedWings = ref.watch(selectedWingsProvider);
     final activeCount = selectedBlocks.length + selectedWings.length;

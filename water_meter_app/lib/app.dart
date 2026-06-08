@@ -4,14 +4,13 @@ import 'package:go_router/go_router.dart';
 
 import 'core/config/app_config.dart';
 import 'core/providers/app_providers.dart';
-import 'core/providers/control_providers.dart';
 import 'core/providers/unit_providers.dart';
 import 'core/utils/onboarding_router.dart';
 import 'features/alerts/alerts_screen.dart';
 import 'features/audit/audit_log_screen.dart';
-import 'features/auth/join_tenant_screen.dart';
-import 'features/auth/role_selection_screen.dart';
+import 'features/auth/admin_invite_screen.dart';
 import 'features/auth/sign_in_screen.dart';
+import 'features/auth/tenant_setup_screen.dart';
 import 'features/building/building_home_screen.dart';
 import 'features/control/control_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
@@ -57,9 +56,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null;
       }
 
+      final prefs = ref.read(preferencesStorageProvider).valueOrNull;
       return OnboardingRouter.redirectForProfile(
         profileAsync.valueOrNull,
         state.matchedLocation,
+        tenantExists: prefs?.tenantExists ?? false,
       );
     },
     routes: [
@@ -68,12 +69,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SignInScreen(),
       ),
       GoRoute(
-        path: '/onboarding/role',
-        builder: (context, state) => const RoleSelectionScreen(),
+        path: '/onboarding/tenant-setup',
+        builder: (context, state) => const TenantSetupScreen(),
       ),
       GoRoute(
-        path: '/onboarding/join',
-        builder: (context, state) => const JoinTenantScreen(),
+        path: '/onboarding/admin-invite',
+        builder: (context, state) => const AdminInviteScreen(),
       ),
       GoRoute(
         path: '/devices/water-meter/setup',
@@ -208,62 +209,34 @@ class _UnitShellState extends ConsumerState<_UnitShell> {
 
   @override
   Widget build(BuildContext context) {
-    final isAdmin = ref.watch(isDeviceAdminProvider);
-
-    final destinations = isAdmin
-        ? const [
-            NavigationDestination(
-              icon: Icon(Icons.dashboard_outlined),
-              selectedIcon: Icon(Icons.dashboard),
-              label: 'Dashboard',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.bar_chart_outlined),
-              selectedIcon: Icon(Icons.bar_chart),
-              label: 'Usage',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.insights_outlined),
-              selectedIcon: Icon(Icons.insights),
-              label: 'Insights',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.tune_outlined),
-              selectedIcon: Icon(Icons.tune),
-              label: 'Control',
-            ),
-          ]
-        : const [
-            NavigationDestination(
-              icon: Icon(Icons.dashboard_outlined),
-              selectedIcon: Icon(Icons.dashboard),
-              label: 'Dashboard',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.bar_chart_outlined),
-              selectedIcon: Icon(Icons.bar_chart),
-              label: 'Usage',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.insights_outlined),
-              selectedIcon: Icon(Icons.insights),
-              label: 'Insights',
-            ),
-          ];
-
-    var selectedIndex = widget.navigationShell.currentIndex;
-    if (!isAdmin && selectedIndex > 2) {
-      selectedIndex = 2;
-    }
+    const destinations = [
+      NavigationDestination(
+        icon: Icon(Icons.dashboard_outlined),
+        selectedIcon: Icon(Icons.dashboard),
+        label: 'Dashboard',
+      ),
+      NavigationDestination(
+        icon: Icon(Icons.bar_chart_outlined),
+        selectedIcon: Icon(Icons.bar_chart),
+        label: 'Usage',
+      ),
+      NavigationDestination(
+        icon: Icon(Icons.insights_outlined),
+        selectedIcon: Icon(Icons.insights),
+        label: 'Insights',
+      ),
+      NavigationDestination(
+        icon: Icon(Icons.tune_outlined),
+        selectedIcon: Icon(Icons.tune),
+        label: 'Control',
+      ),
+    ];
 
     return Scaffold(
       body: widget.navigationShell,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: selectedIndex,
-        onDestinationSelected: (index) {
-          if (!isAdmin && index > 2) return;
-          widget.navigationShell.goBranch(index);
-        },
+        selectedIndex: widget.navigationShell.currentIndex,
+        onDestinationSelected: widget.navigationShell.goBranch,
         destinations: destinations,
       ),
     );

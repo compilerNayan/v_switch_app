@@ -5,9 +5,11 @@ import '../api/mock_building_api_client.dart';
 import '../models/tariff_config.dart';
 import '../models/top_consumers_config.dart';
 import '../utils/top_consumers_rankings.dart';
+import '../models/bulk_valve_snapshot.dart';
 import '../utils/unit_filters.dart';
 import 'app_providers.dart';
 import 'device_tile_providers.dart';
+import 'tenant_providers.dart';
 import 'unit_providers.dart';
 
 enum UnitSortMode {
@@ -50,14 +52,38 @@ final selectedBlocksProvider = StateProvider<Set<String>>((ref) => {});
 final selectedWingsProvider = StateProvider<Set<String>>((ref) => {});
 
 final distinctBlocksProvider = Provider<List<String>>((ref) {
+  final tenantConfig = ref.watch(tenantConfigProvider).valueOrNull;
+  if (tenantConfig != null && tenantConfig.hasBlocks) {
+    return tenantConfig.structure.blocks.map((b) => b.id).toList();
+  }
   final units = ref.watch(waterUnitsProvider).valueOrNull ?? [];
   return distinctBlocksFromUnits(units);
 });
 
 final distinctWingsProvider = Provider<List<String>>((ref) {
-  final units = ref.watch(waterUnitsProvider).valueOrNull ?? [];
+  final tenantConfig = ref.watch(tenantConfigProvider).valueOrNull;
   final selectedBlocks = ref.watch(selectedBlocksProvider);
+  if (tenantConfig != null && tenantConfig.hasWings) {
+    if (selectedBlocks.isEmpty) {
+      return tenantConfig.structure.blocks
+          .expand((b) => b.wings)
+          .toSet()
+          .toList()
+        ..sort();
+    }
+    final wings = <String>{};
+    for (final blockId in selectedBlocks) {
+      wings.addAll(tenantConfig.structure.wingsForBlock(blockId));
+    }
+    return wings.toList()..sort();
+  }
+  final units = ref.watch(waterUnitsProvider).valueOrNull ?? [];
   return distinctWingsFromUnits(units, blocks: selectedBlocks);
+});
+
+final bulkValveSnapshotProvider = FutureProvider<BulkValveSnapshot?>((ref) async {
+  final prefs = await ref.watch(preferencesStorageProvider.future);
+  return prefs.getBulkValveSnapshot();
 });
 
 final tariffConfigProvider = StateProvider<TariffConfig>((ref) {

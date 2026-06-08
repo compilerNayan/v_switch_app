@@ -170,6 +170,8 @@ class AuditLogScreen extends ConsumerWidget {
         return Icons.library_books_outlined;
       case AuditAction.emergencyShutoff:
         return Icons.warning_amber;
+      case AuditAction.emergencyRestore:
+        return Icons.restore;
       case AuditAction.unitEdit:
         return Icons.edit_outlined;
       case AuditAction.maintenanceMode:

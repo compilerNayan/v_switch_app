@@ -4,8 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/config/app_config.dart';
-import '../../core/models/user_profile.dart';
 import '../../core/models/alert_event.dart';
+import '../../core/models/tenant_config.dart';
+import '../../core/providers/tenant_providers.dart';
 import '../../core/models/tariff_config.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/building_providers.dart';
@@ -47,32 +48,16 @@ class SettingsScreen extends ConsumerWidget {
                       Text(profile.displayName, style: Theme.of(context).textTheme.bodyLarge),
                       Text(profile.email, style: Theme.of(context).textTheme.bodySmall),
                       const SizedBox(height: 12),
-                      _InfoRow(label: 'Role', value: profile.role?.label ?? '—'),
+                      _InfoRow(
+                        label: 'Access',
+                        value: profile.isTenantOwner
+                            ? 'Building owner'
+                            : 'Co-admin',
+                      ),
                       _InfoRow(label: 'Tenant ID', value: profile.tenantId ?? '—'),
-                      if (profile.role == UserRole.admin &&
-                          profile.inviteCode != null) ...[
+                      if (profile.tenantId != null) ...[
                         const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _InfoRow(
-                                label: 'Invite code',
-                                value: profile.inviteCode!,
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.copy),
-                              onPressed: () {
-                                Clipboard.setData(
-                                  ClipboardData(text: profile.inviteCode!),
-                                );
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Invite code copied')),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
+                        _AdminInviteSection(tenantId: profile.tenantId!),
                       ],
                     ],
                   );
@@ -170,6 +155,8 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           if (isAdmin) ...[
+            const SizedBox(height: 12),
+            const _BuildingStructureCard(),
             const SizedBox(height: 12),
             Card(
               child: Column(
@@ -314,6 +301,253 @@ Future<void> _editAlertPrefs(
       ),
     ),
   );
+}
+
+class _AdminInviteSection extends ConsumerStatefulWidget {
+  const _AdminInviteSection({required this.tenantId});
+
+  final String tenantId;
+
+  @override
+  ConsumerState<_AdminInviteSection> createState() =>
+      _AdminInviteSectionState();
+}
+
+class _AdminInviteSectionState extends ConsumerState<_AdminInviteSection> {
+  String? _inviteCode;
+  bool _loading = false;
+
+  Future<void> _generate() async {
+    setState(() => _loading = true);
+    try {
+      final client = ref.read(tenantApiClientProvider);
+      final code = await client.createAdminInvite(widget.tenantId);
+      setState(() => _inviteCode = code);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Co-admin invite', style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 4),
+        Text(
+          'Share this code so another admin can join the building.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 8),
+        if (_inviteCode != null)
+          Row(
+            children: [
+              Expanded(child: _InfoRow(label: 'Code', value: _inviteCode!)),
+              IconButton(
+                icon: const Icon(Icons.copy),
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: _inviteCode!));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Invite code copied')),
+                  );
+                },
+              ),
+            ],
+          ),
+        FilledButton.tonal(
+          onPressed: _loading ? null : _generate,
+          child: _loading
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text(_inviteCode == null ? 'Generate invite' : 'New code'),
+        ),
+      ],
+    );
+  }
+}
+
+class _BuildingStructureCard extends ConsumerWidget {
+  const _BuildingStructureCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final configAsync = ref.watch(tenantConfigProvider);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: configAsync.when(
+          data: (config) {
+            if (config == null) {
+              return const Text('No building configuration');
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Building', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 4),
+                Text(config.name, style: Theme.of(context).textTheme.bodyLarge),
+                const SizedBox(height: 8),
+                if (config.hasBlocks)
+                  Text(
+                    'Blocks: ${config.structure.blocks.map((b) => b.label).join(', ')}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  )
+                else
+                  Text(
+                    'No block/wing structure configured',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                const SizedBox(height: 12),
+                OutlinedButton(
+                  onPressed: () => _editStructure(context, ref, config),
+                  child: const Text('Edit structure'),
+                ),
+              ],
+            );
+          },
+          loading: () => const LinearProgressIndicator(),
+          error: (e, _) => Text('Error: $e'),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _editStructure(
+    BuildContext context,
+    WidgetRef ref,
+    TenantConfig config,
+  ) async {
+    final blocks = config.structure.blocks
+        .map(
+          (b) => _BlockEditorDraft(
+            id: b.id,
+            label: b.label,
+            wings: b.wings.join(', '),
+          ),
+        )
+        .toList();
+    if (blocks.isEmpty) blocks.add(_BlockEditorDraft());
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: const Text('Building structure'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < blocks.length; i++) ...[
+                    TextField(
+                      decoration: const InputDecoration(labelText: 'Block ID'),
+                      controller: blocks[i].idController,
+                    ),
+                    TextField(
+                      decoration: const InputDecoration(labelText: 'Label'),
+                      controller: blocks[i].labelController,
+                    ),
+                    TextField(
+                      decoration: const InputDecoration(
+                        labelText: 'Wings (comma-separated)',
+                      ),
+                      controller: blocks[i].wingsController,
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => setState(() => blocks.removeAt(i)),
+                        child: const Text('Remove'),
+                      ),
+                    ),
+                    const Divider(),
+                  ],
+                  TextButton(
+                    onPressed: () => setState(() => blocks.add(_BlockEditorDraft())),
+                    child: const Text('Add block'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (saved != true) {
+      for (final b in blocks) {
+        b.dispose();
+      }
+      return;
+    }
+
+    final structure = TenantStructure(
+      blocks: blocks
+          .map((b) {
+            final id = b.idController.text.trim();
+            final label = b.labelController.text.trim();
+            final wings = b.wingsController.text
+                .split(',')
+                .map((w) => w.trim())
+                .where((w) => w.isNotEmpty)
+                .toList();
+            return TenantBlock(
+              id: id,
+              label: label.isEmpty ? id : label,
+              wings: wings,
+            );
+          })
+          .where((b) => b.id.isNotEmpty)
+          .toList(),
+    );
+    for (final b in blocks) {
+      b.dispose();
+    }
+
+    final client = ref.read(tenantApiClientProvider);
+    await client.updateStructure(
+      tenantId: config.tenantId,
+      structure: structure,
+    );
+    ref.invalidate(tenantConfigProvider);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Structure updated')),
+      );
+    }
+  }
+}
+
+class _BlockEditorDraft {
+  _BlockEditorDraft({String id = '', String label = '', String wings = ''})
+      : idController = TextEditingController(text: id),
+        labelController = TextEditingController(text: label),
+        wingsController = TextEditingController(text: wings);
+
+  final TextEditingController idController;
+  final TextEditingController labelController;
+  final TextEditingController wingsController;
+
+  void dispose() {
+    idController.dispose();
+    labelController.dispose();
+    wingsController.dispose();
+  }
 }
 
 class _InfoRow extends StatelessWidget {

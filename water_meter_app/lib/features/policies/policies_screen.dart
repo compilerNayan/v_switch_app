@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/quota_template.dart';
 import '../../core/models/schedule_rule.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/providers/building_providers.dart';
 import '../../core/providers/control_providers.dart';
 import '../../core/providers/unit_providers.dart';
 import '../../core/services/policy_engine.dart';
@@ -31,6 +32,7 @@ class PoliciesScreen extends ConsumerWidget {
     final isAdmin = ref.watch(isDeviceAdminProvider);
     final templatesAsync = ref.watch(quotaTemplatesProvider);
     final rulesAsync = ref.watch(scheduleRulesProvider);
+    final snapshotAsync = ref.watch(bulkValveSnapshotProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Policies')),
@@ -128,6 +130,29 @@ class PoliciesScreen extends ConsumerWidget {
                 ],
               ),
             ),
+          ),
+          const SizedBox(height: 12),
+          snapshotAsync.when(
+            data: (snapshot) {
+              if (snapshot == null || !isAdmin) return const SizedBox.shrink();
+              final onCount = snapshot.entries.where((e) => e.wasOn).length;
+              return Card(
+                child: ListTile(
+                  leading: const Icon(Icons.restore),
+                  title: const Text('Restore previous valve state'),
+                  subtitle: Text(
+                    'Snapshot from ${snapshot.createdAt.toLocal()} · '
+                    '$onCount unit(s) were on',
+                  ),
+                  trailing: FilledButton.tonal(
+                    onPressed: () => _confirmEmergencyRestore(context, ref),
+                    child: const Text('Restore'),
+                  ),
+                ),
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
           ),
           const SizedBox(height: 12),
           if (isAdmin)
@@ -272,6 +297,45 @@ class PoliciesScreen extends ConsumerWidget {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Shut off $count unit(s)')),
+      );
+    }
+  }
+
+  Future<void> _confirmEmergencyRestore(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Restore valve state'),
+        content: const Text(
+          'Turn water back on for units that were on before the last '
+          'emergency shutoff, at their saved pressure. Maintenance units '
+          'are skipped.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Restore'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final profile = await ref.read(userProfileProvider.future);
+    final count = await ref.read(policyEngineProvider).emergencyRestore(
+          actorEmail: profile?.email ?? 'unknown',
+        );
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Restored $count unit(s)')),
       );
     }
   }

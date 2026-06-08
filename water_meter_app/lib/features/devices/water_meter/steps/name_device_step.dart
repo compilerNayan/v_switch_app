@@ -5,6 +5,7 @@ import '../../../../core/config/app_config.dart';
 import '../../../../core/provisioning/provisioning_state.dart';
 import '../../../../core/providers/building_providers.dart';
 import '../../../../core/providers/provisioning_providers.dart';
+import '../../../../core/providers/tenant_providers.dart';
 
 class NameDeviceStep extends ConsumerStatefulWidget {
   const NameDeviceStep({super.key});
@@ -18,6 +19,8 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
   final _nameController = TextEditingController();
   final _blockController = TextEditingController();
   final _wingController = TextEditingController();
+  String? _selectedBlock;
+  String? _selectedWing;
 
   @override
   void initState() {
@@ -30,9 +33,11 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
       }
       if (state.block != null) {
         _blockController.text = state.block!;
+        _selectedBlock = state.block;
       }
       if (state.wing != null) {
         _wingController.text = state.wing!;
+        _selectedWing = state.wing;
       }
     });
   }
@@ -49,8 +54,10 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
     if (!_formKey.currentState!.validate()) return;
     final notifier = ref.read(provisioningNotifierProvider.notifier);
     notifier.setDeviceDisplayName(_nameController.text);
-    notifier.setBlock(_blockController.text);
-    notifier.setWing(_wingController.text);
+    final block = _selectedBlock ?? _blockController.text.trim();
+    final wing = _selectedWing ?? _wingController.text.trim();
+    notifier.setBlock(block);
+    notifier.setWing(wing);
     if (AppConfig.useMockProvisioning) {
       await notifier.mockEnrollAndRegister();
     } else {
@@ -63,8 +70,11 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
     final state = ref.watch(provisioningNotifierProvider);
     final serial = state.deviceSerial ?? '—';
     final isMock = AppConfig.useMockProvisioning;
-    final blockSuggestions = ref.watch(distinctBlocksProvider);
-    final wingSuggestions = ref.watch(distinctWingsProvider);
+    final tenantConfig = ref.watch(tenantConfigProvider).valueOrNull;
+    final blockOptions = ref.watch(distinctBlocksProvider);
+    final wingOptions = tenantConfig != null && tenantConfig.hasWings
+        ? tenantConfig.structure.wingsForBlock(_selectedBlock ?? '')
+        : ref.watch(distinctWingsProvider);
 
     return ListView(
       padding: const EdgeInsets.all(24),
@@ -105,35 +115,70 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
                 },
               ),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _blockController,
-                decoration: InputDecoration(
-                  labelText: 'Block',
-                  hintText: 'e.g. A, B, Tower 1',
-                  prefixIcon: const Icon(Icons.apartment_outlined),
-                  helperText: blockSuggestions.isNotEmpty
-                      ? 'Existing: ${blockSuggestions.take(6).join(', ')}'
-                      : null,
+              if (tenantConfig != null &&
+                  tenantConfig.hasBlocks &&
+                  blockOptions.isNotEmpty)
+                DropdownButtonFormField<String>(
+                  value: _selectedBlock,
+                  decoration: const InputDecoration(
+                    labelText: 'Block',
+                    prefixIcon: Icon(Icons.apartment_outlined),
+                  ),
+                  items: blockOptions
+                      .map((b) => DropdownMenuItem(value: b, child: Text(b)))
+                      .toList(),
+                  onChanged: (v) => setState(() {
+                    _selectedBlock = v;
+                    _selectedWing = null;
+                  }),
+                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                )
+              else
+                TextFormField(
+                  controller: _blockController,
+                  decoration: InputDecoration(
+                    labelText: 'Block',
+                    hintText: 'e.g. A, B, Tower 1',
+                    prefixIcon: const Icon(Icons.apartment_outlined),
+                    helperText: blockOptions.isNotEmpty
+                        ? 'Existing: ${blockOptions.take(6).join(', ')}'
+                        : null,
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                  validator: (value) =>
+                      value == null || value.trim().isEmpty ? 'Required' : null,
                 ),
-                textCapitalization: TextCapitalization.words,
-                validator: (value) =>
-                    value == null || value.trim().isEmpty ? 'Required' : null,
-              ),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _wingController,
-                decoration: InputDecoration(
-                  labelText: 'Wing',
-                  hintText: 'e.g. East, North',
-                  prefixIcon: const Icon(Icons.holiday_village_outlined),
-                  helperText: wingSuggestions.isNotEmpty
-                      ? 'Existing: ${wingSuggestions.take(6).join(', ')}'
-                      : null,
+              if (tenantConfig != null &&
+                  tenantConfig.hasWings &&
+                  wingOptions.isNotEmpty)
+                DropdownButtonFormField<String>(
+                  value: _selectedWing,
+                  decoration: const InputDecoration(
+                    labelText: 'Wing',
+                    prefixIcon: Icon(Icons.holiday_village_outlined),
+                  ),
+                  items: wingOptions
+                      .map((w) => DropdownMenuItem(value: w, child: Text(w)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedWing = v),
+                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                )
+              else
+                TextFormField(
+                  controller: _wingController,
+                  decoration: InputDecoration(
+                    labelText: 'Wing',
+                    hintText: 'e.g. East, North',
+                    prefixIcon: const Icon(Icons.holiday_village_outlined),
+                    helperText: wingOptions.isNotEmpty
+                        ? 'Existing: ${wingOptions.take(6).join(', ')}'
+                        : null,
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                  validator: (value) =>
+                      value == null || value.trim().isEmpty ? 'Required' : null,
                 ),
-                textCapitalization: TextCapitalization.words,
-                validator: (value) =>
-                    value == null || value.trim().isEmpty ? 'Required' : null,
-              ),
               if (state.errorMessage != null) ...[
                 const SizedBox(height: 12),
                 Text(

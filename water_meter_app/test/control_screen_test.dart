@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:water_meter_app/core/models/quota_config.dart';
 import 'package:water_meter_app/core/models/valve_state.dart';
+import 'package:water_meter_app/core/models/water_unit.dart';
 import 'package:water_meter_app/core/providers/control_providers.dart';
 import 'package:water_meter_app/core/providers/unit_providers.dart';
 import 'package:water_meter_app/features/control/control_screen.dart';
@@ -55,12 +56,22 @@ void main() {
     expect(find.textContaining('Target:'), findsOneWidget);
   });
 
-  testWidgets('readonly disables slider interaction', (tester) async {
+  testWidgets('maintenance mode locks valve controls', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           selectedRouteDeviceIdProvider.overrideWith((ref) => 'wm-1'),
-          isDeviceAdminProvider.overrideWith((ref) => false),
+          isDeviceAdminProvider.overrideWith((ref) => true),
+          waterUnitsProvider.overrideWith(
+            (ref) async => const [
+              WaterUnit(
+                id: 'wm-1',
+                name: 'D205',
+                deviceId: 'WM-1',
+                maintenanceMode: true,
+              ),
+            ],
+          ),
           valveControlNotifierProvider.overrideWith(() => _FakeValveNotifier(valve)),
           quotaStateProvider.overrideWith((ref) async => quota),
         ],
@@ -69,8 +80,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Read-only access — controls are disabled'), findsOneWidget);
-    expect(find.byType(Slider), findsOneWidget);
+    expect(find.text('Maintenance mode — valve locked off'), findsOneWidget);
     final slider = tester.widget<Slider>(find.byType(Slider));
     expect(slider.onChanged, isNull);
   });

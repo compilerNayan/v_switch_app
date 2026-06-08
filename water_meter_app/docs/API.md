@@ -1,240 +1,210 @@
-# Water Monitor App — REST API Contract
+# Water Monitor App — REST API Contract (Single-Tenant)
 
-This document lists every REST API the app expects from the backend. It is derived from the current Flutter client (`lib/core/api/`, models, and providers).
+This document defines the backend API for the Water Monitor app. The deployment model is **one tenant per installation** — users belong to at most one tenant.
 
-**Base URL:** `https://api.example.com/v1` (configurable via `API_BASE_URL` dart-define)
+**Base URL:** `https://api.example.com/v1` (`API_BASE_URL` dart-define)
 
-**Authentication:** All cloud endpoints require:
+**Authentication:** All requests require:
 
 ```
 Authorization: Bearer <Cognito ID token>
 ```
 
-**Error response** (4xx/5xx):
+JWT must include `custom:tenant_id` after onboarding. Every **tenant-scoped** route validates `claims.tenant_id === path.tenantId`.
+
+**Error response:**
 
 ```json
 {
   "error": {
-    "code": "QUOTA_NOT_FOUND",
+    "code": "INVALID_INVITE",
     "message": "Human-readable description"
   }
 }
 ```
 
-Alternate top-level shape also accepted: `{ "code": "...", "message": "..." }`.
+---
 
-**Roles:** `admin` | `readonly` (resident) | `maintenance`
+## Tenancy model
 
-| Role | Scope |
-|------|-------|
-| `admin` | Full tenant: all units, controls, policies, reports, audit |
-| `readonly` | Assigned unit(s) only — read usage/insights |
-| `maintenance` | Building view; valve control on `maintainableUnitIds` |
+| Rule | Detail |
+|------|--------|
+| Single tenant | Exactly one tenant record per deployment |
+| Users | All authenticated users are **admins** (no resident/maintenance roles) |
+| First user | Creates tenant via `POST /tenants` (becomes `isTenantOwner: true`) |
+| Additional admins | Join via `POST /tenants/join/admin` with owner-generated invite code |
+| Meter invites | Per-unit codes generated only; resident onboarding is **future work** |
+| Tenant in path | All building/device data under `/tenants/{tenantId}/...` |
+
+### Route scoping
+
+| Scope | Path pattern |
+|-------|----------------|
+| User-global | `/users/me`, `/users/me/*` |
+| Tenant-global join | `/tenants/join/admin` (no tenantId yet) |
+| Tenant creation | `POST /tenants` (only when no tenant exists) |
+| Tenant-scoped | `/tenants/{tenantId}/*` |
+| Device (tenant-scoped) | `/tenants/{tenantId}/devices/{deviceId}/water/*` |
 
 ---
 
-## Implementation status
-
-| Area | Status in app today | HTTP client |
-|------|---------------------|-------------|
-| Auth / user / tenant onboarding | Partial — `TenantApiClient` (mock auth shortcuts) | `tenant_api_client.dart` |
-| Device water telemetry & control | Implemented — `DioWaterApiClient` | `dio_water_api_client.dart` |
-| Water units (inventory) | **Local only** (`PreferencesStorage`) | Needed |
-| Building summary & rankings | **Computed client-side** | Needed |
-| Alerts | **Local only** (client-generated) | Needed |
-| Audit log | **Local only** | Needed |
-| Quota templates & schedules | **Local only** | Needed |
-| Tariff / billing | **Local only** | Needed |
-| Push token registration | Stub | Needed |
-| Device provisioning (WiFi/enroll) | Device LAN HTTP | Not cloud |
-
----
-
-## 1. User & tenant
+## 1. User
 
 ### GET `/users/me`
-
-Returns the authenticated user's profile.
-
-**Response 200:**
 
 ```json
 {
   "userId": "usr_abc123",
   "email": "admin@building.com",
   "displayName": "Building Admin",
-  "role": "admin",
   "tenantId": "tenant_xyz",
-  "inviteCode": "DEMO-1234",
   "onboardingComplete": true,
-  "assignedUnitIds": [],
-  "maintainableUnitIds": ["unit-1", "unit-2"]
+  "isTenantOwner": false
 }
 ```
 
-| Field | Type | Notes |
-|-------|------|-------|
-| `role` | string? | `admin` \| `readonly` \| `maintenance`; null before role selection |
-| `tenantId` | string? | Building/apartment complex ID |
-| `inviteCode` | string? | Building invite code (admin only) |
-| `assignedUnitIds` | string[] | Resident: units they can view |
-| `maintainableUnitIds` | string[] | Maintenance: units they can control |
+| Field | Notes |
+|-------|-------|
+| `tenantId` | null before onboarding completes |
+| `isTenantOwner` | true for the user who created the tenant |
+| `onboardingComplete` | false until tenant setup or admin invite join |
+
+**Removed:** `role`, `inviteCode`, `assignedUnitIds`, `maintainableUnitIds`
+
+### POST `/users/me/push-token`
+
+```json
+{ "token": "fcm-...", "platform": "android" }
+```
+
+**Response:** `204 No Content`
+
+### PATCH `/users/me/preferences` (optional)
+
+User UI prefs (theme, volume unit, top-consumers layout). May remain client-only.
 
 ---
 
-### POST `/users/role`
+## 2. Tenant lifecycle
 
-Set role during onboarding.
+### GET `/tenants/exists` (optional helper)
+
+Returns whether the single tenant has been created. Used by app to route onboarding.
+
+```json
+{ "exists": true, "tenantId": "tenant_xyz" }
+```
+
+### POST `/tenants`
+
+**First authenticated user only.** Returns `409` if tenant already exists.
 
 **Request:**
 
 ```json
-{ "role": "admin" }
-```
-
-**Response 200:**
-
-```json
 {
-  "tenantId": "tenant_xyz",
-  "inviteCode": "DEMO-1234",
-  "role": "admin",
-  "requiresInviteCode": false
+  "name": "Sunrise Apartments",
+  "structure": {
+    "blocks": [
+      { "id": "A", "label": "Tower A", "wings": ["East", "West"] },
+      { "id": "B", "label": "Tower B", "wings": [] }
+    ]
+  }
 }
 ```
 
-For `readonly`, server may return `requiresInviteCode: true` until join completes.
-
----
-
-### POST `/tenants`
-
-Create a new building/tenant (admin onboarding).
-
-**Request:** `{}`
+- `structure.blocks` may be `[]` (no block/wing dimensions)
+- Each block may have zero or more `wings`
 
 **Response 201:**
 
 ```json
 {
   "tenantId": "tenant_xyz",
-  "inviteCode": "DEMO-1234"
+  "name": "Sunrise Apartments",
+  "structure": { "blocks": [] },
+  "onboardingComplete": true,
+  "isTenantOwner": true
 }
 ```
 
----
+Also updates the caller's profile with `tenantId` and `onboardingComplete: true`.
 
-### POST `/tenants/join`
-
-Join an existing building via invite code.
-
-**Request:**
-
-```json
-{ "inviteCode": "DEMO-1234" }
-```
-
-**Response 200:**
+### GET `/tenants/{tenantId}`
 
 ```json
 {
   "tenantId": "tenant_xyz",
-  "role": "readonly"
-}
-```
-
-Optional: accept unit-scoped invite and return `assignedUnitIds`.
-
----
-
-### POST `/tenants/join/unit` *(recommended — not yet in client)*
-
-Join a specific unit via per-unit invite code (generated at enrollment).
-
-**Request:**
-
-```json
-{ "unitInviteCode": "D205-1234" }
-```
-
-**Response 200:**
-
-```json
-{
-  "tenantId": "tenant_xyz",
-  "role": "readonly",
-  "assignedUnitIds": ["wm-WM000001"]
-}
-```
-
----
-
-### GET `/users/me/preferences` *(optional)*
-
-User-scoped UI settings. Can remain on-device; include if multi-device sync is needed.
-
-**Response 200:**
-
-```json
-{
-  "volumeUnit": "liters",
-  "timezone": "Asia/Kolkata",
-  "appTheme": "ocean",
-  "alertPreferences": {
-    "enabledTypes": ["quotaWarning", "quotaExceeded", "possibleLeak"],
-    "quietHoursEnabled": false,
-    "quietStartHour": 22,
-    "quietEndHour": 7,
-    "pushEnabled": true
-  },
-  "topConsumersConfig": {
-    "showOverall": true,
-    "showByBlock": true,
-    "showByWing": true,
-    "topCount": 5,
-    "wingViewBlock": "A"
+  "name": "Sunrise Apartments",
+  "structure": {
+    "blocks": [
+      { "id": "A", "label": "Tower A", "wings": ["East", "West"] }
+    ]
   }
 }
 ```
 
-### PATCH `/users/me/preferences`
+**Derived flags (client or server):**
 
-Partial update of the above object.
+| Flag | Rule |
+|------|------|
+| `hasBlocks` | `structure.blocks.length > 0` |
+| `hasWings` | any block has `wings.length > 0` |
+
+### PUT `/tenants/{tenantId}/structure`
+
+Admin updates building layout. Validates unique block ids.
+
+**Request:** same `structure` object as tenant creation.
+
+**Response 200:** Updated tenant config.
 
 ---
 
-### POST `/users/me/push-token`
+## 3. Admin invites (co-admin)
 
-Register FCM device token for remote push.
+### POST `/tenants/{tenantId}/admin-invites`
+
+**Tenant owner only.** Generates a one-time or reusable admin invite code.
+
+**Response 200:**
+
+```json
+{
+  "inviteCode": "ADMIN-7X2K",
+  "expiresAt": "2026-07-01T00:00:00Z"
+}
+```
+
+### POST `/tenants/join/admin`
+
+User has signed in but has no `tenantId`. Validates invite against the single tenant.
 
 **Request:**
 
 ```json
+{ "inviteCode": "ADMIN-7X2K" }
+```
+
+**Response 200:**
+
+```json
 {
-  "token": "fcm-device-token",
-  "platform": "android"
+  "tenantId": "tenant_xyz",
+  "onboardingComplete": true,
+  "isTenantOwner": false
 }
 ```
 
-**Response 204:** No content.
+**Removed:** `POST /tenants/join` (building-wide resident join), `POST /users/role`
 
 ---
 
-## 2. Water units (inventory)
-
-Currently stored locally in `PreferencesStorage`. **Backend should be source of truth** in production.
+## 4. Water units
 
 ### GET `/tenants/{tenantId}/units`
 
-List all units in the building. Filtered by role server-side (resident sees assigned only).
-
-**Query (optional):**
-
-| Param | Description |
-|-------|-------------|
-| `block` | Filter by block |
-| `wing` | Filter by wing |
-| `search` | Name, flat, device ID |
+List all units. Optional query: `block`, `wing`, `search`.
 
 **Response 200:**
 
@@ -247,24 +217,29 @@ List all units in the building. Filtered by role server-side (resident sees assi
       "deviceId": "WM000001",
       "flatNumber": "D205",
       "floor": "2",
-      "wing": "East",
       "block": "A",
+      "wing": "East",
       "residentName": "Ravi Kumar",
       "phoneNumber": "+919876543210",
       "notes": null,
       "maintenanceMode": false,
-      "assignedUserIds": ["usr_resident1"],
+      "maintenanceStartedAt": null,
       "unitInviteCode": "D205-1234"
     }
   ]
 }
 ```
 
----
+| Field | Notes |
+|-------|-------|
+| `block` / `wing` | Required when tenant `hasBlocks` / `hasWings`; must match structure |
+| `maintenanceMode` | When true: valve off, valve-on rejected, excluded from bulk ops |
+| `maintenanceStartedAt` | ISO8601 when maintenance enabled |
+| `unitInviteCode` | For future resident onboarding; generate only in this phase |
 
 ### POST `/tenants/{tenantId}/units`
 
-Register a new water meter after device enrollment.
+Register meter after device enrollment.
 
 **Request:**
 
@@ -273,57 +248,42 @@ Register a new water meter after device enrollment.
   "deviceId": "WM000001",
   "name": "D205",
   "flatNumber": "D205",
+  "floor": "2",
   "block": "A",
-  "wing": "East",
-  "floor": "2"
+  "wing": "East"
 }
 ```
 
-**Response 201:** Full `WaterUnit` object (server assigns `id`, `unitInviteCode`).
-
----
+**Response 201:** Full unit object with server-assigned `id` and `unitInviteCode`.
 
 ### GET `/tenants/{tenantId}/units/{unitId}`
 
-**Response 200:** Single `WaterUnit` object.
-
----
+**Response 200:** Single unit.
 
 ### PATCH `/tenants/{tenantId}/units/{unitId}`
 
-Update unit metadata (admin).
+Partial update. When `maintenanceMode` set to `true`:
 
-**Request** (partial):
+1. Server snapshots valve state
+2. Sets valve off (`pressurePercent: 0`)
+3. Rejects valve-on until `maintenanceMode: false`
 
 ```json
 {
   "name": "D205",
-  "flatNumber": "D205",
-  "floor": "2",
-  "wing": "East",
-  "block": "A",
   "residentName": "Ravi Kumar",
   "phoneNumber": "+919876543210",
-  "notes": "Corner flat",
-  "maintenanceMode": false
+  "maintenanceMode": true
 }
 ```
 
-**Response 200:** Updated `WaterUnit`.
-
-Server should append an audit event for metadata changes.
-
----
-
 ### DELETE `/tenants/{tenantId}/units/{unitId}`
 
-Decommission a unit. **Response 204.**
-
----
+**Response:** `204`
 
 ### POST `/tenants/{tenantId}/units/{unitId}/invite-codes`
 
-Regenerate per-unit resident invite code.
+Regenerate per-meter invite code (display/copy in app; no join flow yet).
 
 **Response 200:**
 
@@ -333,13 +293,75 @@ Regenerate per-unit resident invite code.
 
 ---
 
-## 3. Building overview
+## 5. Device water API
 
-Currently aggregated client-side by `MockBuildingApiClient`. Recommended for performance at scale.
+All paths tenant-scoped: `/tenants/{tenantId}/devices/{deviceId}/water/...`
+
+Server verifies unit belongs to tenant and user is admin.
+
+### GET `.../current`
+
+```json
+{
+  "deviceId": "WM000001",
+  "timestamp": "2026-06-08T10:30:00Z",
+  "flowRateLpm": 2.3,
+  "cumulativeLiters": 15420.5,
+  "status": "flowing"
+}
+```
+
+`status`: `flowing` | `idle` | `offline` | `leak_suspected`
+
+### GET `.../usage`
+
+Query: `from`, `to` (ISO8601 UTC), `granularity` (`1m`|`5m`|`15m`|`30m`|`1h`|`1d`), `timezone`
+
+### GET `.../daily`
+
+Query: `from`, `to` (YYYY-MM-DD), `timezone`
+
+### GET `.../hourly-pattern`
+
+Query: `from`, `to` (YYYY-MM-DD), `timezone`
+
+### GET `.../valve`
+
+```json
+{
+  "deviceId": "WM000001",
+  "timestamp": "2026-06-08T10:30:00Z",
+  "targetPressurePercent": 100,
+  "actualPressurePercent": 98,
+  "lastUserPressurePercent": 100,
+  "isOff": false,
+  "controlMode": "manual",
+  "quotaCapPercent": null,
+  "effectivePressurePercent": 98
+}
+```
+
+### PUT `.../valve`
+
+```json
+{ "pressurePercent": 75 }
+```
+
+```json
+{ "action": "restore" }
+```
+
+**Rejected with `423 Locked`** when unit `maintenanceMode` is true and request would turn water on.
+
+### GET / PUT `.../quota`
+
+Same shapes as prior API doc (`QuotaResponse`, `QuotaUpdateRequest` with `steps`).
+
+---
+
+## 6. Building overview
 
 ### GET `/tenants/{tenantId}/building/summary`
-
-**Response 200:**
 
 ```json
 {
@@ -348,27 +370,18 @@ Currently aggregated client-side by `MockBuildingApiClient`. Recommended for per
   "unitsOnline": 42,
   "unitsOffline": 3,
   "unitsTotal": 45,
-  "activeAlerts": 7,
-  "topConsumers": [
-    { "unitId": "wm-1", "name": "D205", "liters": 180.5 }
-  ]
+  "activeAlerts": 7
 }
 ```
 
----
-
 ### GET `/tenants/{tenantId}/building/rankings`
 
-**Query:**
-
-| Param | Values | Default |
-|-------|--------|---------|
-| `period` | `today` \| `week` \| `month` | `today` |
-| `block` | Block filter (optional) | — |
-| `wing` | Wing filter (optional) | — |
-| `limit` | Max results per group | 10 |
-
-**Response 200:**
+| Query | Values |
+|-------|--------|
+| `period` | `today` \| `week` \| `month` |
+| `groupBy` | `overall` \| `block` \| `wing` |
+| `blockId` | Required when `groupBy=wing` |
+| `limit` | Top N per group (default 5) |
 
 ```json
 {
@@ -385,260 +398,65 @@ Currently aggregated client-side by `MockBuildingApiClient`. Recommended for per
 }
 ```
 
-The app's top-consumers dashboard can use this endpoint instead of N per-device usage calls.
+`block`/`wing` omitted when tenant has no such dimensions.
 
 ---
 
-## 4. Device water API
+## 7. Bulk policies
 
-Implemented in `DioWaterApiClient`. All paths under `/devices/{deviceId}/water/`.
-
-The server must verify the caller has access to `deviceId` (tenant membership + role).
-
-### GET `/devices/{deviceId}/water/current`
-
-Live reading for unit tile and dashboard.
-
-**Response 200:**
-
-```json
-{
-  "deviceId": "WM000001",
-  "timestamp": "2026-06-08T10:30:00Z",
-  "flowRateLpm": 2.3,
-  "cumulativeLiters": 15420.5,
-  "status": "flowing"
-}
-```
-
-`status`: `flowing` | `idle` | `offline` | `leak_suspected`
-
----
-
-### GET `/devices/{deviceId}/water/usage`
-
-Time-series usage for charts.
-
-**Query:**
-
-| Param | Format | Example |
-|-------|--------|---------|
-| `from` | ISO8601 UTC | `2026-06-01T00:00:00Z` |
-| `to` | ISO8601 UTC | `2026-06-08T23:59:59Z` |
-| `granularity` | `1m` \| `5m` \| `15m` \| `30m` \| `1h` \| `1d` | `1h` |
-| `timezone` | IANA | `Asia/Kolkata` |
-
-**Response 200:**
-
-```json
-{
-  "deviceId": "WM000001",
-  "from": "2026-06-01T00:00:00Z",
-  "to": "2026-06-08T23:59:59Z",
-  "granularity": "1h",
-  "unit": "liters",
-  "dataPoints": [
-    {
-      "timestamp": "2026-06-08T09:00:00Z",
-      "volumeLiters": 12.5,
-      "avgFlowRateLpm": 0.8
-    }
-  ],
-  "summary": {
-    "totalVolumeLiters": 450.0,
-    "averagePerBucketLiters": 18.75,
-    "peakBucket": { "timestamp": "2026-06-08T07:00:00Z", "volumeLiters": 45.0 },
-    "previousPeriodTotalLiters": 420.0,
-    "deltaPercent": 7.1
-  }
-}
-```
-
----
-
-### GET `/devices/{deviceId}/water/daily`
-
-Daily totals for reports and insights.
-
-**Query:** `from`, `to` (YYYY-MM-DD), `timezone`
-
-**Response 200:**
-
-```json
-{
-  "unit": "liters",
-  "days": [
-    {
-      "date": "2026-06-08",
-      "totalLiters": 85.0,
-      "peakHour": 7,
-      "peakHourLiters": 22.0
-    }
-  ]
-}
-```
-
----
-
-### GET `/devices/{deviceId}/water/hourly-pattern`
-
-Average consumption by hour-of-day (insights).
-
-**Query:** `from`, `to` (YYYY-MM-DD), `timezone`
-
-**Response 200:**
-
-```json
-{
-  "unit": "liters",
-  "hours": [
-    { "hour": 0, "avgLiters": 0.5 },
-    { "hour": 7, "avgLiters": 18.2 }
-  ]
-}
-```
-
----
-
-### GET `/devices/{deviceId}/water/valve`
-
-**Response 200:**
-
-```json
-{
-  "deviceId": "WM000001",
-  "timestamp": "2026-06-08T10:30:00Z",
-  "targetPressurePercent": 100,
-  "actualPressurePercent": 98,
-  "lastUserPressurePercent": 100,
-  "isOff": false,
-  "controlMode": "manual",
-  "quotaCapPercent": null,
-  "effectivePressurePercent": 98
-}
-```
-
-`controlMode`: `manual` | `quota`
-
----
-
-### PUT `/devices/{deviceId}/water/valve`
-
-Admin/maintenance valve control. Server writes audit event.
-
-**Request** (one or both fields):
-
-```json
-{ "pressurePercent": 75 }
-```
-
-```json
-{ "action": "restore" }
-```
-
-`pressurePercent: 0` = shut off. **Response 200:** Updated `ValveState`.
-
----
-
-### GET `/devices/{deviceId}/water/quota`
-
-**Response 200:**
-
-```json
-{
-  "deviceId": "WM000001",
-  "enabled": true,
-  "dailyLimitLiters": 500,
-  "timezone": "Asia/Kolkata",
-  "steps": [
-    { "atLitersUsed": 300, "action": "reduce_pressure", "value": 20 },
-    { "atLitersUsed": 500, "action": "turn_off" }
-  ],
-  "status": {
-    "date": "2026-06-08",
-    "usedLiters": 180,
-    "activeStepIndex": 0,
-    "quotaCapPercent": 80,
-    "remainingLiters": 320,
-    "nextStepAtLiters": 300
-  }
-}
-```
-
-Step `action`: `reduce_pressure` (requires `value` = percent points to subtract) | `turn_off`
-
----
-
-### PUT `/devices/{deviceId}/water/quota`
-
-**Request:**
-
-```json
-{
-  "enabled": true,
-  "dailyLimitLiters": 500,
-  "steps": [
-    { "atLitersUsed": 300, "action": "reduce_pressure", "value": 20 },
-    { "atLitersUsed": 500, "action": "turn_off" }
-  ]
-}
-```
-
-**Response 200:** Updated `QuotaResponse`.
-
----
-
-## 5. Bulk device operations *(recommended)*
-
-Today the app loops per unit for template apply and emergency shutoff. Bulk endpoints reduce latency.
+All exclude units with `maintenanceMode: true`.
 
 ### POST `/tenants/{tenantId}/policies/apply-template`
-
-**Request:**
 
 ```json
 {
   "templateId": "standard",
-  "unitIds": ["wm-1", "wm-2"]
+  "unitIds": null
 }
 ```
 
-Or inline template body matching `QuotaTemplate`. **Response 200:**
+`unitIds: null` = all non-maintenance units.
 
-```json
-{ "appliedCount": 42, "failedUnitIds": [] }
-```
-
----
+**Response 200:** `{ "appliedCount": 42, "failedUnitIds": [] }`
 
 ### POST `/tenants/{tenantId}/policies/emergency-shutoff`
 
-**Request:**
-
 ```json
-{ "unitIds": ["wm-1", "wm-2"] }
+{ "unitIds": null }
 ```
 
-Shuts off all valves. **Response 200:** `{ "shutoffCount": 42 }`
+Before shutoff, server snapshots valve state per unit:
+
+```json
+{ "deviceId": "WM001", "wasOn": true, "pressurePercent": 85 }
+```
+
+**Response 200:**
+
+```json
+{
+  "shutoffCount": 40,
+  "snapshotId": "snap_abc123"
+}
+```
+
+### POST `/tenants/{tenantId}/policies/emergency-restore`
+
+```json
+{ "snapshotId": "snap_abc123" }
+```
+
+Restores **only units where `wasOn` was true** at snapshot time, at saved `pressurePercent`. Skips maintenance units. Clears snapshot on success.
+
+**Response 200:** `{ "restoredCount": 35 }`
 
 ---
 
-## 6. Alerts
-
-Today generated client-side by `AlertEvaluator`. Production: server-side rules engine + push.
+## 8. Alerts
 
 ### GET `/tenants/{tenantId}/alerts`
 
-**Query:**
-
-| Param | Description |
-|-------|-------------|
-| `unresolved` | `true` — only open alerts |
-| `unitId` | Filter by unit |
-| `since` | ISO8601 — pagination cursor |
-| `limit` | Default 50 |
-
-**Response 200:**
+Query: `unresolved`, `unitId`, `since`, `limit`
 
 ```json
 {
@@ -659,31 +477,21 @@ Today generated client-side by `AlertEvaluator`. Production: server-side rules e
 
 `type`: `quotaWarning` | `quotaExceeded` | `possibleLeak` | `unusualSpike` | `deviceOffline` | `valveMismatch`
 
----
-
 ### PATCH `/tenants/{tenantId}/alerts/{alertId}`
-
-Mark read or resolved.
-
-**Request:**
 
 ```json
 { "isRead": true, "isResolved": true }
 ```
 
-**Response 200:** Updated `AlertEvent`.
+Production: server-side alert engine; client polls or receives push.
 
 ---
 
-## 7. Audit log
-
-Today stored locally. Production: server records all mutations.
+## 9. Audit log
 
 ### GET `/tenants/{tenantId}/audit`
 
-**Query:** `from`, `to` (ISO8601), `unitId`, `action`, `limit` (default 100, max 500)
-
-**Response 200:**
+Query: `from`, `to`, `unitId`, `action`, `limit`
 
 ```json
 {
@@ -692,188 +500,97 @@ Today stored locally. Production: server records all mutations.
       "id": "audit-1",
       "timestamp": "2026-06-08T09:15:00Z",
       "actorEmail": "admin@building.com",
-      "action": "valveOff",
+      "action": "emergencyShutoff",
       "unitId": "wm-1",
       "unitName": "D205",
-      "details": "Emergency shutoff"
+      "details": "snapshot snap_abc123"
     }
   ]
 }
 ```
 
-`action`: `valveOff` | `valveOn` | `quotaUpdate` | `templateApply` | `emergencyShutoff` | `unitEdit` | `maintenanceMode` | `scheduleUpdate`
+`action`: `valveOff` | `valveOn` | `quotaUpdate` | `templateApply` | `emergencyShutoff` | `emergencyRestore` | `unitEdit` | `maintenanceMode` | `scheduleUpdate`
 
-Audit events should be created server-side on valve/quota/unit/policy mutations (not posted by the client).
+Audit events are **server-written** on mutations (not client-posted).
 
 ---
 
-## 8. Policies & billing (tenant-scoped)
+## 10. Tenant policies & billing
 
-### GET `/tenants/{tenantId}/quota-templates`
+### GET/PUT `/tenants/{tenantId}/quota-templates`
 
-**Response 200:**
+### GET/PUT `/tenants/{tenantId}/schedule-rules`
+
+### GET/PUT `/tenants/{tenantId}/tariff`
 
 ```json
-{
-  "templates": [
-    {
-      "id": "standard",
-      "name": "Standard 500L",
-      "dailyLimitLiters": 500,
-      "steps": [
-        { "atLitersUsed": 300, "action": "reduce_pressure", "value": 20 },
-        { "atLitersUsed": 500, "action": "turn_off" }
-      ]
-    }
-  ]
-}
+{ "currencySymbol": "₹", "costPerLiter": 0.05 }
 ```
 
-### PUT `/tenants/{tenantId}/quota-templates`
+### GET `/tenants/{tenantId}/reports/monthly` (optional)
 
-Replace full template list.
-
----
-
-### GET `/tenants/{tenantId}/schedule-rules`
-
-**Response 200:**
-
-```json
-{
-  "rules": [
-    {
-      "id": "night_reduction",
-      "name": "Night reduction (11pm–6am)",
-      "startHour": 23,
-      "endHour": 6,
-      "pressureCapPercent": 50,
-      "enabled": true
-    }
-  ]
-}
-```
-
-### PUT `/tenants/{tenantId}/schedule-rules`
-
-Replace schedule rules. Backend should enforce pressure cap on devices during active windows.
+Query: `from`, `to`, `timezone` — pre-aggregated billing rows.
 
 ---
 
-### GET `/tenants/{tenantId}/tariff`
+## 11. Device provisioning (LAN — not cloud)
 
-**Response 200:**
+| Method | URL | Body |
+|--------|-----|------|
+| POST | `http://192.168.4.1:8080/wifi-credentials` | `{ "ssid", "password" }` |
+| POST | `http://{serial}.local:8080/enrollment/enroll` | empty |
 
-```json
-{
-  "currencySymbol": "₹",
-  "costPerLiter": 0.05
-}
-```
-
-### PUT `/tenants/{tenantId}/tariff`
-
-Update billing rate used for cost estimates in reports.
+After enrollment: `POST /tenants/{tenantId}/units` links device serial.
 
 ---
 
-### GET `/tenants/{tenantId}/reports/monthly` *(optional optimization)*
+## 12. Client caching
 
-Pre-aggregated monthly billing report. App can alternatively call per-device `/water/daily` + local tariff.
-
-**Query:** `from`, `to` (YYYY-MM-DD), `timezone`
-
-**Response 200:**
-
-```json
-{
-  "currencySymbol": "₹",
-  "costPerLiter": 0.05,
-  "rows": [
-    {
-      "unitId": "wm-1",
-      "name": "D205",
-      "flatNumber": "D205",
-      "floor": "2",
-      "totalLiters": 1250.0,
-      "estimatedCost": 62.5,
-      "dailyBreakdown": { "2026-06-01": 42.0, "2026-06-02": 38.5 }
-    }
-  ]
-}
-```
+| Data | Source of truth | Client cache |
+|------|-----------------|--------------|
+| Tenant structure | Server | Refresh on settings change |
+| Unit inventory | Server | Short TTL; pull-to-refresh |
+| Valve/quota/current | Server | Per-device ~15s |
+| Bulk snapshot | Server (or local mock) | Until restore or clear |
+| UI theme / layout prefs | Device | Optional server sync |
 
 ---
 
-## 9. Device provisioning (LAN — not cloud API)
+## 13. Endpoint summary
 
-Used during real provisioning (`USE_MOCK_PROVISIONING=false`). HTTP to the meter's hotspot, not the backend.
-
-| Method | URL | Body | Notes |
-|--------|-----|------|-------|
-| POST | `http://192.168.4.1:8080/wifi-credentials` | `{ "ssid", "password" }` | Primary gateway |
-| POST | `http://{serial}.local:8080/wifi-credentials` | same | mDNS fallback |
-| POST | `http://{serial}.local:8080/enrollment/enroll` | empty body | Device registers with cloud |
-
-After enrollment, the app calls `POST /tenants/{tenantId}/units` to link the device serial to a unit.
-
----
-
-## 10. Caching strategy (client)
-
-| Data | Server source of truth | Client cache |
-|------|------------------------|--------------|
-| Unit inventory | Yes | Short TTL cache; refresh on pull-to-refresh |
-| Current reading / valve / quota | Yes | Per-device, auto-dispose providers (~15s stale) |
-| Usage / daily / hourly | Yes | Cached per query range |
-| Building summary | Yes | 1–5 min cache |
-| Alerts | Yes | Poll or WebSocket; local unread state OK |
-| Audit | Yes | Paginated fetch; no local append |
-| Templates / schedules / tariff | Yes | Cache until settings change |
-| Theme / volume unit / top-consumers layout | Optional | Can stay on-device |
-
----
-
-## 11. Endpoint summary
-
-| Method | Path | Feature |
-|--------|------|---------|
-| GET | `/users/me` | Profile |
-| POST | `/users/role` | Onboarding |
-| POST | `/tenants` | Create building |
-| POST | `/tenants/join` | Join building |
-| POST | `/tenants/join/unit` | Join unit (recommended) |
-| GET/PATCH | `/users/me/preferences` | User prefs (optional) |
-| POST | `/users/me/push-token` | FCM |
-| GET | `/tenants/{id}/units` | Unit list |
-| POST | `/tenants/{id}/units` | Enroll unit |
-| GET/PATCH/DELETE | `/tenants/{id}/units/{unitId}` | Unit CRUD |
-| POST | `/tenants/{id}/units/{unitId}/invite-codes` | Resident invite |
-| GET | `/tenants/{id}/building/summary` | Building home header |
-| GET | `/tenants/{id}/building/rankings` | Top consumers |
-| GET | `/devices/{id}/water/current` | Live flow |
-| GET | `/devices/{id}/water/usage` | Usage charts |
-| GET | `/devices/{id}/water/daily` | Daily / reports |
-| GET | `/devices/{id}/water/hourly-pattern` | Insights |
-| GET/PUT | `/devices/{id}/water/valve` | Valve control |
-| GET/PUT | `/devices/{id}/water/quota` | Quota config |
-| POST | `/tenants/{id}/policies/apply-template` | Bulk quota |
-| POST | `/tenants/{id}/policies/emergency-shutoff` | Bulk shutoff |
-| GET/PATCH | `/tenants/{id}/alerts` | Alert inbox |
-| GET | `/tenants/{id}/audit` | Audit log |
-| GET/PUT | `/tenants/{id}/quota-templates` | Policy templates |
-| GET/PUT | `/tenants/{id}/schedule-rules` | Night schedules |
-| GET/PUT | `/tenants/{id}/tariff` | Billing rate |
-| GET | `/tenants/{id}/reports/monthly` | Reports (optional) |
+| Method | Path |
+|--------|------|
+| GET | `/users/me` |
+| POST | `/users/me/push-token` |
+| GET | `/tenants/exists` |
+| POST | `/tenants` |
+| GET | `/tenants/{tenantId}` |
+| PUT | `/tenants/{tenantId}/structure` |
+| POST | `/tenants/{tenantId}/admin-invites` |
+| POST | `/tenants/join/admin` |
+| GET/POST | `/tenants/{tenantId}/units` |
+| GET/PATCH/DELETE | `/tenants/{tenantId}/units/{unitId}` |
+| POST | `/tenants/{tenantId}/units/{unitId}/invite-codes` |
+| GET | `/tenants/{tenantId}/building/summary` |
+| GET | `/tenants/{tenantId}/building/rankings` |
+| GET/PUT | `/tenants/{tenantId}/devices/{id}/water/*` |
+| POST | `/tenants/{tenantId}/policies/apply-template` |
+| POST | `/tenants/{tenantId}/policies/emergency-shutoff` |
+| POST | `/tenants/{tenantId}/policies/emergency-restore` |
+| GET/PATCH | `/tenants/{tenantId}/alerts` |
+| GET | `/tenants/{tenantId}/audit` |
+| GET/PUT | `/tenants/{tenantId}/quota-templates` |
+| GET/PUT | `/tenants/{tenantId}/schedule-rules` |
+| GET/PUT | `/tenants/{tenantId}/tariff` |
 
 ---
 
-## Related code
+## Related Dart code
 
-| Contract | Dart reference |
-|----------|----------------|
-| Water device API | `lib/core/api/water_api_client.dart`, `dio_water_api_client.dart` |
+| Area | Files |
+|------|-------|
+| Models | `lib/core/models/tenant_config.dart`, `user_profile.dart`, `water_unit.dart`, `bulk_valve_snapshot.dart` |
 | Tenant API | `lib/core/api/tenant_api_client.dart` |
-| Building API | `lib/core/api/building_api_client.dart` |
-| Models | `lib/core/models/` |
-| Local storage (to replace) | `lib/core/storage/preferences_storage.dart` |
+| Water API | `lib/core/api/dio_water_api_client.dart` |
+| Onboarding | `lib/features/auth/tenant_setup_screen.dart`, `admin_invite_screen.dart` |
+| Policies | `lib/core/services/policy_engine.dart` |

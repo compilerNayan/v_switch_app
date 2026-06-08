@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/models/user_profile.dart';
 import '../../core/models/water_unit.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/building_providers.dart';
@@ -68,10 +67,7 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
         ],
       ),
       body: profileAsync.when(
-        data: (profile) {
-          if (profile?.role == UserRole.readonly) {
-            return _ResidentHome(profile: profile!);
-          }
+        data: (_) {
           return unitsAsync.when(
             data: (units) {
               if (units.isEmpty) {
@@ -382,43 +378,3 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _ResidentHome extends ConsumerWidget {
-  const _ResidentHome({required this.profile});
-
-  final UserProfile profile;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final unitsAsync = ref.watch(waterUnitsProvider);
-    return unitsAsync.when(
-      data: (units) {
-        final assigned = units.where((u) {
-          return u.assignedUserIds.contains(profile.userId) ||
-              profile.assignedUnitIds.contains(u.id);
-        }).toList();
-        if (assigned.isEmpty) {
-          return const Center(child: Text('No unit assigned to your account'));
-        }
-        final unit = assigned.first;
-        return RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(deviceCurrentReadingProvider(unit.deviceId));
-          },
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              UnitTile(unit: unit),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () => context.go('/devices/${unit.id}/dashboard'),
-                child: const Text('Open my usage'),
-              ),
-            ],
-          ),
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
-    );
-  }
-}

@@ -91,8 +91,8 @@ class AmplifyAuthService implements AuthService {
     String? email;
     String? name;
     String? tenantId;
-    String? role;
     String? onboardingComplete;
+    String? isTenantOwner;
     String? sub;
 
     for (final attr in attrs) {
@@ -105,10 +105,10 @@ class AmplifyAuthService implements AuthService {
           sub = attr.value;
         case 'custom:tenant_id':
           tenantId = attr.value.isEmpty ? null : attr.value;
-        case 'custom:role':
-          role = attr.value.isEmpty ? null : attr.value;
         case 'custom:onboarding_complete':
           onboardingComplete = attr.value;
+        case 'custom:is_tenant_owner':
+          isTenantOwner = attr.value;
       }
     }
 
@@ -116,9 +116,9 @@ class AmplifyAuthService implements AuthService {
       userId: sub ?? '',
       email: email ?? '',
       displayName: name ?? email ?? '',
-      role: app.UserRole.fromString(role),
       tenantId: tenantId,
       onboardingComplete: onboardingComplete == 'true',
+      isTenantOwner: isTenantOwner == 'true',
       idToken: idToken,
     );
   }

@@ -4,33 +4,37 @@ import '../models/user_profile.dart';
 class OnboardingRouter {
   OnboardingRouter._();
 
-  static String? redirectForProfile(UserProfile? profile, String location) {
+  static String? redirectForProfile(
+    UserProfile? profile,
+    String location, {
+    bool tenantExists = false,
+  }) {
     if (profile == null || !profile.isAuthenticated) {
       return location == '/auth' ? null : '/auth';
     }
 
-    final authRoutes = {'/auth'};
-    final tenantOnboardingRoutes = {'/onboarding/role', '/onboarding/join'};
+    const authRoutes = {'/auth'};
+    const tenantOnboardingRoutes = {
+      '/onboarding/tenant-setup',
+      '/onboarding/admin-invite',
+    };
 
-    if (profile.onboardingComplete) {
-      if (authRoutes.contains(location) || tenantOnboardingRoutes.contains(location)) {
+    if (profile.onboardingComplete && profile.tenantId != null) {
+      if (authRoutes.contains(location) ||
+          tenantOnboardingRoutes.contains(location)) {
         return '/';
       }
       return null;
     }
 
-    if (profile.needsRoleSelection) {
-      return location == '/onboarding/role' ? null : '/onboarding/role';
+    if (tenantExists) {
+      return location == '/onboarding/admin-invite'
+          ? null
+          : '/onboarding/admin-invite';
     }
 
-    if (profile.needsTenantJoin) {
-      return location == '/onboarding/join' ? null : '/onboarding/join';
-    }
-
-    if (profile.needsTenantCreation) {
-      return location == '/onboarding/role' ? null : '/onboarding/role';
-    }
-
-    return null;
+    return location == '/onboarding/tenant-setup'
+        ? null
+        : '/onboarding/tenant-setup';
   }
 }

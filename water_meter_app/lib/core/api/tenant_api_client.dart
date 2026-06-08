@@ -1,17 +1,21 @@
 import 'package:dio/dio.dart';
 
 import '../config/app_config.dart';
+import '../models/tenant_config.dart';
 import '../models/user_profile.dart';
 import '../auth/auth_service.dart';
 import '../auth/mock_auth_service.dart';
+import '../storage/preferences_storage.dart';
 import 'api_exceptions.dart';
 
 class TenantApiClient {
   TenantApiClient({
     required AuthService authService,
+    required Future<PreferencesStorage> Function() prefsProvider,
     String? baseUrl,
     Dio? dio,
   })  : _authService = authService,
+        _prefsProvider = prefsProvider,
         _dio = dio ??
             Dio(
               BaseOptions(
@@ -36,6 +40,7 @@ class TenantApiClient {
 
   final Dio _dio;
   final AuthService _authService;
+  final Future<PreferencesStorage> Function() _prefsProvider;
 
   Future<UserProfile> getMe() async {
     if (AppConfig.useMockAuth && _authService is MockAuthService) {
@@ -49,54 +54,104 @@ class TenantApiClient {
     return profile.copyWith(idToken: token);
   }
 
-  Future<UserProfile> setRole(UserRole role) async {
-    if (AppConfig.useMockAuth && _authService is MockAuthService) {
-      final mock = _authService as MockAuthService;
-      var user = await mock.setRole(role);
-      if (role == UserRole.admin) {
-        user = await mock.createTenant();
-      } else if (role == UserRole.maintenance) {
-        user = (await mock.joinTenant(MockAuthService.mockInviteCode))
-            .copyWith(role: UserRole.maintenance);
-      }
-      return user;
+  Future<bool> tenantExists() async {
+    if (AppConfig.useMockAuth) {
+      final prefs = await _prefsProvider();
+      return prefs.tenantExists;
     }
-    final data = await _post<Map<String, dynamic>>(
-      '/users/role',
-      {'role': role.toApiValue()},
-    );
-    await _authService.refreshProfile();
-    final me = await getMe();
-    if (data['tenantId'] != null) {
-      return me.copyWith(
-        tenantId: data['tenantId'] as String?,
-        inviteCode: data['inviteCode'] as String?,
-        onboardingComplete: true,
-        role: role,
-      );
-    }
-    return me.copyWith(role: role);
+    final data = await _get<Map<String, dynamic>>('/tenants/exists');
+    return data['exists'] as bool? ?? false;
   }
 
-  Future<UserProfile> createTenant() async {
+  Future<UserProfile> createTenant({
+    required String name,
+    required TenantStructure structure,
+  }) async {
     if (AppConfig.useMockAuth && _authService is MockAuthService) {
-      return (_authService as MockAuthService).createTenant();
+      final prefs = await _prefsProvider();
+      return (_authService as MockAuthService).createTenant(
+        name: name,
+        structure: structure,
+        prefs: prefs,
+      );
     }
-    final data = await _post<Map<String, dynamic>>('/tenants', {});
+    final data = await _post<Map<String, dynamic>>('/tenants', {
+      'name': name,
+      'structure': structure.toJson(),
+    });
     await _authService.refreshProfile();
     final me = await getMe();
     return me.copyWith(
       tenantId: data['tenantId'] as String?,
-      inviteCode: data['inviteCode'] as String?,
       onboardingComplete: true,
-      role: UserRole.admin,
+      isTenantOwner: data['isTenantOwner'] as bool? ?? true,
     );
   }
 
-  Future<UserProfile> joinTenant(String inviteCode) async {
+  Future<TenantConfig> getTenant(String tenantId) async {
+    if (AppConfig.useMockAuth) {
+      final prefs = await _prefsProvider();
+      final config = prefs.getTenantConfig();
+      if (config == null || config.tenantId != tenantId) {
+        throw ApiException(
+          statusCode: 404,
+          error: const ApiError(code: 'NOT_FOUND', message: 'Tenant not found'),
+        );
+      }
+      return config;
+    }
+    final data = await _get<Map<String, dynamic>>('/tenants/$tenantId');
+    return TenantConfig.fromJson(data);
+  }
+
+  Future<TenantConfig> updateStructure({
+    required String tenantId,
+    required TenantStructure structure,
+  }) async {
+    if (AppConfig.useMockAuth) {
+      final prefs = await _prefsProvider();
+      final existing = prefs.getTenantConfig();
+      if (existing == null) {
+        throw ApiException(
+          statusCode: 404,
+          error: const ApiError(code: 'NOT_FOUND', message: 'Tenant not found'),
+        );
+      }
+      final updated = existing.copyWith(structure: structure);
+      await prefs.setTenantConfig(updated);
+      return updated;
+    }
+    final data = await _put<Map<String, dynamic>>(
+      '/tenants/$tenantId/structure',
+      structure.toJson(),
+    );
+    return TenantConfig.fromJson({
+      'tenantId': tenantId,
+      'name': data['name'] ?? '',
+      'structure': data,
+    });
+  }
+
+  Future<String> createAdminInvite(String tenantId) async {
     if (AppConfig.useMockAuth && _authService is MockAuthService) {
+      final prefs = await _prefsProvider();
+      return (_authService as MockAuthService).generateAdminInvite(prefs);
+    }
+    final data = await _post<Map<String, dynamic>>(
+      '/tenants/$tenantId/admin-invites',
+      {},
+    );
+    return data['inviteCode'] as String;
+  }
+
+  Future<UserProfile> joinAsAdmin(String inviteCode) async {
+    if (AppConfig.useMockAuth && _authService is MockAuthService) {
+      final prefs = await _prefsProvider();
       try {
-        return await (_authService as MockAuthService).joinTenant(inviteCode);
+        return await (_authService as MockAuthService).joinAsAdmin(
+          inviteCode: inviteCode,
+          prefs: prefs,
+        );
       } on TenantJoinException catch (e) {
         throw ApiException(
           statusCode: 404,
@@ -105,7 +160,7 @@ class TenantApiClient {
       }
     }
     final data = await _post<Map<String, dynamic>>(
-      '/tenants/join',
+      '/tenants/join/admin',
       {'inviteCode': inviteCode.trim().toUpperCase()},
     );
     await _authService.refreshProfile();
@@ -113,7 +168,7 @@ class TenantApiClient {
     return me.copyWith(
       tenantId: data['tenantId'] as String?,
       onboardingComplete: true,
-      role: UserRole.readonly,
+      isTenantOwner: false,
     );
   }
 
@@ -129,6 +184,15 @@ class TenantApiClient {
   Future<T> _post<T>(String path, Map<String, dynamic> body) async {
     try {
       final response = await _dio.post<T>(path, data: body);
+      return response.data as T;
+    } on DioException catch (e) {
+      throw _mapError(e);
+    }
+  }
+
+  Future<T> _put<T>(String path, Map<String, dynamic> body) async {
+    try {
+      final response = await _dio.put<T>(path, data: body);
       return response.data as T;
     } on DioException catch (e) {
       throw _mapError(e);

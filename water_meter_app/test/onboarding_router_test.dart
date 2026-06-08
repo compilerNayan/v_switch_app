@@ -14,7 +14,7 @@ void main() {
       expect(OnboardingRouter.redirectForProfile(null, '/auth'), isNull);
     });
 
-    test('redirects authenticated user without role to role selection', () {
+    test('redirects new user to tenant setup when no tenant exists', () {
       const profile = UserProfile(
         userId: 'u1',
         email: 'a@b.com',
@@ -22,29 +22,31 @@ void main() {
       );
       expect(
         OnboardingRouter.redirectForProfile(profile, '/'),
-        '/onboarding/role',
+        '/onboarding/tenant-setup',
       );
     });
 
-    test('redirects readonly user without tenant to join screen', () {
+    test('redirects new user to admin invite when tenant exists', () {
       const profile = UserProfile(
         userId: 'u1',
         email: 'a@b.com',
         displayName: 'User',
-        role: UserRole.readonly,
       );
       expect(
-        OnboardingRouter.redirectForProfile(profile, '/'),
-        '/onboarding/join',
+        OnboardingRouter.redirectForProfile(
+          profile,
+          '/',
+          tenantExists: true,
+        ),
+        '/onboarding/admin-invite',
       );
     });
 
-    test('allows devices home when tenant onboarding complete', () {
+    test('allows building home when onboarding complete', () {
       const profile = UserProfile(
         userId: 'u1',
         email: 'a@b.com',
         displayName: 'User',
-        role: UserRole.admin,
         tenantId: 'tenant-1',
         onboardingComplete: true,
       );

@@ -59,6 +59,7 @@ class _UnitTileState extends ConsumerState<UnitTile> {
 
   Future<void> _onValveToggle(bool turnOn) async {
     if (!ref.read(isDeviceAdminProvider) || _togglingValve) return;
+    if (widget.unit.maintenanceMode && turnOn) return;
     setState(() => _togglingValve = true);
     try {
       await toggleDeviceValveForId(ref, widget.unit.deviceId);
@@ -133,6 +134,7 @@ class _UnitTileState extends ConsumerState<UnitTile> {
                   if (isAdmin)
                     _ValveSwitch(
                       deviceId: widget.unit.deviceId,
+                      maintenanceMode: widget.unit.maintenanceMode,
                       toggling: _togglingValve,
                       onChanged: _onValveToggle,
                     ),
@@ -222,11 +224,13 @@ class _ContactIconButton extends StatelessWidget {
 class _ValveSwitch extends ConsumerWidget {
   const _ValveSwitch({
     required this.deviceId,
+    required this.maintenanceMode,
     required this.toggling,
     required this.onChanged,
   });
 
   final String deviceId;
+  final bool maintenanceMode;
   final bool toggling;
   final ValueChanged<bool> onChanged;
 
@@ -237,7 +241,7 @@ class _ValveSwitch extends ConsumerWidget {
     return valveAsync.when(
       data: (valve) => Switch(
         value: !valve.isOff,
-        onChanged: isAdmin && !toggling ? onChanged : null,
+        onChanged: isAdmin && !toggling && !maintenanceMode ? onChanged : null,
       ),
       loading: () => const SizedBox(
         width: 24,

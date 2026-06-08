@@ -27,8 +27,13 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       ref.invalidate(userProfileProvider);
       if (mounted) {
         final profile = await ref.read(userProfileProvider.future);
-        if (profile != null && !profile.onboardingComplete) {
-          context.go('/onboarding/role');
+        if (profile != null && profile.needsOnboarding) {
+          final prefs = await ref.read(preferencesStorageProvider.future);
+          if (prefs.tenantExists) {
+            context.go('/onboarding/admin-invite');
+          } else {
+            context.go('/onboarding/tenant-setup');
+          }
         } else {
           context.go('/');
         }
