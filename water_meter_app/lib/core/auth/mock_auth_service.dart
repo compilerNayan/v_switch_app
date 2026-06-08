@@ -46,6 +46,7 @@ class MockAuthService implements AuthService {
     required String firstName,
     required String lastName,
     required String phone,
+    required String gender,
   }) async {
     _pendingEmail = email.trim();
     _pendingPassword = password;

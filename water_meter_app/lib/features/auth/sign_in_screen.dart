@@ -31,6 +31,14 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
   final _phoneController = TextEditingController();
   final _buildingNameController = TextEditingController();
 
+  String? _selectedGender;
+
+  static const _genderOptions = {
+    'male': 'Male',
+    'female': 'Female',
+    'other': 'Other',
+  };
+
   bool _isLoading = false;
   String? _error;
 
@@ -134,6 +142,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
         phone: _phoneController.text.trim(),
+        gender: _selectedGender!,
       );
 
       ref.read(pendingRegistrationProvider.notifier).state = PendingRegistration(
@@ -322,31 +331,45 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             TextFormField(
-              controller: _firstNameController,
+              controller: _signUpEmailController,
               decoration: const InputDecoration(
-                labelText: 'First name',
+                labelText: 'Email address',
                 border: OutlineInputBorder(),
               ),
-              textCapitalization: TextCapitalization.words,
-              validator: (value) =>
-                  value == null || value.trim().isEmpty ? 'Required' : null,
+              keyboardType: TextInputType.emailAddress,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Email is required';
+                }
+                return null;
+              },
             ),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _lastNameController,
+            DropdownButtonFormField<String>(
+              value: _selectedGender,
               decoration: const InputDecoration(
-                labelText: 'Last name',
+                labelText: 'Gender',
                 border: OutlineInputBorder(),
               ),
-              textCapitalization: TextCapitalization.words,
+              items: _genderOptions.entries
+                  .map(
+                    (e) => DropdownMenuItem(
+                      value: e.key,
+                      child: Text(e.value),
+                    ),
+                  )
+                  .toList(),
+              onChanged: _isLoading
+                  ? null
+                  : (value) => setState(() => _selectedGender = value),
               validator: (value) =>
-                  value == null || value.trim().isEmpty ? 'Required' : null,
+                  value == null || value.isEmpty ? 'Gender is required' : null,
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _phoneController,
               decoration: const InputDecoration(
-                labelText: 'Phone',
+                labelText: 'Phone number',
                 border: OutlineInputBorder(),
                 hintText: '+919876543210',
               ),
@@ -363,6 +386,28 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
             ),
             const SizedBox(height: 12),
             TextFormField(
+              controller: _firstNameController,
+              decoration: const InputDecoration(
+                labelText: 'Given name',
+                border: OutlineInputBorder(),
+              ),
+              textCapitalization: TextCapitalization.words,
+              validator: (value) =>
+                  value == null || value.trim().isEmpty ? 'Required' : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _lastNameController,
+              decoration: const InputDecoration(
+                labelText: 'Family name',
+                border: OutlineInputBorder(),
+              ),
+              textCapitalization: TextCapitalization.words,
+              validator: (value) =>
+                  value == null || value.trim().isEmpty ? 'Required' : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
               controller: _buildingNameController,
               decoration: const InputDecoration(
                 labelText: 'Building name',
@@ -373,20 +418,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
                   value == null || value.trim().isEmpty ? 'Required' : null,
             ),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _signUpEmailController,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.emailAddress,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Email is required';
-                }
-                return null;
-              },
-            ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _signUpPasswordController,

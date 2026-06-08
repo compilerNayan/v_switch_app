@@ -59,6 +59,7 @@ class AmplifyAuthService implements AuthService {
     required String firstName,
     required String lastName,
     required String phone,
+    required String gender,
   }) async {
     final result = await Amplify.Auth.signUp(
       username: email.trim(),
@@ -66,6 +67,7 @@ class AmplifyAuthService implements AuthService {
       options: SignUpOptions(
         userAttributes: {
           AuthUserAttributeKey.email: email.trim(),
+          CognitoUserAttributeKey.gender: gender.trim(),
           AuthUserAttributeKey.phoneNumber: phone.trim(),
           AuthUserAttributeKey.givenName: firstName.trim(),
           AuthUserAttributeKey.familyName: lastName.trim(),

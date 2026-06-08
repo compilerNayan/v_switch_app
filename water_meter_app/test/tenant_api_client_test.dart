@@ -34,6 +34,7 @@ void main() {
         firstName: 'Raj',
         lastName: 'Sharma',
         phone: '+919876543210',
+        gender: 'male',
       );
       await auth.confirmSignUp(
         email: 'owner@example.com',

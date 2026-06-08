@@ -16,6 +16,7 @@ abstract class AuthService {
     required String firstName,
     required String lastName,
     required String phone,
+    required String gender,
   });
   Future<void> confirmSignUp({
     required String email,
