@@ -6,9 +6,11 @@ import '../api/dio_water_api_client.dart';
 import '../api/mock_water_api_client.dart';
 import '../api/tenant_api_client.dart';
 import '../api/water_api_client.dart';
+import '../api/api_exceptions.dart';
 import '../auth/amplify_auth_service.dart';
 import '../auth/auth_service.dart';
 import '../auth/mock_auth_service.dart';
+import '../auth/pending_registration.dart';
 import '../config/app_config.dart';
 import '../models/user_profile.dart';
 import '../storage/preferences_storage.dart';
@@ -30,8 +32,26 @@ final authInitProvider = FutureProvider<void>((ref) async {
 final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
   await ref.watch(authInitProvider.future);
   final auth = ref.watch(authServiceProvider);
-  return auth.getCurrentUser();
+  final token = await auth.getIdToken();
+  if (token == null) return null;
+
+  if (AppConfig.useMockAuth) {
+    return auth.getCurrentUser();
+  }
+
+  final client = ref.watch(tenantApiClientProvider);
+  try {
+    return await client.getMe();
+  } on ApiException catch (e) {
+    if (e.statusCode == 404) {
+      return auth.getCurrentUser();
+    }
+    rethrow;
+  }
 });
+
+final pendingRegistrationProvider =
+    StateProvider<PendingRegistration?>((ref) => null);
 
 final tenantApiClientProvider = Provider<TenantApiClient>((ref) {
   final auth = ref.watch(authServiceProvider);

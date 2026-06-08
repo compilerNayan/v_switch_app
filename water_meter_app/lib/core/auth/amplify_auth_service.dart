@@ -3,7 +3,7 @@ import 'package:amplify_flutter/amplify_flutter.dart';
 
 import '../config/app_config.dart';
 import '../models/user_profile.dart' as app;
-import 'auth_service.dart';
+import 'auth_service.dart' show AuthService, AuthSignUpResult;
 
 class AmplifyAuthService implements AuthService {
   bool _configured = false;
@@ -53,6 +53,67 @@ class AmplifyAuthService implements AuthService {
   }
 
   @override
+  Future<AuthSignUpResult> signUp({
+    required String email,
+    required String password,
+    required String firstName,
+    required String lastName,
+    required String phone,
+  }) async {
+    final result = await Amplify.Auth.signUp(
+      username: email.trim(),
+      password: password,
+      options: SignUpOptions(
+        userAttributes: {
+          AuthUserAttributeKey.email: email.trim(),
+          AuthUserAttributeKey.phoneNumber: phone.trim(),
+          AuthUserAttributeKey.givenName: firstName.trim(),
+          AuthUserAttributeKey.familyName: lastName.trim(),
+        },
+      ),
+    );
+    return AuthSignUpResult(
+      requiresConfirmation:
+          result.nextStep.signUpStep == AuthSignUpStep.confirmSignUp,
+    );
+  }
+
+  @override
+  Future<void> confirmSignUp({
+    required String email,
+    required String code,
+  }) async {
+    await Amplify.Auth.confirmSignUp(
+      username: email.trim(),
+      confirmationCode: code.trim(),
+    );
+  }
+
+  @override
+  Future<void> resendSignUpCode({required String email}) async {
+    await Amplify.Auth.resendSignUpCode(username: email.trim());
+  }
+
+  @override
+  Future<app.UserProfile> signInWithPassword({
+    required String email,
+    required String password,
+  }) async {
+    final result = await Amplify.Auth.signIn(
+      username: email.trim(),
+      password: password,
+    );
+    if (!result.isSignedIn) {
+      throw Exception('Sign-in was not completed');
+    }
+    final profile = await getCurrentUser();
+    if (profile == null) {
+      throw Exception('Failed to load user profile');
+    }
+    return profile;
+  }
+
+  @override
   Future<app.UserProfile> signInWithGoogle() async {
     final result = await Amplify.Auth.signInWithWebUI(
       provider: AuthProvider.google,
@@ -90,9 +151,9 @@ class AmplifyAuthService implements AuthService {
   ) {
     String? email;
     String? name;
-    String? tenantId;
-    String? onboardingComplete;
-    String? isTenantOwner;
+    String? givenName;
+    String? familyName;
+    String? phone;
     String? sub;
 
     for (final attr in attrs) {
@@ -101,24 +162,27 @@ class AmplifyAuthService implements AuthService {
           email = attr.value;
         case 'name':
           name = attr.value;
+        case 'given_name':
+          givenName = attr.value;
+        case 'family_name':
+          familyName = attr.value;
+        case 'phone_number':
+          phone = attr.value;
         case 'sub':
           sub = attr.value;
-        case 'custom:tenant_id':
-          tenantId = attr.value.isEmpty ? null : attr.value;
-        case 'custom:onboarding_complete':
-          onboardingComplete = attr.value;
-        case 'custom:is_tenant_owner':
-          isTenantOwner = attr.value;
       }
     }
+
+    final displayName = name ??
+        [givenName, familyName].where((part) => part != null && part.isNotEmpty).join(' ').trim();
 
     return app.UserProfile(
       userId: sub ?? '',
       email: email ?? '',
-      displayName: name ?? email ?? '',
-      tenantId: tenantId,
-      onboardingComplete: onboardingComplete == 'true',
-      isTenantOwner: isTenantOwner == 'true',
+      displayName: displayName.isNotEmpty ? displayName : (email ?? ''),
+      phone: phone,
+      firstName: givenName,
+      lastName: familyName,
       idToken: idToken,
     );
   }
@@ -139,16 +203,7 @@ class AmplifyAuthService implements AuthService {
         },
         "Auth": {
           "Default": {
-            "OAuth": {
-              "WebDomain": "${AppConfig.cognitoDomain}",
-              "AppClientId": "${AppConfig.cognitoClientId}",
-              "SignInRedirectURI": "${AppConfig.oauthRedirectUri}",
-              "SignOutRedirectURI": "${AppConfig.oauthSignOutUri}",
-              "Scopes": ["email", "openid", "profile"],
-              "ResponseType": "code"
-            },
-            "authenticationFlowType": "USER_SRP_AUTH",
-            "socialProviders": ["GOOGLE"]
+            "authenticationFlowType": "USER_SRP_AUTH"
           }
         }
       }

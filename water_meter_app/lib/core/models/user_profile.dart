@@ -3,6 +3,9 @@ class UserProfile {
     required this.userId,
     required this.email,
     required this.displayName,
+    this.phone,
+    this.firstName,
+    this.lastName,
     this.tenantId,
     this.onboardingComplete = false,
     this.isTenantOwner = false,
@@ -15,6 +18,9 @@ class UserProfile {
       email: json['email'] as String? ?? '',
       displayName:
           json['displayName'] as String? ?? json['email'] as String? ?? '',
+      phone: json['phone'] as String?,
+      firstName: json['firstName'] as String?,
+      lastName: json['lastName'] as String?,
       tenantId: json['tenantId'] as String?,
       onboardingComplete: json['onboardingComplete'] as bool? ?? false,
       isTenantOwner: json['isTenantOwner'] as bool? ?? false,
@@ -24,6 +30,9 @@ class UserProfile {
   final String userId;
   final String email;
   final String displayName;
+  final String? phone;
+  final String? firstName;
+  final String? lastName;
   final String? tenantId;
   final bool onboardingComplete;
   final bool isTenantOwner;
@@ -37,6 +46,9 @@ class UserProfile {
     String? userId,
     String? email,
     String? displayName,
+    String? phone,
+    String? firstName,
+    String? lastName,
     String? tenantId,
     bool? onboardingComplete,
     bool? isTenantOwner,
@@ -47,6 +59,9 @@ class UserProfile {
       userId: userId ?? this.userId,
       email: email ?? this.email,
       displayName: displayName ?? this.displayName,
+      phone: phone ?? this.phone,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
       tenantId: clearTenantId ? null : (tenantId ?? this.tenantId),
       onboardingComplete: onboardingComplete ?? this.onboardingComplete,
       isTenantOwner: isTenantOwner ?? this.isTenantOwner,
@@ -58,6 +73,9 @@ class UserProfile {
         'userId': userId,
         'email': email,
         'displayName': displayName,
+        if (phone != null) 'phone': phone,
+        if (firstName != null) 'firstName': firstName,
+        if (lastName != null) 'lastName': lastName,
         if (tenantId != null) 'tenantId': tenantId,
         'onboardingComplete': onboardingComplete,
         'isTenantOwner': isTenantOwner,

@@ -9,6 +9,7 @@ import 'core/utils/onboarding_router.dart';
 import 'features/alerts/alerts_screen.dart';
 import 'features/audit/audit_log_screen.dart';
 import 'features/auth/admin_invite_screen.dart';
+import 'features/auth/confirm_sign_up_screen.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/auth/tenant_setup_screen.dart';
 import 'features/building/building_home_screen.dart';
@@ -56,17 +57,25 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null;
       }
 
-      final prefs = ref.read(preferencesStorageProvider).valueOrNull;
+      final tenantExists = AppConfig.useMockAuth
+          ? (ref.read(preferencesStorageProvider).valueOrNull?.tenantExists ??
+              false)
+          : false;
+
       return OnboardingRouter.redirectForProfile(
         profileAsync.valueOrNull,
         state.matchedLocation,
-        tenantExists: prefs?.tenantExists ?? false,
+        tenantExists: tenantExists,
       );
     },
     routes: [
       GoRoute(
         path: '/auth',
         builder: (context, state) => const SignInScreen(),
+      ),
+      GoRoute(
+        path: '/auth/confirm',
+        builder: (context, state) => const ConfirmSignUpScreen(),
       ),
       GoRoute(
         path: '/onboarding/tenant-setup',

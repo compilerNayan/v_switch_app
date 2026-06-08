@@ -10,10 +10,12 @@ class OnboardingRouter {
     bool tenantExists = false,
   }) {
     if (profile == null || !profile.isAuthenticated) {
-      return location == '/auth' ? null : '/auth';
+      return location == '/auth' || location == '/auth/confirm'
+          ? null
+          : '/auth';
     }
 
-    const authRoutes = {'/auth'};
+    const authRoutes = {'/auth', '/auth/confirm'};
     const tenantOnboardingRoutes = {
       '/onboarding/tenant-setup',
       '/onboarding/admin-invite',
@@ -33,8 +35,8 @@ class OnboardingRouter {
           : '/onboarding/admin-invite';
     }
 
-    return location == '/onboarding/tenant-setup'
+    return location == '/onboarding/admin-invite'
         ? null
-        : '/onboarding/tenant-setup';
+        : '/onboarding/admin-invite';
   }
 }

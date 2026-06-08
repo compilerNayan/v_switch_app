@@ -35,7 +35,7 @@ class AppConfig {
 
   static const String cognitoRegion = String.fromEnvironment(
     'COGNITO_REGION',
-    defaultValue: 'us-east-1',
+    defaultValue: 'ap-south-1',
   );
 
   static const String cognitoDomain = String.fromEnvironment(

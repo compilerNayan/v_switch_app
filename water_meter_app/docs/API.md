@@ -10,7 +10,7 @@ This document defines the backend API for the Water Monitor app. The deployment 
 Authorization: Bearer <Cognito ID token>
 ```
 
-JWT must include `custom:tenant_id` after onboarding. Every **tenant-scoped** route validates `claims.tenant_id === path.tenantId`.
+The backend validates the JWT against the Cognito user pool issuer. User profile and `tenantId` are stored in DynamoDB (`GET /users/me` is the source of truth). Every **tenant-scoped** route validates the caller's `tenantId` matches `path.tenantId`.
 
 **Error response:**
 
@@ -29,9 +29,9 @@ JWT must include `custom:tenant_id` after onboarding. Every **tenant-scoped** ro
 
 | Rule | Detail |
 |------|--------|
-| Single tenant | Exactly one tenant record per deployment |
+| One tenant per owner | Each sign-up creates one tenant for that user (1 user = 1 tenant) |
 | Users | All authenticated users are **admins** (no resident/maintenance roles) |
-| First user | Creates tenant via `POST /tenants` (becomes `isTenantOwner: true`) |
+| Owner sign-up | `POST /users` creates user + tenant (`isTenantOwner: true`) |
 | Additional admins | Join via `POST /tenants/join/admin` with owner-generated invite code |
 | Meter invites | Per-unit codes generated only; resident onboarding is **future work** |
 | Tenant in path | All building/device data under `/tenants/{tenantId}/...` |
@@ -42,13 +42,46 @@ JWT must include `custom:tenant_id` after onboarding. Every **tenant-scoped** ro
 |-------|----------------|
 | User-global | `/users/me`, `/users/me/*` |
 | Tenant-global join | `/tenants/join/admin` (no tenantId yet) |
-| Tenant creation | `POST /tenants` (only when no tenant exists) |
+| User registration | `POST /users` (creates user + tenant after Cognito sign-up) |
+| Tenant creation (legacy) | `POST /tenants` (mock / co-admin flows) |
 | Tenant-scoped | `/tenants/{tenantId}/*` |
 | Device (tenant-scoped) | `/tenants/{tenantId}/devices/{deviceId}/water/*` |
 
 ---
 
 ## 1. User
+
+### POST `/users`
+
+Called once after Cognito sign-up and first sign-in. Creates the user profile and a tenant for the building name provided at sign-up. **Idempotent:** returns `200` with the existing profile if the user is already registered.
+
+**Request:**
+
+```json
+{
+  "email": "admin@building.com",
+  "phone": "+919876543210",
+  "firstName": "Raj",
+  "lastName": "Sharma",
+  "tenantName": "Sunrise Apartments"
+}
+```
+
+**Response 201** (or `200` if already registered):
+
+```json
+{
+  "userId": "<cognito-sub>",
+  "email": "admin@building.com",
+  "displayName": "Raj Sharma",
+  "phone": "+919876543210",
+  "firstName": "Raj",
+  "lastName": "Sharma",
+  "tenantId": "tenant_abc123",
+  "onboardingComplete": true,
+  "isTenantOwner": true
+}
+```
 
 ### GET `/users/me`
 
@@ -561,6 +594,7 @@ After enrollment: `POST /tenants/{tenantId}/units` links device serial.
 | Method | Path |
 |--------|------|
 | GET | `/users/me` |
+| POST | `/users` |
 | POST | `/users/me/push-token` |
 | GET | `/tenants/exists` |
 | POST | `/tenants` |
@@ -592,5 +626,5 @@ After enrollment: `POST /tenants/{tenantId}/units` links device serial.
 | Models | `lib/core/models/tenant_config.dart`, `user_profile.dart`, `water_unit.dart`, `bulk_valve_snapshot.dart` |
 | Tenant API | `lib/core/api/tenant_api_client.dart` |
 | Water API | `lib/core/api/dio_water_api_client.dart` |
-| Onboarding | `lib/features/auth/tenant_setup_screen.dart`, `admin_invite_screen.dart` |
+| Onboarding | `lib/features/auth/sign_in_screen.dart`, `confirm_sign_up_screen.dart`, `admin_invite_screen.dart` |
 | Policies | `lib/core/services/policy_engine.dart` |

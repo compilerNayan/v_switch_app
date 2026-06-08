@@ -21,6 +21,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('Continue with Google'), findsOneWidget);
+    expect(find.text('Sign in'), findsWidgets);
+    expect(find.text('Sign up'), findsOneWidget);
   });
 }

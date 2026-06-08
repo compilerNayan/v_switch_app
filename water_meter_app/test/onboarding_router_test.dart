@@ -12,18 +12,20 @@ void main() {
 
     test('allows /auth when not authenticated', () {
       expect(OnboardingRouter.redirectForProfile(null, '/auth'), isNull);
+      expect(OnboardingRouter.redirectForProfile(null, '/auth/confirm'), isNull);
     });
 
-    test('redirects new user to tenant setup when no tenant exists', () {
+    test('redirects onboarded owner away from auth routes', () {
       const profile = UserProfile(
         userId: 'u1',
         email: 'a@b.com',
         displayName: 'User',
+        tenantId: 'tenant-1',
+        onboardingComplete: true,
+        isTenantOwner: true,
       );
-      expect(
-        OnboardingRouter.redirectForProfile(profile, '/'),
-        '/onboarding/tenant-setup',
-      );
+      expect(OnboardingRouter.redirectForProfile(profile, '/auth'), '/');
+      expect(OnboardingRouter.redirectForProfile(profile, '/'), isNull);
     });
 
     test('redirects new user to admin invite when tenant exists', () {
@@ -38,6 +40,18 @@ void main() {
           '/',
           tenantExists: true,
         ),
+        '/onboarding/admin-invite',
+      );
+    });
+
+    test('redirects new user without tenant to admin invite by default', () {
+      const profile = UserProfile(
+        userId: 'u1',
+        email: 'a@b.com',
+        displayName: 'User',
+      );
+      expect(
+        OnboardingRouter.redirectForProfile(profile, '/'),
         '/onboarding/admin-invite',
       );
     });

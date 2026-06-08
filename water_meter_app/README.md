@@ -20,15 +20,15 @@ flutter pub get
 /tmp/flutter-sdk/bin/flutter run
 ```
 
-1. **Sign in** (mock Google)
-2. Complete tenant setup (first user) or enter admin invite code
+1. **Sign up** or **Sign in** (mock email/password; confirmation code `123456`)
+2. Sign-up creates your building tenant automatically
 3. **Building** home — portfolio summary, searchable unit grid, alerts
 4. Tap a unit → Dashboard / Usage / Insights / Control (admin only)
 
-### Access model (single tenant)
+### Access model
 
-- **One tenant** per deployment; all users are **admins**
-- **First sign-in** creates the tenant (building name + optional block/wing layout)
+- **One tenant per owner** — sign-up includes building name and creates your tenant
+- All users are **admins**
 - **Additional admins** join with an owner-generated admin invite code
 - **Meter invite codes** are generated per unit (resident onboarding is future work)
 
@@ -100,13 +100,16 @@ Covers:
 - Alerts, audit log, policies, billing/tariff
 - Bulk operations, push tokens, caching notes
 
-To point at a real backend:
+To point at a real backend and Cognito:
 
 ```bash
 flutter run \
   --dart-define=USE_MOCK_API=false \
   --dart-define=USE_MOCK_AUTH=false \
-  --dart-define=API_BASE_URL=https://your-api.example.com/v1
+  --dart-define=API_BASE_URL=https://9n5clkjldd.execute-api.ap-south-1.amazonaws.com/Prod \
+  --dart-define=COGNITO_USER_POOL_ID=ap-south-1_vm19Xv95r \
+  --dart-define=COGNITO_CLIENT_ID=<your-client-id> \
+  --dart-define=COGNITO_REGION=ap-south-1
 ```
 
 ## Push notifications (production)

@@ -54,6 +54,36 @@ class TenantApiClient {
     return profile.copyWith(idToken: token);
   }
 
+  Future<UserProfile> registerUser({
+    required String email,
+    required String phone,
+    required String firstName,
+    required String lastName,
+    required String tenantName,
+  }) async {
+    if (AppConfig.useMockAuth && _authService is MockAuthService) {
+      final prefs = await _prefsProvider();
+      return (_authService as MockAuthService).registerUser(
+        email: email,
+        phone: phone,
+        firstName: firstName,
+        lastName: lastName,
+        tenantName: tenantName,
+        prefs: prefs,
+      );
+    }
+    final data = await _post<Map<String, dynamic>>('/users', {
+      'email': email,
+      'phone': phone,
+      'firstName': firstName,
+      'lastName': lastName,
+      'tenantName': tenantName,
+    });
+    final profile = UserProfile.fromJson(data);
+    final token = await _authService.getIdToken();
+    return profile.copyWith(idToken: token);
+  }
+
   Future<bool> tenantExists() async {
     if (AppConfig.useMockAuth) {
       final prefs = await _prefsProvider();
