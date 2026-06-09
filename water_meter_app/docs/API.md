@@ -384,7 +384,9 @@ Devices publish telemetry to AWS IoT Core. The backend ingestion Lambda subscrib
 }
 ```
 
-**Development:** EventBridge triggers `TelemetryIngestionFunction` every minute. It scans `WaterMeterUnits` and writes synthetic minute buckets to DynamoDB (`WaterMeterMinuteUsage`, `WaterMeterDeviceState`, `WaterMeterDailyUsage`) for every unit created via the app — even before the physical device is online.
+**Development:** EventBridge triggers `TelemetryIngestionFunction` every minute. It scans enrolled `WaterMeterUnits` and calls `MockDeviceFacade` ingest methods (synthetic per-device MQTT payloads: second pulse when flowing, 1-minute bucket every tick, 30-minute bucket on `:00` and `:30`). The facade writes `WaterMeterMinuteUsage`, `WaterMeterDeviceState`, `WaterMeterDailyUsage`, and reads valve/quota desired state from `WaterMeterDeviceConfig`.
+
+**Internal architecture:** `DeviceFacade` is the device ingest + live-read + write boundary. REST historical queries (`/usage`, `/daily`, `/building/*`) read DynamoDB directly; live per-device reads (`/current`, `/valve`, quota rules) and all writes (`PUT /valve`, `PUT /quota`) go through the facade.
 
 ---
 
