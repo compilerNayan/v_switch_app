@@ -11,6 +11,7 @@ import '../provisioning/provisioning_state.dart';
 import '../provisioning/wifi_credentials_client.dart';
 import '../provisioning/wifi_ssid_service.dart';
 import 'app_providers.dart';
+import 'dashboard_providers.dart';
 import 'unit_providers.dart';
 
 final wifiSsidServiceProvider = Provider<WifiSsidService>((ref) {
@@ -434,6 +435,7 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
     );
     final saved = await prefs.addWaterUnit(unit);
     ref.invalidate(waterUnitsProvider);
+    invalidateHomeDataFromRef(ref);
     return saved;
   }
 

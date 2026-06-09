@@ -5,7 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:water_meter_app/core/provisioning/mock_enrollment_client.dart';
 import 'package:water_meter_app/core/provisioning/provisioning_state.dart';
+import 'package:water_meter_app/core/providers/app_providers.dart';
 import 'package:water_meter_app/core/providers/provisioning_providers.dart';
+import 'package:water_meter_app/core/providers/tenant_providers.dart';
 import 'package:water_meter_app/features/devices/water_meter/steps/device_prep_step.dart';
 import 'package:water_meter_app/features/devices/water_meter/steps/name_device_step.dart';
 import 'package:water_meter_app/features/devices/water_meter/water_meter_setup_screen.dart';
@@ -54,10 +56,17 @@ void main() {
   });
 
   testWidgets('name device step requires a label', (tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     ProvisioningNotifier? notifier;
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          userProfileProvider.overrideWith((ref) async => null),
+          tenantConfigProvider.overrideWith((ref) async => null),
           mockEnrollmentClientProvider
               .overrideWithValue(const MockEnrollmentClient(delayMs: 0)),
           provisioningNotifierProvider.overrideWith((ref) {
@@ -73,8 +82,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Name your device'), findsOneWidget);
-    await tester.tap(find.text('Add device (mock)'));
+    expect(find.text('Unit details'), findsOneWidget);
+
+    final addButton = find.text('Add device (mock)');
+    await tester.ensureVisible(addButton);
+    await tester.tap(addButton);
     await tester.pumpAndSettle();
 
     expect(find.text('Required'), findsWidgets);
@@ -83,7 +95,10 @@ void main() {
     await tester.enterText(fields.at(0), 'D205');
     await tester.enterText(fields.at(1), 'A');
     await tester.enterText(fields.at(2), 'East');
-    await tester.tap(find.text('Add device (mock)'));
+    await tester.enterText(fields.at(4), 'Ravi Kumar');
+    await tester.enterText(fields.at(5), '+919876543210');
+    await tester.ensureVisible(addButton);
+    await tester.tap(addButton);
     await tester.pumpAndSettle();
 
     expect(find.text('Required'), findsNothing);

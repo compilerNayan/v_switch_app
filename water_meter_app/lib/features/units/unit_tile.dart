@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models/home_dashboard.dart';
 import '../../core/models/water_unit.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/control_providers.dart';
+import '../../core/providers/dashboard_providers.dart';
 import '../../core/providers/device_tile_providers.dart';
 import '../../core/utils/contact_launcher.dart';
 import '../../core/utils/units.dart';
@@ -63,6 +65,7 @@ class _UnitTileState extends ConsumerState<UnitTile> {
     setState(() => _togglingValve = true);
     try {
       await toggleDeviceValveForId(ref, widget.unit.deviceId);
+      invalidateHomeData(ref);
     } finally {
       if (mounted) setState(() => _togglingValve = false);
     }
@@ -73,7 +76,9 @@ class _UnitTileState extends ConsumerState<UnitTile> {
     final scheme = Theme.of(context).colorScheme;
     final isAdmin = ref.watch(isDeviceAdminProvider);
     final isPending = widget.unit.isEnrollmentPending;
-    final healthAsync = isPending
+    final homeTelemetry =
+        ref.watch(deviceHomeTelemetryProvider(widget.unit.deviceId));
+    final healthAsync = isPending || homeTelemetry != null
         ? null
         : ref.watch(deviceHealthProvider(widget.unit.deviceId));
     final hasPhone = hasCallablePhone(widget.unit.phoneNumber);
@@ -161,6 +166,7 @@ class _UnitTileState extends ConsumerState<UnitTile> {
                       deviceId: widget.unit.deviceId,
                       maintenanceMode: widget.unit.maintenanceMode,
                       toggling: _togglingValve,
+                      valveIsOff: homeTelemetry?.valveIsOff,
                       onChanged: _onValveToggle,
                     ),
                 ],
@@ -197,6 +203,15 @@ class _UnitTileState extends ConsumerState<UnitTile> {
                     ),
                   ),
                 )
+              else if (homeTelemetry != null)
+                Text(
+                  homeTelemetry.isOnline ? 'Online' : 'Offline',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: homeTelemetry.isOnline
+                            ? Colors.green.shade700
+                            : scheme.outline,
+                      ),
+                )
               else
                 healthAsync!.when(
                   data: (h) => Text(
@@ -213,9 +228,15 @@ class _UnitTileState extends ConsumerState<UnitTile> {
                 ),
               if (!isPending) ...[
                 const SizedBox(height: 12),
-                _LiveReadingRow(deviceId: widget.unit.deviceId),
+                _LiveReadingRow(
+                  deviceId: widget.unit.deviceId,
+                  homeTelemetry: homeTelemetry,
+                ),
                 const SizedBox(height: 8),
-                _QuotaUsageRow(deviceId: widget.unit.deviceId),
+                _QuotaUsageRow(
+                  deviceId: widget.unit.deviceId,
+                  homeTelemetry: homeTelemetry,
+                ),
               ],
               const Spacer(),
               Text(
@@ -268,17 +289,25 @@ class _ValveSwitch extends ConsumerWidget {
     required this.deviceId,
     required this.maintenanceMode,
     required this.toggling,
+    this.valveIsOff,
     required this.onChanged,
   });
 
   final String deviceId;
   final bool maintenanceMode;
   final bool toggling;
+  final bool? valveIsOff;
   final ValueChanged<bool> onChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isAdmin = ref.watch(isDeviceAdminProvider);
+    if (valveIsOff != null) {
+      return Switch(
+        value: !valveIsOff!,
+        onChanged: isAdmin && !toggling && !maintenanceMode ? onChanged : null,
+      );
+    }
     final valveAsync = ref.watch(deviceValveProvider(deviceId));
     return valveAsync.when(
       data: (valve) => Switch(
@@ -296,14 +325,40 @@ class _ValveSwitch extends ConsumerWidget {
 }
 
 class _LiveReadingRow extends ConsumerWidget {
-  const _LiveReadingRow({required this.deviceId});
+  const _LiveReadingRow({
+    required this.deviceId,
+    this.homeTelemetry,
+  });
+
   final String deviceId;
+  final DashboardTelemetryDevice? homeTelemetry;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final unit = ref.watch(volumeUnitProvider);
+    if (homeTelemetry != null) {
+      final valveOff = homeTelemetry!.valveIsOff;
+      final flowRateLpm = homeTelemetry!.flowRateLpm;
+      final label = valveOff
+          ? 'Water off'
+          : '${VolumeFormatter.fromLiters(flowRateLpm, unit).toStringAsFixed(1)} ${unit.symbol}/min';
+      return Row(
+        children: [
+          Icon(
+            Icons.water_drop,
+            size: 18,
+            color: valveOff
+                ? Theme.of(context).colorScheme.outline
+                : Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(width: 6),
+          Expanded(child: Text(label)),
+        ],
+      );
+    }
+
     final readingAsync = ref.watch(deviceCurrentReadingProvider(deviceId));
     final valveAsync = ref.watch(deviceValveProvider(deviceId));
-    final unit = ref.watch(volumeUnitProvider);
     return readingAsync.when(
       data: (reading) {
         final valveOff = valveAsync.valueOrNull?.isOff ?? false;
@@ -328,14 +383,47 @@ class _LiveReadingRow extends ConsumerWidget {
 }
 
 class _QuotaUsageRow extends ConsumerWidget {
-  const _QuotaUsageRow({required this.deviceId});
+  const _QuotaUsageRow({
+    required this.deviceId,
+    this.homeTelemetry,
+  });
+
   final String deviceId;
+  final DashboardTelemetryDevice? homeTelemetry;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final unit = ref.watch(volumeUnitProvider);
+    if (homeTelemetry != null) {
+      final used = homeTelemetry!.quotaUsedLiters;
+      final quotaEnabled = homeTelemetry!.quotaEnabled;
+      final dailyLimit = homeTelemetry!.dailyLimitLiters;
+      if (quotaEnabled && dailyLimit > 0) {
+        final progress = (used / dailyLimit).clamp(0.0, 1.0).toDouble();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(value: progress, minHeight: 6),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${VolumeFormatter.format(used, unit, decimals: 0)} / '
+              '${VolumeFormatter.format(dailyLimit, unit, decimals: 0)} today',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        );
+      }
+      return Text(
+        '${VolumeFormatter.format(used, unit, decimals: 0)} used today',
+        style: Theme.of(context).textTheme.bodySmall,
+      );
+    }
+
     final usageAsync = ref.watch(deviceTodayUsageProvider(deviceId));
     final quotaAsync = ref.watch(deviceQuotaProvider(deviceId));
-    final unit = ref.watch(volumeUnitProvider);
     return usageAsync.when(
       data: (used) {
         final quota = quotaAsync.valueOrNull;

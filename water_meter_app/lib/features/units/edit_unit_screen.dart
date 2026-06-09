@@ -8,6 +8,7 @@ import '../../core/models/water_unit.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/building_providers.dart';
 import '../../core/providers/control_providers.dart';
+import '../../core/providers/dashboard_providers.dart';
 import '../../core/providers/device_tile_providers.dart';
 import '../../core/providers/tenant_providers.dart';
 import '../../core/providers/unit_providers.dart';
@@ -110,6 +111,7 @@ class _EditUnitScreenState extends ConsumerState<EditUnitScreen> {
       final prefs = await ref.read(preferencesStorageProvider.future);
       await prefs.updateWaterUnit(updated);
       ref.invalidate(waterUnitsProvider);
+      invalidateHomeData(ref);
 
       final profile = await ref.read(userProfileProvider.future);
       await ref.read(auditLoggerProvider).log(

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
 import '../models/water_unit.dart';
 import 'app_providers.dart';
+import 'dashboard_providers.dart';
 
 /// Route param `:deviceId` (WaterUnit.id). Set while a unit shell route is active.
 final selectedRouteDeviceIdProvider = StateProvider<String?>((ref) => null);
@@ -11,6 +12,11 @@ final waterUnitsProvider = FutureProvider<List<WaterUnit>>((ref) async {
   if (AppConfig.useMockApi) {
     final prefs = await ref.watch(preferencesStorageProvider.future);
     return prefs.getWaterUnits();
+  }
+
+  final snapshot = await ref.watch(homeSnapshotProvider.future);
+  if (snapshot != null) {
+    return snapshot.metadata.devices.map((d) => d.toWaterUnit()).toList();
   }
 
   final profile = await ref.watch(userProfileProvider.future);

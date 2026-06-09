@@ -1,14 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/building_api_client.dart';
+import '../config/app_config.dart';
 import '../models/device_health.dart';
 import '../models/tariff_config.dart';
 import '../models/top_consumers_config.dart';
 import '../models/water_unit.dart';
+import '../utils/home_dashboard_aggregation.dart';
 import '../utils/top_consumers_rankings.dart';
 import '../models/bulk_valve_snapshot.dart';
 import '../utils/unit_filters.dart';
 import 'app_providers.dart';
+import 'dashboard_providers.dart';
 import 'device_tile_providers.dart';
 import 'tenant_providers.dart';
 import 'unit_providers.dart';
@@ -30,6 +33,23 @@ enum UnitFilter {
 }
 
 final buildingSummaryProvider = FutureProvider<BuildingSummary>((ref) async {
+  if (!AppConfig.useMockApi) {
+    final snapshot = ref.watch(homeSnapshotProvider).valueOrNull;
+    if (snapshot != null) {
+      final units = snapshot.metadata.devices.map((d) => d.toWaterUnit()).toList();
+      final prefs = await ref.watch(preferencesStorageProvider.future);
+      final activeAlerts = prefs
+          .getAlerts()
+          .where((a) => !a.isRead && !a.isResolved)
+          .length;
+      return aggregateBuildingOverview(
+        units: units,
+        telemetry: snapshot.telemetryByDeviceId,
+        activeAlerts: activeAlerts,
+      );
+    }
+  }
+
   final client = ref.watch(buildingApiClientProvider);
   final profile = await ref.watch(userProfileProvider.future);
   return client.getSummary(tenantId: profile?.tenantId ?? 'demo');
@@ -51,13 +71,29 @@ final filteredUnitsProvider = Provider<List<WaterUnit>>((ref) {
 
 final filteredBuildingOverviewProvider =
     FutureProvider<BuildingSummary>((ref) async {
+  final units = ref.watch(filteredUnitsProvider);
+  final prefs = await ref.watch(preferencesStorageProvider.future);
+  final activeAlerts = prefs
+      .getAlerts()
+      .where((a) => !a.isRead && !a.isResolved)
+      .length;
+
+  if (!AppConfig.useMockApi) {
+    final snapshot = ref.watch(homeSnapshotProvider).valueOrNull;
+    if (snapshot != null) {
+      return aggregateBuildingOverview(
+        units: units,
+        telemetry: snapshot.telemetryByDeviceId,
+        activeAlerts: activeAlerts,
+      );
+    }
+  }
+
   if (!ref.watch(hasLocationFilterProvider)) {
     return ref.watch(buildingSummaryProvider.future);
   }
 
-  final units = ref.watch(filteredUnitsProvider);
   final client = ref.watch(waterApiClientProvider);
-  final prefs = await ref.watch(preferencesStorageProvider.future);
   final now = DateTime.now();
   final startOfMonth = DateTime(now.year, now.month, 1);
 
@@ -107,10 +143,7 @@ final filteredBuildingOverviewProvider =
     unitsOnline: online,
     unitsOffline: offline,
     unitsTotal: units.length,
-    activeAlerts: prefs
-        .getAlerts()
-        .where((a) => !a.isRead && !a.isResolved)
-        .length,
+    activeAlerts: activeAlerts,
     topConsumers: consumers.take(3).toList(),
   );
 });
@@ -217,6 +250,17 @@ final topConsumersConfigProvider = StateNotifierProvider<
 final topConsumersRankingsProvider =
     FutureProvider<List<UnitUsage>>((ref) async {
   final units = ref.watch(filteredUnitsProvider);
+
+  if (!AppConfig.useMockApi) {
+    final snapshot = ref.watch(homeSnapshotProvider).valueOrNull;
+    if (snapshot != null) {
+      return rankingsFromTelemetry(
+        units: units,
+        telemetry: snapshot.telemetryByDeviceId,
+      );
+    }
+  }
+
   final rankings = <UnitUsage>[];
   for (final unit in units) {
     final liters =

@@ -9,6 +9,7 @@ import '../models/schedule_rule.dart';
 import '../models/tariff_config.dart';
 import '../models/bulk_valve_snapshot.dart';
 import '../models/tenant_config.dart';
+import '../models/tenant_metadata.dart';
 import '../models/top_consumers_config.dart';
 import '../models/water_unit.dart';
 import '../theme/app_theme.dart';
@@ -32,6 +33,7 @@ class PreferencesStorage {
   static const _tenantAdminsKey = 'tenant_admins';
   static const _topConsumersConfigKey = 'top_consumers_config';
   static const _tenantConfigKey = 'tenant_config';
+  static const _tenantMetadataV2Prefix = 'tenant_metadata_v2_';
   static const _adminInviteCodeKey = 'admin_invite_code';
   static const _bulkValveSnapshotKey = 'bulk_valve_snapshot';
 
@@ -315,6 +317,29 @@ class PreferencesStorage {
 
   Future<void> setTenantConfig(TenantConfig config) =>
       _prefs.setString(_tenantConfigKey, jsonEncode(config.toJson()));
+
+  TenantMetadataResponse? getTenantMetadataV2(String tenantId) {
+    final raw = _prefs.getString('$_tenantMetadataV2Prefix$tenantId');
+    if (raw == null) return null;
+    try {
+      return TenantMetadataResponse.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setTenantMetadataV2(
+    String tenantId,
+    TenantMetadataResponse metadata,
+  ) async {
+    await _prefs.setString(
+      '$_tenantMetadataV2Prefix$tenantId',
+      jsonEncode(metadata.toJson()),
+    );
+    await setTenantConfig(metadata.toTenantConfig());
+  }
 
   String? getAdminInviteCode() => _prefs.getString(_adminInviteCodeKey);
 

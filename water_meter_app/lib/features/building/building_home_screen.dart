@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/water_unit.dart';
+import '../../core/models/home_dashboard.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/building_providers.dart';
 import '../../core/providers/control_providers.dart';
+import '../../core/providers/dashboard_providers.dart';
 import '../../core/providers/device_tile_providers.dart';
 import '../../core/providers/unit_providers.dart';
 import '../../core/services/alert_evaluator.dart';
@@ -86,8 +88,10 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
 
               return RefreshIndicator(
                 onRefresh: () async {
+                  invalidateHomeData(ref);
                   ref.invalidate(waterUnitsProvider);
                   ref.invalidate(buildingSummaryProvider);
+                  ref.invalidate(filteredBuildingOverviewProvider);
                   ref.invalidate(topConsumersRankingsProvider);
                   await ref.read(alertEvaluatorProvider).evaluateAll();
                 },
@@ -179,6 +183,11 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
   }
 
   bool _matchesFilter(WaterUnit unit, UnitFilter filter, WidgetRef ref) {
+    final telemetry = ref.watch(deviceHomeTelemetryProvider(unit.deviceId));
+    if (telemetry != null) {
+      return _matchesFilterFromTelemetry(unit, filter, telemetry, ref);
+    }
+
     switch (filter) {
       case UnitFilter.all:
         return true;
@@ -228,6 +237,42 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
     }
   }
 
+  bool _matchesFilterFromTelemetry(
+    WaterUnit unit,
+    UnitFilter filter,
+    DashboardTelemetryDevice telemetry,
+    WidgetRef ref,
+  ) {
+    switch (filter) {
+      case UnitFilter.all:
+        return true;
+      case UnitFilter.offline:
+        return !telemetry.isOnline;
+      case UnitFilter.flowing:
+        return telemetry.isFlowing;
+      case UnitFilter.nearQuota:
+        if (!telemetry.quotaEnabled || telemetry.dailyLimitLiters == 0) {
+          return false;
+        }
+        final ratio = telemetry.quotaUsedLiters / telemetry.dailyLimitLiters;
+        return ratio >= 0.8 && ratio < 1;
+      case UnitFilter.overQuota:
+        if (!telemetry.quotaEnabled || telemetry.dailyLimitLiters == 0) {
+          return false;
+        }
+        return telemetry.quotaUsedLiters >= telemetry.dailyLimitLiters;
+      case UnitFilter.hasAlert:
+        if (telemetry.hasAlert) return true;
+        final alerts = ref.watch(alertsProvider);
+        return alerts.maybeWhen(
+          data: (list) => list.any(
+            (a) => a.unitId == unit.id && !a.isResolved,
+          ),
+          orElse: () => false,
+        );
+    }
+  }
+
   List<WaterUnit> _applySort(
     List<WaterUnit> units,
     UnitSortMode sort,
@@ -241,23 +286,33 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
         copy.sort((a, b) => a.floor.compareTo(b.floor));
       case UnitSortMode.usageDesc:
         copy.sort((a, b) {
-          final au = ref.read(deviceTodayUsageProvider(a.deviceId)).valueOrNull ?? 0;
-          final bu = ref.read(deviceTodayUsageProvider(b.deviceId)).valueOrNull ?? 0;
+          final au = _todayUsage(ref, a.deviceId);
+          final bu = _todayUsage(ref, b.deviceId);
           return bu.compareTo(au);
         });
       case UnitSortMode.quotaPercent:
-        copy.sort((a, b) {
-          double pct(WaterUnit u) {
-            final used =
-                ref.read(deviceTodayUsageProvider(u.deviceId)).valueOrNull ?? 0;
-            final q = ref.read(deviceQuotaProvider(u.deviceId)).valueOrNull;
-            if (q == null || !q.enabled || q.dailyLimitLiters == 0) return 0;
-            return used / q.dailyLimitLiters;
-          }
-          return pct(b).compareTo(pct(a));
-        });
+        copy.sort((a, b) => _quotaPercent(ref, b).compareTo(_quotaPercent(ref, a)));
     }
     return copy;
+  }
+
+  double _todayUsage(WidgetRef ref, String deviceId) {
+    final telemetry = ref.read(deviceHomeTelemetryProvider(deviceId));
+    if (telemetry != null) return telemetry.todayLiters;
+    return ref.read(deviceTodayUsageProvider(deviceId)).valueOrNull ?? 0;
+  }
+
+  double _quotaPercent(WidgetRef ref, WaterUnit unit) {
+    final telemetry = ref.read(deviceHomeTelemetryProvider(unit.deviceId));
+    if (telemetry != null) {
+      if (!telemetry.quotaEnabled || telemetry.dailyLimitLiters == 0) return 0;
+      return telemetry.quotaUsedLiters / telemetry.dailyLimitLiters;
+    }
+    final used =
+        ref.read(deviceTodayUsageProvider(unit.deviceId)).valueOrNull ?? 0;
+    final q = ref.read(deviceQuotaProvider(unit.deviceId)).valueOrNull;
+    if (q == null || !q.enabled || q.dailyLimitLiters == 0) return 0;
+    return used / q.dailyLimitLiters;
   }
 }
 
