@@ -17,7 +17,6 @@ class OnboardingRouter {
 
     const authRoutes = {'/auth', '/auth/confirm'};
     const tenantOnboardingRoutes = {
-      '/onboarding/tenant-setup',
       '/onboarding/building-setup',
       '/onboarding/admin-invite',
     };

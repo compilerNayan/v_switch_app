@@ -1,6 +1,3 @@
-/// Placeholder until the owner completes building setup after sign-up.
-const placeholderTenantName = 'My Building';
-
 class PendingRegistration {
   const PendingRegistration({
     required this.email,

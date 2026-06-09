@@ -7,6 +7,7 @@ import '../models/water_unit.dart';
 import '../auth/auth_service.dart';
 import '../auth/mock_auth_service.dart';
 import '../storage/preferences_storage.dart';
+import '../storage/session_storage.dart';
 import 'api_exceptions.dart';
 import 'enrollment_status_result.dart';
 
@@ -67,7 +68,6 @@ class TenantApiClient {
     required String phone,
     required String firstName,
     required String lastName,
-    required String tenantName,
   }) async {
     if (AppConfig.useMockAuth && _authService is MockAuthService) {
       final prefs = await _prefsProvider();
@@ -76,7 +76,6 @@ class TenantApiClient {
         phone: phone,
         firstName: firstName,
         lastName: lastName,
-        tenantName: tenantName,
         prefs: prefs,
       );
     }
@@ -85,11 +84,27 @@ class TenantApiClient {
       'phone': phone,
       'firstName': firstName,
       'lastName': lastName,
-      'tenantName': tenantName,
     });
     final profile = UserProfile.fromJson(data);
     final token = await _authService.getIdToken();
-    return profile.copyWith(idToken: token);
+    final saved = profile.copyWith(idToken: token);
+    await _persistRegisteredUser(saved);
+    return saved;
+  }
+
+  Future<void> _persistRegisteredUser(UserProfile profile) async {
+    final tenantId = profile.tenantId;
+    if (tenantId == null || tenantId.isEmpty) return;
+
+    final prefs = await _prefsProvider();
+    await prefs.setTenantConfig(
+      TenantConfig(
+        tenantId: tenantId,
+        name: '',
+        structure: const TenantStructure(),
+      ),
+    );
+    await SessionStorage().saveProfile(profile);
   }
 
   Future<void> preEnrollDevice({
@@ -102,40 +117,6 @@ class TenantApiClient {
     await _post<Map<String, dynamic>>(
       '/tenants/$tenantId/devices/pre-enroll',
       {'serialNumber': serialNumber},
-    );
-  }
-
-  Future<bool> tenantExists() async {
-    if (AppConfig.useMockAuth) {
-      final prefs = await _prefsProvider();
-      return prefs.tenantExists;
-    }
-    final data = await _get<Map<String, dynamic>>('/tenants/exists');
-    return data['exists'] as bool? ?? false;
-  }
-
-  Future<UserProfile> createTenant({
-    required String name,
-    required TenantStructure structure,
-  }) async {
-    if (AppConfig.useMockAuth && _authService is MockAuthService) {
-      final prefs = await _prefsProvider();
-      return (_authService as MockAuthService).createTenant(
-        name: name,
-        structure: structure,
-        prefs: prefs,
-      );
-    }
-    final data = await _post<Map<String, dynamic>>('/tenants', {
-      'name': name,
-      'structure': structure.toJson(),
-    });
-    await _authService.refreshProfile();
-    final me = await getMe();
-    return me.copyWith(
-      tenantId: data['tenantId'] as String?,
-      onboardingComplete: true,
-      isTenantOwner: data['isTenantOwner'] as bool? ?? true,
     );
   }
 

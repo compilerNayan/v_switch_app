@@ -43,7 +43,6 @@ The backend validates the JWT against the Cognito user pool issuer. User profile
 | User-global | `/users/me`, `/users/me/*` |
 | Tenant-global join | `/tenants/join/admin` (no tenantId yet) |
 | User registration | `POST /users` (creates user + tenant after Cognito sign-up) |
-| Tenant creation (legacy) | `POST /tenants` (mock / co-admin flows) |
 | Tenant-scoped | `/tenants/{tenantId}/*` |
 | Device (tenant-scoped) | `/tenants/{tenantId}/devices/{deviceId}/water/*` |
 
@@ -53,7 +52,7 @@ The backend validates the JWT against the Cognito user pool issuer. User profile
 
 ### POST `/users`
 
-Called once after Cognito sign-up and first sign-in. Creates the user profile and a tenant for the building name provided at sign-up. **Idempotent:** returns `200` with the existing profile if the user is already registered.
+Called once after Cognito sign-up and first sign-in. Creates the user profile and assigns a new tenant (one owner per tenant today; multiple users per tenant later). The server generates a **7-character base36** `tenantId` (e.g. `a1b2c3d`). Building name is set later via `POST /tenants/{tenantId}/building`. **Idempotent:** returns `200` with the existing profile if the user is already registered.
 
 **Request:**
 
@@ -62,8 +61,7 @@ Called once after Cognito sign-up and first sign-in. Creates the user profile an
   "email": "admin@building.com",
   "phone": "+919876543210",
   "firstName": "Raj",
-  "lastName": "Sharma",
-  "tenantName": "Sunrise Apartments"
+  "lastName": "Sharma"
 }
 ```
 
@@ -77,13 +75,13 @@ Called once after Cognito sign-up and first sign-in. Creates the user profile an
   "phone": "+919876543210",
   "firstName": "Raj",
   "lastName": "Sharma",
-  "tenantId": "tenant_abc123",
+  "tenantId": "a1b2c3d",
   "onboardingComplete": false,
   "isTenantOwner": true
 }
 ```
 
-Owner must call `POST /tenants/{tenantId}/building` before `onboardingComplete` becomes `true`.
+The app should cache `tenantId` and user fields locally after registration. Owner must call `POST /tenants/{tenantId}/building` before `onboardingComplete` becomes `true`.
 
 ### GET `/users/me`
 
@@ -92,7 +90,7 @@ Owner must call `POST /tenants/{tenantId}/building` before `onboardingComplete` 
   "userId": "usr_abc123",
   "email": "admin@building.com",
   "displayName": "Building Admin",
-  "tenantId": "tenant_xyz",
+  "tenantId": "k3m9x2a",
   "onboardingComplete": true,
   "isTenantOwner": false
 }
@@ -100,7 +98,7 @@ Owner must call `POST /tenants/{tenantId}/building` before `onboardingComplete` 
 
 | Field | Notes |
 |-------|-------|
-| `tenantId` | null before onboarding completes |
+| `tenantId` | 7-character base36 id assigned at `POST /users` |
 | `isTenantOwner` | true for the user who created the tenant |
 | `onboardingComplete` | false until building setup (`POST /tenants/{tenantId}/building`) or admin invite join |
 
@@ -121,14 +119,6 @@ User UI prefs (theme, volume unit, top-consumers layout). May remain client-only
 ---
 
 ## 2. Tenant lifecycle
-
-### GET `/tenants/exists` (optional helper)
-
-Returns whether the single tenant has been created. Used by app to route onboarding.
-
-```json
-{ "exists": true, "tenantId": "tenant_xyz" }
-```
 
 ### POST `/tenants/{tenantId}/building`
 
@@ -156,17 +146,15 @@ Returns whether the single tenant has been created. Used by app to route onboard
 
 - `structure.blocks` may be `[]` (building name only)
 - Blocks, wings, and `floorCount` are all optional
-- Legacy `wings: ["East"]` strings are accepted when reading stored data
-
 **Response 201:** Same shape as `GET /tenants/{tenantId}`.
 
-**Sign-up flow:** `POST /users` creates tenant with empty structure and `onboardingComplete: false`. Owner must complete this endpoint before accessing the app home.
+**Sign-up flow:** `POST /users` creates tenant with empty name/structure and `onboardingComplete: false`. Owner must complete this endpoint before accessing the app home.
 
 ### GET `/tenants/{tenantId}`
 
 ```json
 {
-  "tenantId": "tenant_xyz",
+  "tenantId": "k3m9x2a",
   "name": "Sunrise Apartments",
   "structure": {
     "blocks": [
@@ -230,7 +218,7 @@ User has signed in but has no `tenantId`. Validates invite against the single te
 
 ```json
 {
-  "tenantId": "tenant_xyz",
+  "tenantId": "k3m9x2a",
   "onboardingComplete": true,
   "isTenantOwner": false
 }
@@ -611,7 +599,7 @@ Called in parallel with device WiFi configuration while the phone is on the `IoT
 **Response 201:**
 ```json
 {
-  "tenantId": "tenant_abc",
+  "tenantId": "k3m9x2a",
   "serialNumber": "WM000123",
   "status": "pending",
   "expiresAt": "2026-06-08T15:00:00Z"
@@ -650,8 +638,6 @@ Idempotent: re-calling for the same serial refreshes the pending record.
 | GET | `/users/me` |
 | POST | `/users` |
 | POST | `/users/me/push-token` |
-| GET | `/tenants/exists` |
-| POST | `/tenants` |
 | GET | `/tenants/{tenantId}` |
 | PUT | `/tenants/{tenantId}/structure` |
 | POST | `/tenants/{tenantId}/building` |

@@ -78,10 +78,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ConfirmSignUpScreen(),
       ),
       GoRoute(
-        path: '/onboarding/tenant-setup',
-        builder: (context, state) => const TenantSetupScreen(),
-      ),
-      GoRoute(
         path: '/onboarding/building-setup',
         builder: (context, state) => const TenantSetupScreen(),
       ),

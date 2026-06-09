@@ -183,7 +183,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
       phone: pending.phone,
       firstName: pending.firstName,
       lastName: pending.lastName,
-      tenantName: placeholderTenantName,
     );
 
     ref.read(pendingRegistrationProvider.notifier).state = null;

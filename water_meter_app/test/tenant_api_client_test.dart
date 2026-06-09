@@ -51,7 +51,6 @@ void main() {
         phone: '+919876543210',
         firstName: 'Raj',
         lastName: 'Sharma',
-        tenantName: 'Sunrise Apartments',
       );
 
       expect(profile.tenantId, isNotNull);
@@ -82,7 +81,7 @@ void main() {
     test('preEnrollDevice succeeds in mock API mode', () async {
       await expectLater(
         client.preEnrollDevice(
-          tenantId: 'tenant-mock',
+          tenantId: 'k3m9x2a',
           serialNumber: 'WM123456',
         ),
         completes,
@@ -91,7 +90,7 @@ void main() {
 
     test('createUnit and getEnrollmentStatus in mock API mode', () async {
       final unit = await client.createUnit(
-        tenantId: 'tenant-mock',
+        tenantId: 'k3m9x2a',
         deviceId: 'WM123456',
         name: 'D205',
         flatNumber: 'D205',
@@ -108,7 +107,7 @@ void main() {
       expect(unit.residentName, 'Ravi Kumar');
 
       final status = await client.getEnrollmentStatus(
-        tenantId: 'tenant-mock',
+        tenantId: 'k3m9x2a',
         deviceId: 'WM123456',
       );
       expect(status.enrolled, isTrue);

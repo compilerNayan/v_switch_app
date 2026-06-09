@@ -20,7 +20,7 @@ void main() {
         userId: 'u1',
         email: 'a@b.com',
         displayName: 'User',
-        tenantId: 'tenant-1',
+        tenantId: 'k3m9x2a',
         onboardingComplete: false,
         isTenantOwner: true,
       );
@@ -42,7 +42,7 @@ void main() {
         userId: 'u1',
         email: 'a@b.com',
         displayName: 'User',
-        tenantId: 'tenant-1',
+        tenantId: 'k3m9x2a',
         onboardingComplete: true,
         isTenantOwner: true,
       );
@@ -83,7 +83,7 @@ void main() {
         userId: 'u1',
         email: 'a@b.com',
         displayName: 'User',
-        tenantId: 'tenant-1',
+        tenantId: 'k3m9x2a',
         onboardingComplete: true,
       );
       expect(OnboardingRouter.redirectForProfile(profile, '/'), isNull);

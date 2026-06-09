@@ -2,6 +2,7 @@ import '../models/tenant_config.dart';
 import '../models/user_profile.dart';
 import '../storage/preferences_storage.dart';
 import '../storage/session_storage.dart';
+import '../utils/tenant_id.dart';
 import 'auth_service.dart';
 
 /// In-memory + secure-storage auth for local development without AWS.
@@ -136,14 +137,11 @@ class MockAuthService implements AuthService {
     _cached = await _storage.readProfile();
   }
 
-  Future<bool> tenantExists(PreferencesStorage prefs) => Future.value(prefs.tenantExists);
-
   Future<UserProfile> registerUser({
     required String email,
     required String phone,
     required String firstName,
     required String lastName,
-    required String tenantName,
     required PreferencesStorage prefs,
   }) async {
     if (prefs.tenantExists) {
@@ -153,11 +151,11 @@ class MockAuthService implements AuthService {
       }
     }
     var user = (await getCurrentUser())!;
-    final tenantId = 'tenant-${user.userId.substring(0, 8)}';
+    final tenantId = generateTenantId();
     await prefs.setTenantConfig(
       TenantConfig(
         tenantId: tenantId,
-        name: tenantName,
+        name: '',
         structure: const TenantStructure(),
       ),
     );
@@ -194,30 +192,6 @@ class MockAuthService implements AuthService {
     _cached = user;
     await _storage.saveProfile(user);
     return updated;
-  }
-
-  Future<UserProfile> createTenant({
-    required String name,
-    required TenantStructure structure,
-    required PreferencesStorage prefs,
-  }) async {
-    if (prefs.tenantExists) {
-      throw TenantSetupException('Tenant already exists');
-    }
-    var user = (await getCurrentUser())!;
-    final tenantId = 'tenant-${user.userId.substring(0, 8)}';
-    await prefs.setTenantConfig(
-      TenantConfig(tenantId: tenantId, name: name, structure: structure),
-    );
-    await prefs.setAdminInviteCode(mockAdminInviteCode);
-    user = user.copyWith(
-      tenantId: tenantId,
-      onboardingComplete: true,
-      isTenantOwner: true,
-    );
-    _cached = user;
-    await _storage.saveProfile(user);
-    return user;
   }
 
   Future<UserProfile> joinAsAdmin({

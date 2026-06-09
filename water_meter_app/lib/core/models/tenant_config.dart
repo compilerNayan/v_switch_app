@@ -4,14 +4,10 @@ class TenantWing {
     this.floorCount = 0,
   });
 
-  factory TenantWing.fromJson(dynamic json) {
-    if (json is String) {
-      return TenantWing(name: json);
-    }
-    final map = json as Map<String, dynamic>;
+  factory TenantWing.fromJson(Map<String, dynamic> json) {
     return TenantWing(
-      name: map['name'] as String? ?? '',
-      floorCount: map['floorCount'] as int? ?? 0,
+      name: json['name'] as String? ?? '',
+      floorCount: json['floorCount'] as int? ?? 0,
     );
   }
 
@@ -43,7 +39,9 @@ class TenantBlock {
     return TenantBlock(
       id: json['id'] as String,
       label: json['label'] as String? ?? json['id'] as String,
-      wings: rawWings.map(TenantWing.fromJson).toList(),
+      wings: rawWings
+          .map((w) => TenantWing.fromJson(w as Map<String, dynamic>))
+          .toList(),
     );
   }
 

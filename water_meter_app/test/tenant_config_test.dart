@@ -3,22 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:water_meter_app/core/models/tenant_config.dart';
 
 void main() {
-  test('parses legacy string wings', () {
-    final structure = TenantStructure.fromJson({
-      'blocks': [
-        {
-          'id': 'A',
-          'label': 'Tower A',
-          'wings': ['East', 'West'],
-        },
-      ],
-    });
-
-    expect(structure.blocks.first.wings[0].name, 'East');
-    expect(structure.blocks.first.wings[0].floorCount, 0);
-    expect(structure.wingsForBlock('A'), ['East', 'West']);
-  });
-
   test('parses wing objects with floorCount', () {
     final structure = TenantStructure.fromJson({
       'blocks': [

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/auth/pending_registration.dart';
 import '../../core/config/app_config.dart';
 import '../../core/providers/app_providers.dart';
 
@@ -60,7 +59,6 @@ class _ConfirmSignUpScreenState extends ConsumerState<ConfirmSignUpScreen> {
         phone: pending.phone,
         firstName: pending.firstName,
         lastName: pending.lastName,
-        tenantName: placeholderTenantName,
       );
 
       ref.read(pendingRegistrationProvider.notifier).state = null;
