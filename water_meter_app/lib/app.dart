@@ -133,7 +133,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           return null;
         },
         routes: [
-          StatefulShellRoute.indexedStack(
+          StatefulShellRoute(
             builder: (context, state, navigationShell) {
               final deviceId = state.pathParameters['deviceId']!;
               return _UnitShell(

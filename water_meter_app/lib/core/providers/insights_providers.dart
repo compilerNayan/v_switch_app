@@ -21,18 +21,9 @@ class UnitInsight {
 final unitVsAverageProvider =
     FutureProvider.family<({double unit, double average, double ratio}), String>(
         (ref, deviceId) async {
+  final summary = await ref.watch(buildingSummaryProvider.future);
   final units = await ref.watch(waterUnitsProvider.future);
-  var total = 0.0;
-  var count = 0;
-  for (final unit in units) {
-    try {
-      final usage =
-          await ref.read(deviceTodayUsageProvider(unit.deviceId).future);
-      total += usage;
-      count++;
-    } catch (_) {}
-  }
-  final avg = count == 0 ? 0.0 : total / count;
+  final avg = units.isEmpty ? 0.0 : summary.totalTodayLiters / units.length;
   final unitUsage =
       await ref.read(deviceTodayUsageProvider(deviceId).future);
   final ratio = avg == 0 ? 1.0 : unitUsage / avg;

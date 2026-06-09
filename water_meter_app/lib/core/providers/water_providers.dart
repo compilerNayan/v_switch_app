@@ -109,7 +109,7 @@ final hourlyPatternProvider =
     FutureProvider.autoDispose<HourlyPatternResponse>((ref) async {
   final now = DateTime.now();
   final from = DateTime(now.year, now.month, now.day)
-      .subtract(const Duration(days: 30));
+      .subtract(const Duration(days: 9));
   final client = ref.watch(waterApiClientProvider);
   final deviceId = ref.watch(activeDeviceApiIdProvider);
   final timezone = ref.watch(timezoneProvider);
