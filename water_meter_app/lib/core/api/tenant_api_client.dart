@@ -44,6 +44,12 @@ class TenantApiClient {
   final AuthService _authService;
   final Future<PreferencesStorage> Function() _prefsProvider;
 
+  Future<void> _cacheTenantConfig(TenantConfig config) async {
+    if (AppConfig.useMockAuth) return;
+    final prefs = await _prefsProvider();
+    await prefs.setTenantConfig(config);
+  }
+
   Future<UserProfile> getMe() async {
     if (AppConfig.useMockAuth && _authService is MockAuthService) {
       final user = await _authService.getCurrentUser();
@@ -146,7 +152,9 @@ class TenantApiClient {
       return config;
     }
     final data = await _get<Map<String, dynamic>>('/tenants/$tenantId');
-    return TenantConfig.fromJson(data);
+    final config = TenantConfig.fromJson(data);
+    await _cacheTenantConfig(config);
+    return config;
   }
 
   Future<TenantConfig> createBuilding({
@@ -171,7 +179,9 @@ class TenantApiClient {
       },
     );
     await _authService.refreshProfile();
-    return TenantConfig.fromJson(data);
+    final config = TenantConfig.fromJson(data);
+    await _cacheTenantConfig(config);
+    return config;
   }
 
   Future<TenantConfig> updateStructure({
@@ -195,7 +205,9 @@ class TenantApiClient {
       '/tenants/$tenantId/structure',
       {'structure': structure.toJson()},
     );
-    return TenantConfig.fromJson(data);
+    final config = TenantConfig.fromJson(data);
+    await _cacheTenantConfig(config);
+    return config;
   }
 
   Future<WaterUnit> createUnit({

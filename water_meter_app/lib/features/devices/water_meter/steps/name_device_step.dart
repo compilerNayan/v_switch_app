@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/app_config.dart';
+import '../../../../core/models/tenant_config.dart';
 import '../../../../core/provisioning/provisioning_state.dart';
 import '../../../../core/providers/building_providers.dart';
 import '../../../../core/providers/provisioning_providers.dart';
@@ -26,11 +27,13 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
   String? _selectedBlock;
   String? _selectedWing;
   String? _selectedFloor;
+  bool _structureDefaultsApplied = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.invalidate(tenantConfigProvider);
       final state = ref.read(provisioningNotifierProvider);
       if (!mounted) return;
       if (state.deviceDisplayName != null) {
@@ -58,6 +61,42 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
         _notesController.text = state.notes!;
       }
     });
+  }
+
+  void _applyStructureDefaults(TenantConfig config) {
+    final blocks = config.structure.blocks;
+    if (_selectedBlock == null && blocks.length == 1) {
+      _selectedBlock = blocks.first.id;
+    }
+    if (_selectedBlock != null && _selectedWing == null) {
+      final wings = config.structure.wingsForBlock(_selectedBlock!);
+      if (wings.length == 1) {
+        _selectedWing = wings.first;
+      }
+    }
+  }
+
+  String _effectiveBlockId(List<String> blockOptions) {
+    if (_selectedBlock != null && _selectedBlock!.isNotEmpty) {
+      return _selectedBlock!;
+    }
+    final typed = _blockController.text.trim();
+    if (typed.isNotEmpty) return typed;
+    if (blockOptions.length == 1) return blockOptions.first;
+    return '';
+  }
+
+  String _effectiveWingName(TenantConfig config, String blockId) {
+    if (_selectedWing != null && _selectedWing!.isNotEmpty) {
+      return _selectedWing!;
+    }
+    final typed = _wingController.text.trim();
+    if (typed.isNotEmpty) return typed;
+    if (blockId.isNotEmpty) {
+      final wings = config.structure.wingsForBlock(blockId);
+      if (wings.length == 1) return wings.first;
+    }
+    return '';
   }
 
   @override
@@ -100,16 +139,40 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<TenantConfig?>>(
+      tenantConfigProvider,
+      (previous, next) {
+        final config = next.valueOrNull;
+        if (config == null || !mounted) return;
+        setState(() {
+          _applyStructureDefaults(config);
+          _structureDefaultsApplied = true;
+        });
+      },
+    );
+
     final state = ref.watch(provisioningNotifierProvider);
     final serial = state.deviceSerial ?? '—';
     final isMock = AppConfig.useMockProvisioning;
-    final tenantConfig = ref.watch(tenantConfigProvider).valueOrNull;
+    final tenantConfigAsync = ref.watch(tenantConfigProvider);
+    final tenantConfig = tenantConfigAsync.valueOrNull;
+    if (tenantConfig != null && !_structureDefaultsApplied) {
+      _structureDefaultsApplied = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() => _applyStructureDefaults(tenantConfig));
+      });
+    }
     final blockOptions = ref.watch(distinctBlocksProvider);
-    final wingOptions = tenantConfig != null && tenantConfig.hasWings
-        ? tenantConfig.structure.wingsForBlock(_selectedBlock ?? '')
+    final blockId = tenantConfig != null
+        ? _effectiveBlockId(blockOptions)
+        : _blockController.text.trim();
+    final wingOptions = tenantConfig != null && blockId.isNotEmpty
+        ? tenantConfig.structure.wingsForBlock(blockId)
         : ref.watch(distinctWingsProvider);
-    final blockId = _selectedBlock ?? _blockController.text.trim();
-    final wingName = _selectedWing ?? _wingController.text.trim();
+    final wingName = tenantConfig != null
+        ? _effectiveWingName(tenantConfig, blockId)
+        : _wingController.text.trim();
     final floorOptions = blockId.isNotEmpty && wingName.isNotEmpty
         ? ref.watch(
             floorsForWingProvider((blockId: blockId, wingName: wingName)),
@@ -153,6 +216,44 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
                       'Building registration completes on the next step once '
                       'internet is available.',
                       style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                ),
+              ],
+              if (tenantConfigAsync.isLoading) ...[
+                const SizedBox(height: 16),
+                const LinearProgressIndicator(),
+                const SizedBox(height: 8),
+                Text(
+                  'Loading building layout…',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              ],
+              if (tenantConfigAsync.hasError) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Could not load building layout. Reconnect to home WiFi and '
+                  'go back, or enter location manually.',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
+              if (tenantConfig != null &&
+                  !tenantConfig.hasBlocks &&
+                  !tenantConfig.hasWings) ...[
+                const SizedBox(height: 16),
+                Card(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .surfaceContainerHighest
+                      .withValues(alpha: 0.5),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(
+                      'No block/wing layout saved for this building. Add '
+                      'structure under Settings → Building, or enter details below.',
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),
                 ),
@@ -216,9 +317,7 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
                   },
                 ),
               const SizedBox(height: 16),
-              if (tenantConfig != null &&
-                  tenantConfig.hasWings &&
-                  wingOptions.isNotEmpty)
+              if (tenantConfig != null && wingOptions.isNotEmpty)
                 DropdownButtonFormField<String>(
                   value: _selectedWing,
                   decoration: const InputDecoration(
@@ -260,7 +359,7 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
                 DropdownButtonFormField<String>(
                   value: _selectedFloor,
                   decoration: const InputDecoration(
-                    labelText: 'Floor (optional)',
+                    labelText: 'Floor',
                     prefixIcon: Icon(Icons.layers_outlined),
                   ),
                   items: floorOptions
@@ -272,7 +371,7 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
                 TextFormField(
                   controller: _floorController,
                   decoration: const InputDecoration(
-                    labelText: 'Floor (optional)',
+                    labelText: 'Floor',
                     hintText: 'e.g. 5',
                     prefixIcon: Icon(Icons.layers_outlined),
                   ),

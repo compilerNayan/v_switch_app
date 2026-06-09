@@ -29,7 +29,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _buildingNameController = TextEditingController();
 
   String? _selectedGender;
 
@@ -59,7 +58,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
     _firstNameController.dispose();
     _lastNameController.dispose();
     _phoneController.dispose();
-    _buildingNameController.dispose();
     super.dispose();
   }
 
@@ -151,7 +149,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
         phone: _phoneController.text.trim(),
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
-        tenantName: _buildingNameController.text.trim(),
       );
 
       if (!mounted) return;
@@ -186,7 +183,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
       phone: pending.phone,
       firstName: pending.firstName,
       lastName: pending.lastName,
-      tenantName: pending.tenantName,
+      tenantName: placeholderTenantName,
     );
 
     ref.read(pendingRegistrationProvider.notifier).state = null;
@@ -242,7 +239,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
                     const SizedBox(height: 16),
                   ],
                   SizedBox(
-                    height: 520,
+                    height: 480,
                     child: TabBarView(
                       controller: _tabController,
                       children: [
@@ -406,18 +403,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
               validator: (value) =>
                   value == null || value.trim().isEmpty ? 'Required' : null,
             ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _buildingNameController,
-              decoration: const InputDecoration(
-                labelText: 'Building name',
-                border: OutlineInputBorder(),
-              ),
-              textCapitalization: TextCapitalization.words,
-              validator: (value) =>
-                  value == null || value.trim().isEmpty ? 'Required' : null,
-            ),
-            const SizedBox(height: 12),
             const SizedBox(height: 12),
             TextFormField(
               controller: _signUpPasswordController,

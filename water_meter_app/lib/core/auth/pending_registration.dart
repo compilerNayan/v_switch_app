@@ -1,3 +1,6 @@
+/// Placeholder until the owner completes building setup after sign-up.
+const placeholderTenantName = 'My Building';
+
 class PendingRegistration {
   const PendingRegistration({
     required this.email,
@@ -5,7 +8,6 @@ class PendingRegistration {
     required this.phone,
     required this.firstName,
     required this.lastName,
-    required this.tenantName,
   });
 
   final String email;
@@ -13,5 +15,4 @@ class PendingRegistration {
   final String phone;
   final String firstName;
   final String lastName;
-  final String tenantName;
 }
