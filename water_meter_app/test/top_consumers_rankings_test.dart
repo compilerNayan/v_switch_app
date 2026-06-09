@@ -29,15 +29,8 @@ void main() {
     expect(top.map((e) => e.unit.id), ['u1', 'u2']);
   });
 
-  test('topPerBlock groups and ranks within block', () {
-    final grouped = topPerBlock(items, 2);
-    expect(grouped['A']!.map((e) => e.unit.id), ['u1', 'u2']);
-    expect(grouped['B']!.map((e) => e.unit.id), ['u3']);
-  });
-
-  test('topPerWingInBlock groups by wing in selected block', () {
-    final grouped = topPerWingInBlock(items, 'A', 2);
-    expect(grouped['East']!.map((e) => e.unit.id), ['u1', 'u4']);
-    expect(grouped['West']!.map((e) => e.unit.id), ['u2']);
+  test('sortByUsageDesc orders by liters descending', () {
+    final sorted = sortByUsageDesc(items);
+    expect(sorted.map((e) => e.unit.id), ['u1', 'u2', 'u3', 'u4']);
   });
 }

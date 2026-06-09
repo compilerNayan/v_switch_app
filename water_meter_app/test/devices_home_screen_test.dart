@@ -44,7 +44,13 @@ void main() {
 
   testWidgets('shows unit tile with name and switch', (tester) async {
     const units = [
-      WaterUnit(id: 'wm-001', name: 'D205', deviceId: '001'),
+      WaterUnit(
+        id: 'wm-001',
+        name: 'D205',
+        deviceId: '001',
+        block: 'A',
+        wing: 'East',
+      ),
     ];
 
     final valve = ValveState(
@@ -136,5 +142,8 @@ void main() {
     expect(find.text('D205'), findsWidgets);
     expect(find.byType(Switch), findsOneWidget);
     expect(find.text('Add water meter'), findsOneWidget);
+    expect(find.text('Building overview'), findsOneWidget);
+    expect(find.byTooltip('Filter by block / wing'), findsOneWidget);
+    expect(find.text('Block / Wing'), findsNothing);
   });
 }

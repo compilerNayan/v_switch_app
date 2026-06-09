@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/building_api_client.dart';
+import '../models/device_health.dart';
 import '../models/tariff_config.dart';
 import '../models/top_consumers_config.dart';
+import '../models/water_unit.dart';
 import '../utils/top_consumers_rankings.dart';
 import '../models/bulk_valve_snapshot.dart';
 import '../utils/unit_filters.dart';
@@ -31,6 +33,86 @@ final buildingSummaryProvider = FutureProvider<BuildingSummary>((ref) async {
   final client = ref.watch(buildingApiClientProvider);
   final profile = await ref.watch(userProfileProvider.future);
   return client.getSummary(tenantId: profile?.tenantId ?? 'demo');
+});
+
+final hasLocationFilterProvider = Provider<bool>((ref) {
+  return ref.watch(selectedBlocksProvider).isNotEmpty ||
+      ref.watch(selectedWingsProvider).isNotEmpty;
+});
+
+final filteredUnitsProvider = Provider<List<WaterUnit>>((ref) {
+  final units = ref.watch(waterUnitsProvider).valueOrNull ?? [];
+  return applyLocationFilters(
+    units,
+    selectedBlocks: ref.watch(selectedBlocksProvider),
+    selectedWings: ref.watch(selectedWingsProvider),
+  );
+});
+
+final filteredBuildingOverviewProvider =
+    FutureProvider<BuildingSummary>((ref) async {
+  if (!ref.watch(hasLocationFilterProvider)) {
+    return ref.watch(buildingSummaryProvider.future);
+  }
+
+  final units = ref.watch(filteredUnitsProvider);
+  final client = ref.watch(waterApiClientProvider);
+  final prefs = await ref.watch(preferencesStorageProvider.future);
+  final now = DateTime.now();
+  final startOfMonth = DateTime(now.year, now.month, 1);
+
+  var totalToday = 0.0;
+  var totalMonth = 0.0;
+  var online = 0;
+  var offline = 0;
+  final consumers = <({String unitId, String name, double liters})>[];
+
+  for (final unit in units) {
+    try {
+      final today =
+          await ref.watch(deviceTodayUsageProvider(unit.deviceId).future);
+      totalToday += today;
+      consumers.add((unitId: unit.id, name: unit.name, liters: today));
+
+      final daily = await client.getDailySummary(
+        deviceId: unit.deviceId,
+        from: startOfMonth,
+        to: now,
+        timezone: prefs.timezone,
+      );
+      totalMonth +=
+          daily.days.fold<double>(0, (sum, day) => sum + day.totalLiters);
+
+      final reading =
+          await ref.watch(deviceCurrentReadingProvider(unit.deviceId).future);
+      final health = DeviceHealth.fromReading(
+        unitId: unit.id,
+        readingTimestamp: reading.timestamp.toLocal(),
+      );
+      if (health.isOnline) {
+        online++;
+      } else {
+        offline++;
+      }
+    } catch (_) {
+      offline++;
+    }
+  }
+
+  consumers.sort((a, b) => b.liters.compareTo(a.liters));
+
+  return BuildingSummary(
+    totalTodayLiters: totalToday,
+    totalMonthLiters: totalMonth,
+    unitsOnline: online,
+    unitsOffline: offline,
+    unitsTotal: units.length,
+    activeAlerts: prefs
+        .getAlerts()
+        .where((a) => !a.isRead && !a.isResolved)
+        .length,
+    topConsumers: consumers.take(3).toList(),
+  );
 });
 
 final buildingRankingsProvider =
@@ -134,7 +216,7 @@ final topConsumersConfigProvider = StateNotifierProvider<
 
 final topConsumersRankingsProvider =
     FutureProvider<List<UnitUsage>>((ref) async {
-  final units = await ref.watch(waterUnitsProvider.future);
+  final units = ref.watch(filteredUnitsProvider);
   final rankings = <UnitUsage>[];
   for (final unit in units) {
     final liters =
@@ -142,4 +224,22 @@ final topConsumersRankingsProvider =
     rankings.add((unit: unit, liters: liters));
   }
   return sortByUsageDesc(rankings);
+});
+
+/// Human-readable summary of active block/wing filter selection.
+final locationFilterLabelProvider = Provider<String?>((ref) {
+  final blocks = ref.watch(selectedBlocksProvider);
+  final wings = ref.watch(selectedWingsProvider);
+  if (blocks.isEmpty && wings.isEmpty) return null;
+
+  final parts = <String>[];
+  if (blocks.isNotEmpty) {
+    final sorted = blocks.toList()..sort();
+    parts.add('Block ${sorted.join(', ')}');
+  }
+  if (wings.isNotEmpty) {
+    final sorted = wings.toList()..sort();
+    parts.add('Wing ${sorted.join(', ')}');
+  }
+  return parts.join(' · ');
 });

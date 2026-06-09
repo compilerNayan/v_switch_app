@@ -5,8 +5,18 @@ import '../../core/providers/building_providers.dart';
 import '../../core/providers/unit_providers.dart';
 import '../../core/utils/unit_filters.dart';
 
-class UnitLocationFilterButton extends ConsumerWidget {
-  const UnitLocationFilterButton({super.key});
+void showBuildingLocationFilterSheet(BuildContext context) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    builder: (context) => const BuildingLocationFilterSheet(),
+  );
+}
+
+class BuildingLocationFilterButton extends ConsumerWidget {
+  const BuildingLocationFilterButton({super.key, this.compact = false});
+
+  final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -20,41 +30,40 @@ class UnitLocationFilterButton extends ConsumerWidget {
     final selectedWings = ref.watch(selectedWingsProvider);
     final activeCount = selectedBlocks.length + selectedWings.length;
 
-    return Padding(
-      padding: const EdgeInsets.only(left: 12, right: 12, bottom: 4),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: OutlinedButton.icon(
-          onPressed: () => _showFilterSheet(context, ref),
-          icon: Badge(
-            isLabelVisible: activeCount > 0,
-            label: Text('$activeCount'),
-            child: const Icon(Icons.filter_list),
-          ),
-          label: const Text('Block / Wing'),
+    if (compact) {
+      return IconButton(
+        tooltip: 'Filter by block / wing',
+        onPressed: () => showBuildingLocationFilterSheet(context),
+        icon: Badge(
+          isLabelVisible: activeCount > 0,
+          label: Text('$activeCount'),
+          child: const Icon(Icons.filter_list, size: 22),
         ),
-      ),
-    );
-  }
+      );
+    }
 
-  void _showFilterSheet(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => const _LocationFilterSheet(),
+    return OutlinedButton.icon(
+      onPressed: () => showBuildingLocationFilterSheet(context),
+      icon: Badge(
+        isLabelVisible: activeCount > 0,
+        label: Text('$activeCount'),
+        child: const Icon(Icons.filter_list),
+      ),
+      label: const Text('Block / Wing'),
     );
   }
 }
 
-class _LocationFilterSheet extends ConsumerStatefulWidget {
-  const _LocationFilterSheet();
+class BuildingLocationFilterSheet extends ConsumerStatefulWidget {
+  const BuildingLocationFilterSheet({super.key});
 
   @override
-  ConsumerState<_LocationFilterSheet> createState() =>
-      _LocationFilterSheetState();
+  ConsumerState<BuildingLocationFilterSheet> createState() =>
+      _BuildingLocationFilterSheetState();
 }
 
-class _LocationFilterSheetState extends ConsumerState<_LocationFilterSheet> {
+class _BuildingLocationFilterSheetState
+    extends ConsumerState<BuildingLocationFilterSheet> {
   late Set<String> _blocks;
   late Set<String> _wings;
 

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/building_providers.dart';
 import '../../core/utils/units.dart';
+import 'building_location_filter.dart';
 import 'top_consumers_dashboard.dart';
 
 class BuildingSummaryHeader extends ConsumerWidget {
@@ -11,8 +12,9 @@ class BuildingSummaryHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final summaryAsync = ref.watch(buildingSummaryProvider);
+    final summaryAsync = ref.watch(filteredBuildingOverviewProvider);
     final volumeUnit = ref.watch(volumeUnitProvider);
+    final filterLabel = ref.watch(locationFilterLabelProvider);
     final scheme = Theme.of(context).colorScheme;
 
     return summaryAsync.when(
@@ -22,10 +24,26 @@ class BuildingSummaryHeader extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Building overview',
-                style: Theme.of(context).textTheme.titleMedium,
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Building overview',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  const BuildingLocationFilterButton(compact: true),
+                ],
               ),
+              if (filterLabel != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  filterLabel,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.primary,
+                      ),
+                ),
+              ],
               const SizedBox(height: 16),
               Row(
                 children: [

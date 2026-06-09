@@ -14,30 +14,26 @@ void main() {
   });
 
   test('TopConsumersDashboardConfig JSON round-trip', () {
-    const config = TopConsumersDashboardConfig(
-      showOverall: true,
-      showByBlock: false,
-      showByWing: true,
-      topCount: 10,
-      wingViewBlock: 'A',
-    );
+    const config = TopConsumersDashboardConfig(topCount: 10);
     final decoded = TopConsumersDashboardConfig.fromJson(config.toJson());
-    expect(decoded.showByBlock, isFalse);
     expect(decoded.topCount, 10);
-    expect(decoded.wingViewBlock, 'A');
-    expect(decoded.enabledPages.length, 2);
+  });
+
+  test('TopConsumersDashboardConfig ignores legacy JSON fields', () {
+    final decoded = TopConsumersDashboardConfig.fromJson({
+      'showOverall': true,
+      'showByBlock': false,
+      'showByWing': true,
+      'topCount': 3,
+      'wingViewBlock': 'A',
+    });
+    expect(decoded.topCount, 3);
   });
 
   test('PreferencesStorage persists top consumers config', () async {
     final prefs = await PreferencesStorage.create();
-    const config = TopConsumersDashboardConfig(
-      showOverall: false,
-      showByBlock: true,
-      showByWing: false,
-      topCount: 3,
-    );
+    const config = TopConsumersDashboardConfig(topCount: 3);
     await prefs.setTopConsumersConfig(config);
-    expect(prefs.topConsumersConfig.showByBlock, isTrue);
     expect(prefs.topConsumersConfig.topCount, 3);
   });
 
