@@ -34,7 +34,7 @@ flutter run \
   --dart-define=COGNITO_USER_POOL_ID=ap-south-1_vm19Xv95r \
   --dart-define=COGNITO_CLIENT_ID=46865gj4jba5bp42cc04fo14k1 \
   --dart-define=COGNITO_REGION=ap-south-1 \
-  --dart-define=API_BASE_URL=https://vrgvdej4c5.execute-api.ap-south-1.amazonaws.com/Prod
+  --dart-define=API_BASE_URL=https://839483m4md.execute-api.ap-south-1.amazonaws.com/Prod
 ```
 
 Or use `./scripts/run_with_cognito.sh` from the app root.
