@@ -54,7 +54,7 @@ class _EnrollmentStepState extends ConsumerState<EnrollmentStep> {
     _enrollmentTimer?.cancel();
     _pollEnrollment();
     _enrollmentTimer = Timer.periodic(
-      const Duration(seconds: 3),
+      const Duration(minutes: 1),
       (_) => _pollEnrollment(),
     );
   }
@@ -227,7 +227,12 @@ class _EnrollmentStepState extends ConsumerState<EnrollmentStep> {
               children: [
                 CircularProgressIndicator(),
                 SizedBox(height: 12),
-                Text('Enrolling device…'),
+                Text('Waiting for device enrollment…'),
+                SizedBox(height: 8),
+                Text(
+                  'This usually takes a few minutes.',
+                  style: TextStyle(fontSize: 13),
+                ),
               ],
             ),
           )

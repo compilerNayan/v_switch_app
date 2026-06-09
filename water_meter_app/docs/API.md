@@ -304,7 +304,7 @@ Poll cloud enrollment completion (placeholder until AWS IoT Core integration).
 }
 ```
 
-Currently always returns `enrolled: true`. The app polls every 3s after LAN enroll + unit create.
+In development, the mock telemetry scheduler marks units `enrolled` after **3 minutes** from `createdAt` (simulating the device `lifecycle/enrolled` MQTT message). Until then, returns `enrolled: false` and `status: "pending"`. The app polls every **1 minute** after LAN enroll + unit create.
 
 ### GET `/tenants/{tenantId}/units/{unitId}`
 
