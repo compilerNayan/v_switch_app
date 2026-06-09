@@ -127,16 +127,23 @@ class DioWaterApiClient implements WaterApiClient {
   }
 
   @override
-  Future<QuotaResponse> getQuota(String deviceId) {
-    throw UnsupportedError('Quota API not implemented on backend');
+  Future<QuotaResponse> getQuota(String deviceId) async {
+    final data = await _get<Map<String, dynamic>>(
+      await _waterPath(deviceId, 'quota'),
+    );
+    return QuotaResponse.fromJson(data);
   }
 
   @override
   Future<QuotaResponse> updateQuota(
     String deviceId,
     QuotaUpdateRequest request,
-  ) {
-    throw UnsupportedError('Quota API not implemented on backend');
+  ) async {
+    final data = await _put<Map<String, dynamic>>(
+      await _waterPath(deviceId, 'quota'),
+      body: request.toJson(),
+    );
+    return QuotaResponse.fromJson(data);
   }
 
   @override

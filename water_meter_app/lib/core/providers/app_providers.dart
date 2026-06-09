@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/building_api_client.dart';
-import '../api/composite_water_api_client.dart';
 import '../api/dio_building_api_client.dart';
 import '../api/dio_water_api_client.dart';
 import '../api/mock_building_api_client.dart';
@@ -115,29 +114,23 @@ final buildingApiClientProvider = Provider<BuildingApiClient>((ref) {
 
 final waterApiClientProvider = Provider<WaterApiClient>((ref) {
   final auth = ref.watch(authServiceProvider);
-  final quotaMock = MockWaterApiClient(
-    canManageQuota: () async {
-      final profile = await auth.getCurrentUser();
-      return profile?.onboardingComplete == true && profile?.tenantId != null;
-    },
-  );
 
   if (AppConfig.useMockApi) {
-    return quotaMock;
+    return MockWaterApiClient(
+      canManageQuota: () async {
+        final profile = await auth.getCurrentUser();
+        return profile?.onboardingComplete == true && profile?.tenantId != null;
+      },
+    );
   }
 
-  final remote = DioWaterApiClient(
+  return DioWaterApiClient(
     credentialsProvider: () async {
       final token = await auth.getIdToken();
       if (token == null) return null;
       return (deviceId: '', apiKey: token);
     },
     tenantIdProvider: () => _tenantIdForRef(ref),
-  );
-
-  return CompositeWaterApiClient(
-    remote: remote,
-    quotaDelegate: quotaMock,
   );
 });
 

@@ -452,7 +452,49 @@ Query: `from`, `to` (YYYY-MM-DD), `timezone`
 
 ### GET / PUT `.../quota`
 
-Same shapes as prior API doc (`QuotaResponse`, `QuotaUpdateRequest` with `steps`).
+Quota **rules** (`enabled`, `dailyLimitLiters`, `steps`) are stored in `WaterMeterDeviceConfig` via the internal DeviceFacade. **Status** (`usedLiters`, `activeStepIndex`, `quotaCapPercent`, etc.) is computed from today's row in `WaterMeterDailyUsage`.
+
+**GET** response:
+
+```json
+{
+  "deviceId": "WM000001",
+  "enabled": true,
+  "dailyLimitLiters": 500,
+  "timezone": "UTC",
+  "steps": [
+    { "atLitersUsed": 300, "action": "reduce_pressure", "value": 20 },
+    { "atLitersUsed": 500, "action": "turn_off" }
+  ],
+  "status": {
+    "date": "2026-06-09",
+    "usedLiters": 120,
+    "activeStepIndex": -1,
+    "quotaCapPercent": null,
+    "remainingLiters": 380,
+    "nextStepAtLiters": 300
+  }
+}
+```
+
+**PUT** body (`QuotaUpdateRequest`):
+
+```json
+{
+  "enabled": true,
+  "dailyLimitLiters": 500,
+  "steps": [
+    { "atLitersUsed": 300, "action": "reduce_pressure", "value": 20 },
+    { "atLitersUsed": 500, "action": "turn_off" }
+  ]
+}
+```
+
+Step `action` values: `reduce_pressure` | `turn_off`. `reduce_pressure` requires a positive `value` (percentage points subtracted from a 100% baseline, cumulative).
+
+Default config is created on unit enroll (`quotaEnabled: false`, `dailyLimitLiters: 500`, empty `steps`). GET lazily initializes config if missing.
+
+When quota is enabled and a step is active, `GET .../valve` may return `controlMode: "quota"` and `quotaCapPercent`; `effectivePressurePercent` reflects the lower of actual pressure and the quota cap.
 
 ---
 
