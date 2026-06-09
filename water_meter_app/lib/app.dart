@@ -141,6 +141,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                 navigationShell: navigationShell,
               );
             },
+            navigatorContainerBuilder: (context, navigationShell, children) {
+              // Only mount the active tab (avoids firing all tab APIs at once).
+              return children[navigationShell.currentIndex];
+            },
             branches: [
               StatefulShellBranch(
                 routes: [
