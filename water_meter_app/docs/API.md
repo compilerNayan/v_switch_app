@@ -754,6 +754,113 @@ Idempotent: re-calling for the same serial refreshes the pending record.
 | GET/PUT | `/tenants/{tenantId}/quota-templates` |
 | GET/PUT | `/tenants/{tenantId}/schedule-rules` |
 | GET/PUT | `/tenants/{tenantId}/tariff` |
+| GET | `/v2/tenants/{tenantId}/metadata/hash` |
+| GET | `/v2/tenants/{tenantId}/metadata` |
+| GET | `/v2/tenants/{tenantId}/dashboard` |
+
+---
+
+## V2 — Metadata cache + dynamic dashboard
+
+Home screen data is split into **slow-changing metadata** (cached by the app) and **dynamic telemetry** (refreshed often). All v2 routes require Cognito JWT and tenant membership.
+
+### Hash semantics
+
+- `metadataHash` is SHA-256 hex over canonical JSON of tenant + owner + units (sorted by `unitId`).
+- Stored on `WaterMeterTenants.metadataHash` and recomputed on building/structure/unit writes.
+- Client compares hash from cache vs hash on dashboard (or lightweight hash poll) to detect stale metadata.
+
+### Client flow
+
+1. Poll `GET /v2/tenants/{tenantId}/metadata/hash` (optional; dashboard also includes hash).
+2. If hash unchanged → use cached metadata + fetch dashboard only.
+3. If hash changed → show cached metadata immediately, fetch dashboard, then refresh metadata in background via `GET /v2/tenants/{tenantId}/metadata`.
+
+### 1. `GET /v2/tenants/{tenantId}/metadata/hash`
+
+```json
+{ "metadataHash": "sha256hex..." }
+```
+
+Single DynamoDB read on tenant row when hash is stored.
+
+### 2. `GET /v2/tenants/{tenantId}/metadata`
+
+```json
+{
+  "metadataHash": "sha256hex...",
+  "tenantId": "k3m9x2a",
+  "buildingName": "Sunrise Apartments",
+  "structure": { "blocks": [ { "id": "A", "label": "Tower A", "wings": [ { "name": "East", "floorCount": 10 } ] } ] },
+  "owner": {
+    "userId": "usr_abc",
+    "displayName": "Raj Sharma",
+    "email": "admin@building.com",
+    "phone": "+919876543210",
+    "firstName": "Raj",
+    "lastName": "Sharma"
+  },
+  "devices": [
+    {
+      "unitId": "wm-WM000001",
+      "name": "D205",
+      "deviceId": "WM000001",
+      "flatNumber": "D205",
+      "floor": "2",
+      "block": "A",
+      "wing": "East",
+      "residentName": "Ravi Kumar",
+      "phoneNumber": "+919876543210",
+      "notes": null,
+      "enrollmentStatus": "enrolled",
+      "maintenanceMode": false,
+      "maintenanceStartedAt": null,
+      "unitInviteCode": "D205-AB12"
+    }
+  ]
+}
+```
+
+| Field source | Table |
+|--------------|-------|
+| Building name, structure | `WaterMeterTenants` |
+| Owner profile | `WaterMeterUsers` via `ownerUserId` |
+| Device static fields | `WaterMeterUnits` |
+| `maintenanceMode` / `maintenanceStartedAt` | Placeholder (`false` / `null`) until schema adds them |
+
+### 3. `GET /v2/tenants/{tenantId}/dashboard`
+
+Dynamic telemetry only:
+
+```json
+{
+  "metadataHash": "sha256hex...",
+  "generatedAt": "2026-06-10T12:00:00Z",
+  "devices": [
+    {
+      "unitId": "wm-WM000001",
+      "deviceId": "WM000001",
+      "todayLiters": 45.2,
+      "monthLiters": 1200.0,
+      "isOnline": true,
+      "lastSeenAt": "2026-06-10T11:58:00Z",
+      "status": "idle",
+      "flowRateLpm": 0.0,
+      "quotaEnabled": true,
+      "dailyLimitLiters": 500,
+      "quotaUsedLiters": 45.2,
+      "quotaPercent": 0.0904,
+      "valveOpenPercent": 100,
+      "valveIsOff": false,
+      "hasAlert": false
+    }
+  ]
+}
+```
+
+Client derives locally from cached metadata + dashboard devices: overview totals, top consumers, block/wing filters, near/over-quota filters.
+
+V1 routes (`/building/summary`, `/tenants/{tenantId}/units`, per-device `/water/*`) remain for backward compatibility and device detail screens.
 
 ---
 
