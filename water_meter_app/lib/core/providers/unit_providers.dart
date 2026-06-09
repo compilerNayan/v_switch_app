@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../config/app_config.dart';
 import '../models/water_unit.dart';
 import 'app_providers.dart';
 
@@ -7,8 +8,19 @@ import 'app_providers.dart';
 final selectedRouteDeviceIdProvider = StateProvider<String?>((ref) => null);
 
 final waterUnitsProvider = FutureProvider<List<WaterUnit>>((ref) async {
-  final prefs = await ref.watch(preferencesStorageProvider.future);
-  return prefs.getWaterUnits();
+  if (AppConfig.useMockApi) {
+    final prefs = await ref.watch(preferencesStorageProvider.future);
+    return prefs.getWaterUnits();
+  }
+
+  final profile = await ref.watch(userProfileProvider.future);
+  final tenantId = profile?.tenantId;
+  if (tenantId == null || tenantId.isEmpty) {
+    return [];
+  }
+
+  final client = ref.watch(tenantApiClientProvider);
+  return client.listUnits(tenantId);
 });
 
 /// Legacy alias

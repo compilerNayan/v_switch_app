@@ -10,13 +10,16 @@ import 'api_exceptions.dart';
 import 'water_api_client.dart';
 
 typedef AuthCredentialsProvider = Future<({String deviceId, String apiKey})?> Function();
+typedef TenantIdProvider = Future<String?> Function();
 
 class DioWaterApiClient implements WaterApiClient {
   DioWaterApiClient({
     required AuthCredentialsProvider credentialsProvider,
+    required TenantIdProvider tenantIdProvider,
     String? baseUrl,
     Dio? dio,
   })  : _credentialsProvider = credentialsProvider,
+        _tenantIdProvider = tenantIdProvider,
         _dio = dio ??
             Dio(
               BaseOptions(
@@ -47,11 +50,20 @@ class DioWaterApiClient implements WaterApiClient {
 
   final Dio _dio;
   final AuthCredentialsProvider _credentialsProvider;
+  final TenantIdProvider _tenantIdProvider;
+
+  Future<String> _waterPath(String deviceId, String suffix) async {
+    final tenantId = await _tenantIdProvider();
+    if (tenantId == null || tenantId.isEmpty) {
+      throw NetworkException('No tenant configured');
+    }
+    return '/tenants/$tenantId/devices/$deviceId/water/$suffix';
+  }
 
   @override
   Future<CurrentReading> getCurrentReading(String deviceId) async {
     final data = await _get<Map<String, dynamic>>(
-      '/devices/$deviceId/water/current',
+      await _waterPath(deviceId, 'current'),
     );
     return CurrentReading.fromJson(data);
   }
@@ -65,7 +77,7 @@ class DioWaterApiClient implements WaterApiClient {
     required String timezone,
   }) async {
     final data = await _get<Map<String, dynamic>>(
-      '/devices/$deviceId/water/usage',
+      await _waterPath(deviceId, 'usage'),
       queryParameters: {
         'from': from.toUtc().toIso8601String(),
         'to': to.toUtc().toIso8601String(),
@@ -84,7 +96,7 @@ class DioWaterApiClient implements WaterApiClient {
     required String timezone,
   }) async {
     final data = await _get<Map<String, dynamic>>(
-      '/devices/$deviceId/water/daily',
+      await _waterPath(deviceId, 'daily'),
       queryParameters: {
         'from': _dateOnly(from),
         'to': _dateOnly(to),
@@ -97,7 +109,7 @@ class DioWaterApiClient implements WaterApiClient {
   @override
   Future<ValveState> getValveState(String deviceId) async {
     final data = await _get<Map<String, dynamic>>(
-      '/devices/$deviceId/water/valve',
+      await _waterPath(deviceId, 'valve'),
     );
     return ValveState.fromJson(data);
   }
@@ -108,30 +120,23 @@ class DioWaterApiClient implements WaterApiClient {
     ValveUpdateRequest request,
   ) async {
     final data = await _put<Map<String, dynamic>>(
-      '/devices/$deviceId/water/valve',
+      await _waterPath(deviceId, 'valve'),
       body: request.toJson(),
     );
     return ValveState.fromJson(data);
   }
 
   @override
-  Future<QuotaResponse> getQuota(String deviceId) async {
-    final data = await _get<Map<String, dynamic>>(
-      '/devices/$deviceId/water/quota',
-    );
-    return QuotaResponse.fromJson(data);
+  Future<QuotaResponse> getQuota(String deviceId) {
+    throw UnsupportedError('Quota API not implemented on backend');
   }
 
   @override
   Future<QuotaResponse> updateQuota(
     String deviceId,
     QuotaUpdateRequest request,
-  ) async {
-    final data = await _put<Map<String, dynamic>>(
-      '/devices/$deviceId/water/quota',
-      body: request.toJson(),
-    );
-    return QuotaResponse.fromJson(data);
+  ) {
+    throw UnsupportedError('Quota API not implemented on backend');
   }
 
   @override
@@ -142,7 +147,7 @@ class DioWaterApiClient implements WaterApiClient {
     required String timezone,
   }) async {
     final data = await _get<Map<String, dynamic>>(
-      '/devices/$deviceId/water/hourly-pattern',
+      await _waterPath(deviceId, 'hourly-pattern'),
       queryParameters: {
         'from': _dateOnly(from),
         'to': _dateOnly(to),

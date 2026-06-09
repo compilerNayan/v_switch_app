@@ -4,13 +4,7 @@ import '../models/device_health.dart';
 import '../providers/app_providers.dart';
 import '../providers/device_tile_providers.dart';
 import '../providers/unit_providers.dart';
-import '../storage/preferences_storage.dart';
 import 'building_api_client.dart';
-import 'water_api_client.dart';
-
-final buildingApiClientProvider = Provider<BuildingApiClient>((ref) {
-  return MockBuildingApiClient(ref);
-});
 
 class MockBuildingApiClient implements BuildingApiClient {
   MockBuildingApiClient(this.ref);
@@ -83,6 +77,9 @@ class MockBuildingApiClient implements BuildingApiClient {
   Future<List<BuildingRanking>> getRankings({
     required String tenantId,
     required String period,
+    String groupBy = 'overall',
+    String? blockId,
+    int limit = 10,
   }) async {
     final units = await ref.read(waterUnitsProvider.future);
     final rankings = <BuildingRanking>[];
@@ -107,6 +104,9 @@ class MockBuildingApiClient implements BuildingApiClient {
     }
 
     rankings.sort((a, b) => b.liters.compareTo(a.liters));
+    if (rankings.length > limit) {
+      return rankings.sublist(0, limit);
+    }
     return rankings;
   }
 }

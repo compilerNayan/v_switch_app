@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/building_api_client.dart';
-import '../api/mock_building_api_client.dart';
 import '../models/tariff_config.dart';
 import '../models/top_consumers_config.dart';
 import '../utils/top_consumers_rankings.dart';

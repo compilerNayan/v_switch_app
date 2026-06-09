@@ -191,6 +191,18 @@ class TenantApiClient {
     return config;
   }
 
+  Future<List<WaterUnit>> listUnits(String tenantId) async {
+    if (AppConfig.useMockApi) {
+      final prefs = await _prefsProvider();
+      return prefs.getWaterUnits();
+    }
+    final data = await _get<Map<String, dynamic>>('/tenants/$tenantId/units');
+    final unitsJson = data['units'] as List<dynamic>? ?? [];
+    return unitsJson
+        .map((entry) => WaterUnit.fromJson(entry as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<WaterUnit> createUnit({
     required String tenantId,
     required String deviceId,

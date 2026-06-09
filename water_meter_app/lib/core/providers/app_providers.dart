@@ -2,7 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../api/building_api_client.dart';
+import '../api/composite_water_api_client.dart';
+import '../api/dio_building_api_client.dart';
 import '../api/dio_water_api_client.dart';
+import '../api/mock_building_api_client.dart';
 import '../api/mock_water_api_client.dart';
 import '../api/tenant_api_client.dart';
 import '../api/water_api_client.dart';
@@ -94,23 +98,46 @@ final appThemeProvider = Provider<ThemeData>((ref) {
   return AppTheme.themeFor(themeId);
 });
 
-final waterApiClientProvider = Provider<WaterApiClient>((ref) {
+Future<String?> _tenantIdForRef(Ref ref) async {
+  final profile = await ref.read(userProfileProvider.future);
+  return profile?.tenantId;
+}
+
+final buildingApiClientProvider = Provider<BuildingApiClient>((ref) {
   if (AppConfig.useMockApi) {
-    final auth = ref.watch(authServiceProvider);
-    return MockWaterApiClient(
-      canManageQuota: () async {
-        final profile = await auth.getCurrentUser();
-        return profile?.onboardingComplete == true && profile?.tenantId != null;
-      },
-    );
+    return MockBuildingApiClient(ref);
   }
   final auth = ref.watch(authServiceProvider);
-  return DioWaterApiClient(
+  return DioBuildingApiClient(
+    authTokenProvider: () => auth.getIdToken(),
+  );
+});
+
+final waterApiClientProvider = Provider<WaterApiClient>((ref) {
+  final auth = ref.watch(authServiceProvider);
+  final quotaMock = MockWaterApiClient(
+    canManageQuota: () async {
+      final profile = await auth.getCurrentUser();
+      return profile?.onboardingComplete == true && profile?.tenantId != null;
+    },
+  );
+
+  if (AppConfig.useMockApi) {
+    return quotaMock;
+  }
+
+  final remote = DioWaterApiClient(
     credentialsProvider: () async {
       final token = await auth.getIdToken();
       if (token == null) return null;
       return (deviceId: '', apiKey: token);
     },
+    tenantIdProvider: () => _tenantIdForRef(ref),
+  );
+
+  return CompositeWaterApiClient(
+    remote: remote,
+    quotaDelegate: quotaMock,
   );
 });
 

@@ -37,5 +37,8 @@ abstract class BuildingApiClient {
   Future<List<BuildingRanking>> getRankings({
     required String tenantId,
     required String period,
+    String groupBy = 'overall',
+    String? blockId,
+    int limit = 10,
   });
 }
