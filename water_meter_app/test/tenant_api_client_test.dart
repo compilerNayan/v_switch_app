@@ -88,5 +88,31 @@ void main() {
         completes,
       );
     });
+
+    test('createUnit and getEnrollmentStatus in mock API mode', () async {
+      final unit = await client.createUnit(
+        tenantId: 'tenant-mock',
+        deviceId: 'WM123456',
+        name: 'D205',
+        flatNumber: 'D205',
+        floor: '2',
+        block: 'A',
+        wing: 'East',
+        residentName: 'Ravi Kumar',
+        phoneNumber: '+919876543210',
+        notes: 'Corner flat',
+      );
+
+      expect(unit.id, 'wm-WM123456');
+      expect(unit.enrollmentStatus.name, 'pending');
+      expect(unit.residentName, 'Ravi Kumar');
+
+      final status = await client.getEnrollmentStatus(
+        tenantId: 'tenant-mock',
+        deviceId: 'WM123456',
+      );
+      expect(status.enrolled, isTrue);
+      expect(status.status, 'enrolled');
+    });
   });
 }

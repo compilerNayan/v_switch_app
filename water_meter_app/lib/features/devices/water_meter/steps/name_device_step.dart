@@ -20,6 +20,9 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
   final _blockController = TextEditingController();
   final _wingController = TextEditingController();
   final _floorController = TextEditingController();
+  final _residentController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _notesController = TextEditingController();
   String? _selectedBlock;
   String? _selectedWing;
   String? _selectedFloor;
@@ -45,6 +48,15 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
         _floorController.text = state.floor!;
         _selectedFloor = state.floor;
       }
+      if (state.residentName != null) {
+        _residentController.text = state.residentName!;
+      }
+      if (state.phoneNumber != null) {
+        _phoneController.text = state.phoneNumber!;
+      }
+      if (state.notes != null) {
+        _notesController.text = state.notes!;
+      }
     });
   }
 
@@ -54,6 +66,9 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
     _blockController.dispose();
     _wingController.dispose();
     _floorController.dispose();
+    _residentController.dispose();
+    _phoneController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -63,12 +78,19 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
     notifier.setDeviceDisplayName(_nameController.text);
     final block = _selectedBlock ?? _blockController.text.trim();
     final wing = _selectedWing ?? _wingController.text.trim();
-    notifier.setBlock(block);
-    notifier.setWing(wing);
+    if (block.isNotEmpty) notifier.setBlock(block);
+    if (wing.isNotEmpty) notifier.setWing(wing);
     final floor = _selectedFloor ?? _floorController.text.trim();
     if (floor.isNotEmpty) {
       notifier.setFloor(floor);
     }
+    notifier.setResidentName(_residentController.text);
+    notifier.setPhoneNumber(_phoneController.text);
+    final notes = _notesController.text.trim();
+    if (notes.isNotEmpty) {
+      notifier.setNotes(notes);
+    }
+    notifier.markMetadataComplete();
     if (AppConfig.useMockProvisioning) {
       await notifier.mockEnrollAndRegister();
     } else {
@@ -103,12 +125,12 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Name your device',
+                'Unit details',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 8),
               Text(
-                'Choose a label and location for this water meter.',
+                'Enter location and resident details for this water meter.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -184,8 +206,14 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
                         : null,
                   ),
                   textCapitalization: TextCapitalization.words,
-                  validator: (value) =>
-                      value == null || value.trim().isEmpty ? 'Required' : null,
+                  validator: (value) {
+                    if (tenantConfig != null && tenantConfig.hasBlocks) {
+                      return value == null || value.trim().isEmpty
+                          ? 'Required'
+                          : null;
+                    }
+                    return null;
+                  },
                 ),
               const SizedBox(height: 16),
               if (tenantConfig != null &&
@@ -218,8 +246,14 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
                         : null,
                   ),
                   textCapitalization: TextCapitalization.words,
-                  validator: (value) =>
-                      value == null || value.trim().isEmpty ? 'Required' : null,
+                  validator: (value) {
+                    if (tenantConfig != null && tenantConfig.hasWings) {
+                      return value == null || value.trim().isEmpty
+                          ? 'Required'
+                          : null;
+                    }
+                    return null;
+                  },
                 ),
               const SizedBox(height: 16),
               if (floorOptions.isNotEmpty)
@@ -244,6 +278,40 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
                   ),
                   keyboardType: TextInputType.number,
                 ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _residentController,
+                decoration: const InputDecoration(
+                  labelText: 'Flat owner name',
+                  hintText: 'e.g. Ravi Kumar',
+                  prefixIcon: Icon(Icons.person_outline),
+                ),
+                textCapitalization: TextCapitalization.words,
+                validator: (value) =>
+                    value == null || value.trim().isEmpty ? 'Required' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _phoneController,
+                decoration: const InputDecoration(
+                  labelText: 'Phone number',
+                  hintText: '+919876543210',
+                  prefixIcon: Icon(Icons.phone_outlined),
+                ),
+                keyboardType: TextInputType.phone,
+                validator: (value) =>
+                    value == null || value.trim().isEmpty ? 'Required' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _notesController,
+                decoration: const InputDecoration(
+                  labelText: 'Notes (optional)',
+                  hintText: 'e.g. Corner flat, rear entry',
+                  prefixIcon: Icon(Icons.notes_outlined),
+                ),
+                maxLines: 2,
+              ),
               if (state.errorMessage != null) ...[
                 const SizedBox(height: 12),
                 Text(

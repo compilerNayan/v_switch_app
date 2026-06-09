@@ -73,6 +73,22 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
     state = state.copyWith(floor: floor.trim(), clearError: true);
   }
 
+  void setResidentName(String name) {
+    state = state.copyWith(residentName: name.trim(), clearError: true);
+  }
+
+  void setPhoneNumber(String phone) {
+    state = state.copyWith(phoneNumber: phone.trim(), clearError: true);
+  }
+
+  void setNotes(String notes) {
+    state = state.copyWith(notes: notes.trim(), clearError: true);
+  }
+
+  void markMetadataComplete() {
+    state = state.copyWith(metadataComplete: true, clearError: true);
+  }
+
   void assignMockSerial() {
     setDeviceSerial(generateMockDeviceSerial());
   }
@@ -235,13 +251,160 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
     }
   }
 
-  /// Dummy enroll — prerequisites must be met; no device or cloud enroll yet.
+  /// Starts device LAN enroll + cloud unit creation in parallel.
   Future<bool> enrollDevice() async {
     if (!state.canEnroll) {
-      setError('Configure device WiFi and register with your building first.');
+      setError(
+        'Complete WiFi setup, unit details, and building registration first.',
+      );
       return false;
     }
-    return true;
+
+    final serial = state.deviceSerial;
+    final displayName = state.deviceDisplayName?.trim();
+    if (serial == null || serial.isEmpty || displayName == null || displayName.isEmpty) {
+      setError('Device details are incomplete.');
+      return false;
+    }
+
+    final profile = await ref.read(userProfileProvider.future);
+    final tenantId = profile?.tenantId;
+    if (tenantId == null || tenantId.isEmpty) {
+      setError('No tenant found.');
+      return false;
+    }
+
+    setLoading(true);
+    try {
+      final enrollmentClient = ref.read(enrollmentClientProvider);
+      final tenantApi = ref.read(tenantApiClientProvider);
+
+      Object? deviceError;
+      Object? cloudError;
+
+      await Future.wait([
+        enrollmentClient.enroll(serial).then((result) {
+          if (result is! EnrollmentSuccess) {
+            deviceError = result;
+          }
+        }),
+        tenantApi
+            .createUnit(
+              tenantId: tenantId,
+              deviceId: serial,
+              name: displayName,
+              flatNumber: displayName,
+              floor: state.floor ?? '',
+              block: state.block ?? '',
+              wing: state.wing ?? '',
+              residentName: state.residentName ?? '',
+              phoneNumber: state.phoneNumber ?? '',
+              notes: state.notes,
+            )
+            .catchError((Object error) => cloudError = error),
+      ]);
+
+      if (deviceError != null && cloudError != null) {
+        setError(_enrollErrorMessage(deviceError) +
+            ' Also failed to register unit in cloud.');
+        return false;
+      }
+      if (cloudError != null) {
+        setError(_cloudErrorMessage(cloudError));
+        return false;
+      }
+      if (deviceError != null) {
+        setError(_enrollErrorMessage(deviceError));
+        return false;
+      }
+
+      await registerWaterMeter(
+        serial: serial,
+        displayName: displayName,
+        enrollmentStatus: UnitEnrollmentStatus.pending,
+      );
+
+      state = state.copyWith(
+        enrollStarted: true,
+        isLoading: false,
+        clearError: true,
+      );
+      return true;
+    } catch (error) {
+      setError(error.toString());
+      return false;
+    }
+  }
+
+  /// Polls cloud enrollment status; marks unit enrolled and completes flow.
+  Future<bool> pollEnrollmentStatus() async {
+    if (!state.enrollStarted || state.enrollComplete) {
+      return state.enrollComplete;
+    }
+
+    final serial = state.deviceSerial;
+    if (serial == null || serial.isEmpty) {
+      return false;
+    }
+
+    final profile = await ref.read(userProfileProvider.future);
+    final tenantId = profile?.tenantId;
+    if (tenantId == null || tenantId.isEmpty) {
+      return false;
+    }
+
+    try {
+      final tenantApi = ref.read(tenantApiClientProvider);
+      final status = await tenantApi.getEnrollmentStatus(
+        tenantId: tenantId,
+        deviceId: serial,
+      );
+
+      if (!status.enrolled) {
+        return false;
+      }
+
+      await _markUnitEnrolled(serial);
+      state = state.copyWith(
+        enrollComplete: true,
+        step: WaterMeterSetupStep.success,
+        clearError: true,
+      );
+      return true;
+    } catch (error) {
+      setError(_cloudErrorMessage(error));
+      return false;
+    }
+  }
+
+  Future<void> _markUnitEnrolled(String serial) async {
+    final prefs = await ref.read(preferencesStorageProvider.future);
+    final units = prefs.getWaterUnits();
+    final index = units.indexWhere((u) => u.deviceId == serial);
+    if (index >= 0) {
+      await prefs.updateWaterUnit(
+        units[index].copyWith(enrollmentStatus: UnitEnrollmentStatus.enrolled),
+      );
+      ref.invalidate(waterUnitsProvider);
+    }
+  }
+
+  String _enrollErrorMessage(Object? result) {
+    return switch (result) {
+      EnrollmentHttpError(:final code) => 'Device enrollment failed (HTTP $code).',
+      EnrollmentNetworkError(:final message) => 'Device enrollment error: $message',
+      _ => 'Device enrollment failed.',
+    };
+  }
+
+  String _cloudErrorMessage(Object? error) {
+    if (error is ApiException) {
+      return error.error.message;
+    }
+    if (error is NetworkException) {
+      return error.message;
+    }
+    return error?.toString() ?? 'Cloud registration failed.';
   }
 
   Future<WaterUnit> registerWaterMeter({
@@ -250,6 +413,10 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
     String? block,
     String? wing,
     String? floor,
+    String? residentName,
+    String? phoneNumber,
+    String? notes,
+    UnitEnrollmentStatus enrollmentStatus = UnitEnrollmentStatus.enrolled,
   }) async {
     final prefs = await ref.read(preferencesStorageProvider.future);
     final unit = WaterUnit(
@@ -260,6 +427,10 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
       block: block?.trim() ?? state.block?.trim() ?? '',
       wing: wing?.trim() ?? state.wing?.trim() ?? '',
       floor: floor?.trim() ?? state.floor?.trim() ?? '',
+      residentName: residentName?.trim() ?? state.residentName?.trim(),
+      phoneNumber: phoneNumber?.trim() ?? state.phoneNumber?.trim(),
+      notes: notes?.trim() ?? state.notes?.trim(),
+      enrollmentStatus: enrollmentStatus,
     );
     final saved = await prefs.addWaterUnit(unit);
     ref.invalidate(waterUnitsProvider);

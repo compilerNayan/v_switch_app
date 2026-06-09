@@ -3,10 +3,12 @@ import 'package:dio/dio.dart';
 import '../config/app_config.dart';
 import '../models/tenant_config.dart';
 import '../models/user_profile.dart';
+import '../models/water_unit.dart';
 import '../auth/auth_service.dart';
 import '../auth/mock_auth_service.dart';
 import '../storage/preferences_storage.dart';
 import 'api_exceptions.dart';
+import 'enrollment_status_result.dart';
 
 class TenantApiClient {
   TenantApiClient({
@@ -194,6 +196,68 @@ class TenantApiClient {
       {'structure': structure.toJson()},
     );
     return TenantConfig.fromJson(data);
+  }
+
+  Future<WaterUnit> createUnit({
+    required String tenantId,
+    required String deviceId,
+    required String name,
+    required String flatNumber,
+    required String floor,
+    required String block,
+    required String wing,
+    required String residentName,
+    required String phoneNumber,
+    String? notes,
+  }) async {
+    if (AppConfig.useMockApi) {
+      final prefs = await _prefsProvider();
+      final unit = WaterUnit(
+        id: 'wm-$deviceId',
+        name: name,
+        deviceId: deviceId,
+        flatNumber: flatNumber,
+        floor: floor,
+        block: block,
+        wing: wing,
+        residentName: residentName,
+        phoneNumber: phoneNumber,
+        notes: notes,
+        enrollmentStatus: UnitEnrollmentStatus.pending,
+      );
+      return prefs.addWaterUnit(unit);
+    }
+    final data = await _post<Map<String, dynamic>>(
+      '/tenants/$tenantId/units',
+      {
+        'deviceId': deviceId,
+        'name': name,
+        'flatNumber': flatNumber,
+        'floor': floor,
+        'block': block,
+        'wing': wing,
+        'residentName': residentName,
+        'phoneNumber': phoneNumber,
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
+      },
+    );
+    return WaterUnit.fromJson(data);
+  }
+
+  Future<EnrollmentStatusResult> getEnrollmentStatus({
+    required String tenantId,
+    required String deviceId,
+  }) async {
+    if (AppConfig.useMockApi) {
+      return const EnrollmentStatusResult(enrolled: true, status: 'enrolled');
+    }
+    final data = await _get<Map<String, dynamic>>(
+      '/tenants/$tenantId/devices/$deviceId/enrollment-status',
+    );
+    return EnrollmentStatusResult(
+      enrolled: data['enrolled'] as bool? ?? false,
+      status: data['status'] as String? ?? 'pending',
+    );
   }
 
   Future<String> createAdminInvite(String tenantId) async {

@@ -1,3 +1,23 @@
+enum UnitEnrollmentStatus {
+  pending,
+  enrolled,
+  failed;
+
+  static UnitEnrollmentStatus fromJson(String? value) {
+    switch (value) {
+      case 'pending':
+        return UnitEnrollmentStatus.pending;
+      case 'failed':
+        return UnitEnrollmentStatus.failed;
+      case 'enrolled':
+      default:
+        return UnitEnrollmentStatus.enrolled;
+    }
+  }
+
+  String toJson() => name;
+}
+
 class WaterUnit {
   const WaterUnit({
     required this.id,
@@ -13,6 +33,7 @@ class WaterUnit {
     this.maintenanceMode = false,
     this.assignedUserIds = const [],
     this.unitInviteCode,
+    this.enrollmentStatus = UnitEnrollmentStatus.enrolled,
   });
 
   factory WaterUnit.fromJson(Map<String, dynamic> json) {
@@ -33,6 +54,9 @@ class WaterUnit {
               .toList() ??
           const [],
       unitInviteCode: json['unitInviteCode'] as String?,
+      enrollmentStatus: UnitEnrollmentStatus.fromJson(
+        json['enrollmentStatus'] as String?,
+      ),
     );
   }
 
@@ -58,6 +82,10 @@ class WaterUnit {
   final bool maintenanceMode;
   final List<String> assignedUserIds;
   final String? unitInviteCode;
+  final UnitEnrollmentStatus enrollmentStatus;
+
+  bool get isEnrollmentPending => enrollmentStatus == UnitEnrollmentStatus.pending;
+  bool get isActive => enrollmentStatus == UnitEnrollmentStatus.enrolled;
 
   String get displaySubtitle {
     final parts = <String>[
@@ -83,6 +111,7 @@ class WaterUnit {
         'maintenanceMode': maintenanceMode,
         'assignedUserIds': assignedUserIds,
         if (unitInviteCode != null) 'unitInviteCode': unitInviteCode,
+        'enrollmentStatus': enrollmentStatus.toJson(),
       };
 
   WaterUnit copyWith({
@@ -99,6 +128,7 @@ class WaterUnit {
     bool? maintenanceMode,
     List<String>? assignedUserIds,
     String? unitInviteCode,
+    UnitEnrollmentStatus? enrollmentStatus,
     bool clearResidentName = false,
     bool clearPhoneNumber = false,
     bool clearNotes = false,
@@ -119,6 +149,7 @@ class WaterUnit {
       maintenanceMode: maintenanceMode ?? this.maintenanceMode,
       assignedUserIds: assignedUserIds ?? this.assignedUserIds,
       unitInviteCode: unitInviteCode ?? this.unitInviteCode,
+      enrollmentStatus: enrollmentStatus ?? this.enrollmentStatus,
     );
   }
 }

@@ -72,7 +72,10 @@ class _UnitTileState extends ConsumerState<UnitTile> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final isAdmin = ref.watch(isDeviceAdminProvider);
-    final healthAsync = ref.watch(deviceHealthProvider(widget.unit.deviceId));
+    final isPending = widget.unit.isEnrollmentPending;
+    final healthAsync = isPending
+        ? null
+        : ref.watch(deviceHealthProvider(widget.unit.deviceId));
     final hasPhone = hasCallablePhone(widget.unit.phoneNumber);
 
     return Card(
@@ -86,15 +89,19 @@ class _UnitTileState extends ConsumerState<UnitTile> {
             children: [
               Row(
                 children: [
-                  healthAsync.when(
-                    data: (h) => Icon(
-                      Icons.circle,
-                      size: 10,
-                      color: h.isOnline ? Colors.green : scheme.outline,
+                  if (isPending)
+                    Icon(Icons.circle, size: 10, color: scheme.outline)
+                  else
+                    healthAsync!.when(
+                      data: (h) => Icon(
+                        Icons.circle,
+                        size: 10,
+                        color: h.isOnline ? Colors.green : scheme.outline,
+                      ),
+                      loading: () => const SizedBox(width: 10, height: 10),
+                      error: (_, __) =>
+                          Icon(Icons.circle, size: 10, color: scheme.error),
                     ),
-                    loading: () => const SizedBox(width: 10, height: 10),
-                    error: (_, __) => Icon(Icons.circle, size: 10, color: scheme.error),
-                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -106,7 +113,25 @@ class _UnitTileState extends ConsumerState<UnitTile> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  if (isAdmin) ...[
+                  if (isPending)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: scheme.secondaryContainer,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Enrolling…',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: scheme.onSecondaryContainer,
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                    ),
+                  if (isAdmin && !isPending) ...[
                     _ContactIconButton(
                       icon: Icons.phone_outlined,
                       tooltip: 'Call resident',
@@ -120,7 +145,7 @@ class _UnitTileState extends ConsumerState<UnitTile> {
                       onPressed: _onWhatsAppPressed,
                     ),
                   ],
-                  if (isAdmin)
+                  if (isAdmin && !isPending)
                     PopupMenuButton<String>(
                       onSelected: (v) {
                         if (v == 'edit') {
@@ -131,7 +156,7 @@ class _UnitTileState extends ConsumerState<UnitTile> {
                         const PopupMenuItem(value: 'edit', child: Text('Edit unit')),
                       ],
                     ),
-                  if (isAdmin)
+                  if (isAdmin && !isPending)
                     _ValveSwitch(
                       deviceId: widget.unit.deviceId,
                       maintenanceMode: widget.unit.maintenanceMode,
@@ -161,20 +186,37 @@ class _UnitTileState extends ConsumerState<UnitTile> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              healthAsync.when(
-                data: (h) => Text(
-                  h.isOnline ? 'Online' : 'Last seen ${h.lastSeenLabel(DateTime.now())}',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: h.isOnline ? Colors.green.shade700 : scheme.outline,
-                      ),
+              if (isPending)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    'Enrollment in progress — readings unavailable',
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                      fontSize: 11,
+                    ),
+                  ),
+                )
+              else
+                healthAsync!.when(
+                  data: (h) => Text(
+                    h.isOnline
+                        ? 'Online'
+                        : 'Last seen ${h.lastSeenLabel(DateTime.now())}',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color:
+                              h.isOnline ? Colors.green.shade700 : scheme.outline,
+                        ),
+                  ),
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
                 ),
-                loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
-              ),
-              const SizedBox(height: 12),
-              _LiveReadingRow(deviceId: widget.unit.deviceId),
-              const SizedBox(height: 8),
-              _QuotaUsageRow(deviceId: widget.unit.deviceId),
+              if (!isPending) ...[
+                const SizedBox(height: 12),
+                _LiveReadingRow(deviceId: widget.unit.deviceId),
+                const SizedBox(height: 8),
+                _QuotaUsageRow(deviceId: widget.unit.deviceId),
+              ],
               const Spacer(),
               Text(
                 'Tap for details →',

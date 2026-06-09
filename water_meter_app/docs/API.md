@@ -261,7 +261,8 @@ List all units. Optional query: `block`, `wing`, `search`.
       "wing": "East",
       "residentName": "Ravi Kumar",
       "phoneNumber": "+919876543210",
-      "notes": null,
+      "notes": "Corner flat",
+      "enrollmentStatus": "pending",
       "maintenanceMode": false,
       "maintenanceStartedAt": null,
       "unitInviteCode": "D205-1234"
@@ -276,6 +277,7 @@ List all units. Optional query: `block`, `wing`, `search`.
 | `maintenanceMode` | When true: valve off, valve-on rejected, excluded from bulk ops |
 | `maintenanceStartedAt` | ISO8601 when maintenance enabled |
 | `unitInviteCode` | For future resident onboarding; generate only in this phase |
+| `enrollmentStatus` | `pending` until cloud enrollment completes; `enrolled` when active |
 
 ### POST `/tenants/{tenantId}/units`
 
@@ -290,11 +292,31 @@ Register meter after device enrollment.
   "flatNumber": "D205",
   "floor": "2",
   "block": "A",
-  "wing": "East"
+  "wing": "East",
+  "residentName": "Ravi Kumar",
+  "phoneNumber": "+919876543210",
+  "notes": "Corner flat"
 }
 ```
 
-**Response 201:** Full unit object with server-assigned `id` and `unitInviteCode`.
+**Response 201:** Full unit object with server-assigned `id`, `unitInviteCode`, and `enrollmentStatus: "pending"`.
+
+Idempotent on `deviceId`: re-posting the same serial returns the existing unit.
+
+### GET `/tenants/{tenantId}/devices/{deviceId}/enrollment-status`
+
+Poll cloud enrollment completion (placeholder until AWS IoT Core integration).
+
+**Response 200:**
+
+```json
+{
+  "enrolled": true,
+  "status": "enrolled"
+}
+```
+
+Currently always returns `enrolled: true`. The app polls every 3s after LAN enroll + unit create.
 
 ### GET `/tenants/{tenantId}/units/{unitId}`
 
@@ -605,9 +627,7 @@ Idempotent: re-calling for the same serial refreshes the pending record.
 | POST | `http://192.168.4.1:8080/wifi-credentials` | `{ "ssid", "password" }` |
 | POST | `http://{serial}.local:8080/enrollment/enroll` | empty |
 
-**App flow (current):** WiFi credentials are sent while the phone is on the `IoT_<serial>` hotspot. Pre-enroll runs later on the Enroll step, only after the phone reconnects to regular home WiFi and internet is reachable. Enroll button is enabled when both succeed; device enroll click is a placeholder until IoT Core integration.
-
-After real enrollment: `POST /tenants/{tenantId}/units` links device serial.
+**App flow (current):** WiFi credentials are sent while the phone is on the `IoT_<serial>` hotspot. Pre-enroll runs on the Enroll step after the phone reconnects to home WiFi. Enroll runs LAN `POST /enrollment/enroll` and `POST /tenants/{tenantId}/units` in parallel, then polls `GET .../enrollment-status` until `enrolled: true`.
 
 ---
 
@@ -636,6 +656,7 @@ After real enrollment: `POST /tenants/{tenantId}/units` links device serial.
 | PUT | `/tenants/{tenantId}/structure` |
 | POST | `/tenants/{tenantId}/building` |
 | POST | `/tenants/{tenantId}/devices/pre-enroll` |
+| GET | `/tenants/{tenantId}/devices/{deviceId}/enrollment-status` |
 | POST | `/tenants/{tenantId}/admin-invites` |
 | POST | `/tenants/join/admin` |
 | GET/POST | `/tenants/{tenantId}/units` |

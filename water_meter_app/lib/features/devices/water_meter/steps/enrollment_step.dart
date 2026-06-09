@@ -14,17 +14,23 @@ class EnrollmentStep extends ConsumerStatefulWidget {
 
 class _EnrollmentStepState extends ConsumerState<EnrollmentStep> {
   Timer? _associationTimer;
+  Timer? _enrollmentTimer;
   bool _isAssociating = false;
+  bool _isPollingEnrollment = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _startAssociationPolling());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startAssociationPolling();
+      _maybeStartEnrollmentPolling();
+    });
   }
 
   @override
   void dispose() {
     _associationTimer?.cancel();
+    _enrollmentTimer?.cancel();
     super.dispose();
   }
 
@@ -34,6 +40,22 @@ class _EnrollmentStepState extends ConsumerState<EnrollmentStep> {
     _associationTimer = Timer.periodic(
       const Duration(seconds: 3),
       (_) => _tryAssociate(),
+    );
+  }
+
+  void _maybeStartEnrollmentPolling() {
+    final state = ref.read(provisioningNotifierProvider);
+    if (state.enrollStarted && !state.enrollComplete) {
+      _startEnrollmentPolling();
+    }
+  }
+
+  void _startEnrollmentPolling() {
+    _enrollmentTimer?.cancel();
+    _pollEnrollment();
+    _enrollmentTimer = Timer.periodic(
+      const Duration(seconds: 3),
+      (_) => _pollEnrollment(),
     );
   }
 
@@ -55,41 +77,52 @@ class _EnrollmentStepState extends ConsumerState<EnrollmentStep> {
     }
   }
 
-  String _statusMessage({
-    required bool wifiConfigured,
-    required bool tenantAssociated,
-    required bool isAssociating,
-  }) {
-    if (wifiConfigured && tenantAssociated) {
-      return 'Ready to enroll (coming soon). Tap Enroll to confirm prerequisites.';
+  Future<void> _pollEnrollment() async {
+    final state = ref.read(provisioningNotifierProvider);
+    if (!state.enrollStarted || state.enrollComplete || _isPollingEnrollment) {
+      if (state.enrollComplete) {
+        _enrollmentTimer?.cancel();
+      }
+      return;
     }
-    if (!wifiConfigured) {
-      return 'Device WiFi is not configured yet. Go back and complete the WiFi step.';
+
+    setState(() => _isPollingEnrollment = true);
+    try {
+      await ref
+          .read(provisioningNotifierProvider.notifier)
+          .pollEnrollmentStatus();
+    } finally {
+      if (mounted) {
+        setState(() => _isPollingEnrollment = false);
+      }
     }
-    if (isAssociating) {
-      return 'Checking internet connection and registering with your building…';
-    }
-    return 'Reconnect your phone to home WiFi. Registration will continue '
-        'automatically when internet is available.';
   }
 
-  Future<void> _enroll(BuildContext context, WidgetRef ref) async {
+  Future<void> _enroll() async {
     final ok = await ref.read(provisioningNotifierProvider.notifier).enrollDevice();
-    if (ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enrollment will be enabled in a future update.'),
-        ),
-      );
+    if (ok && mounted) {
+      _startEnrollmentPolling();
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(provisioningNotifierProvider, (previous, next) {
+      if (next.enrollStarted &&
+          !next.enrollComplete &&
+          !(previous?.enrollStarted ?? false)) {
+        _startEnrollmentPolling();
+      }
+      if (next.enrollComplete) {
+        _enrollmentTimer?.cancel();
+      }
+    });
+
     final state = ref.watch(provisioningNotifierProvider);
     final serial = state.deviceSerial ?? '—';
     final canEnroll = state.canEnroll;
     final waitingForInternet = state.wifiConfigured && !state.tenantAssociated;
+    final isEnrolling = state.isEnrolling;
 
     return ListView(
       padding: const EdgeInsets.all(24),
@@ -100,8 +133,7 @@ class _EnrollmentStepState extends ConsumerState<EnrollmentStep> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Enroll is enabled after device WiFi is configured and the meter is '
-          'registered with your building.',
+          'Enroll starts LAN device enrollment and creates the unit in your building.',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -149,40 +181,26 @@ class _EnrollmentStepState extends ConsumerState<EnrollmentStep> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      state.wifiConfigured ? Icons.check_circle : Icons.circle_outlined,
-                      color: state.wifiConfigured
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
-                    ),
-                    const SizedBox(width: 8),
-                    const Text('Device WiFi configured'),
-                  ],
+                _ChecklistRow(
+                  done: state.wifiConfigured,
+                  label: 'Device WiFi configured',
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(
-                      state.tenantAssociated
-                          ? Icons.check_circle
-                          : Icons.circle_outlined,
-                      color: state.tenantAssociated
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
-                    ),
-                    const SizedBox(width: 8),
-                    const Text('Registered with building'),
-                  ],
+                _ChecklistRow(
+                  done: state.tenantAssociated,
+                  label: 'Registered with building',
+                  loading: _isAssociating && !state.tenantAssociated,
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  _statusMessage(
-                    wifiConfigured: state.wifiConfigured,
-                    tenantAssociated: state.tenantAssociated,
-                    isAssociating: _isAssociating,
-                  ),
+                const SizedBox(height: 8),
+                _ChecklistRow(
+                  done: state.metadataComplete,
+                  label: 'Unit details complete',
+                ),
+                const SizedBox(height: 8),
+                _ChecklistRow(
+                  done: state.enrollComplete,
+                  label: 'Device enrollment',
+                  loading: isEnrolling,
                 ),
               ],
             ),
@@ -203,18 +221,64 @@ class _EnrollmentStepState extends ConsumerState<EnrollmentStep> {
           ),
         ],
         const SizedBox(height: 24),
-        FilledButton(
-          onPressed: state.isLoading || !canEnroll
-              ? null
-              : () => _enroll(context, ref),
-          child: state.isLoading
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Enroll'),
-        ),
+        if (isEnrolling)
+          const Center(
+            child: Column(
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 12),
+                Text('Enrolling device…'),
+              ],
+            ),
+          )
+        else
+          FilledButton(
+            onPressed: state.isLoading || !canEnroll ? null : _enroll,
+            child: state.isLoading
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Enroll'),
+          ),
+      ],
+    );
+  }
+}
+
+class _ChecklistRow extends StatelessWidget {
+  const _ChecklistRow({
+    required this.done,
+    required this.label,
+    this.loading = false,
+  });
+
+  final bool done;
+  final String label;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        if (loading)
+          SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: scheme.primary,
+            ),
+          )
+        else
+          Icon(
+            done ? Icons.check_circle : Icons.circle_outlined,
+            color: done ? scheme.primary : null,
+          ),
+        const SizedBox(width: 8),
+        Text(label),
       ],
     );
   }
