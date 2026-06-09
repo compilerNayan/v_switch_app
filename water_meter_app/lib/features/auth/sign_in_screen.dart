@@ -192,7 +192,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
     ref.read(pendingRegistrationProvider.notifier).state = null;
     ref.invalidate(userProfileProvider);
 
-    if (mounted) context.go('/');
+    if (mounted) context.go('/onboarding/building-setup');
   }
 
   @override

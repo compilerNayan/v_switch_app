@@ -10,6 +10,7 @@ import '../../core/providers/tenant_providers.dart';
 import '../../core/models/tariff_config.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/building_providers.dart';
+import '../auth/building_structure_fields.dart';
 import '../../core/providers/control_providers.dart';
 import '../../core/utils/units.dart';
 import 'theme_picker.dart';
@@ -421,16 +422,7 @@ class _BuildingStructureCard extends ConsumerWidget {
     WidgetRef ref,
     TenantConfig config,
   ) async {
-    final blocks = config.structure.blocks
-        .map(
-          (b) => _BlockEditorDraft(
-            id: b.id,
-            label: b.label,
-            wings: b.wings.join(', '),
-          ),
-        )
-        .toList();
-    if (blocks.isEmpty) blocks.add(_BlockEditorDraft());
+    final draft = BuildingStructureDraft.fromStructure(config.structure);
 
     final saved = await showDialog<bool>(
       context: context,
@@ -440,38 +432,9 @@ class _BuildingStructureCard extends ConsumerWidget {
           content: SizedBox(
             width: double.maxFinite,
             child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (var i = 0; i < blocks.length; i++) ...[
-                    TextField(
-                      decoration: const InputDecoration(labelText: 'Block ID'),
-                      controller: blocks[i].idController,
-                    ),
-                    TextField(
-                      decoration: const InputDecoration(labelText: 'Label'),
-                      controller: blocks[i].labelController,
-                    ),
-                    TextField(
-                      decoration: const InputDecoration(
-                        labelText: 'Wings (comma-separated)',
-                      ),
-                      controller: blocks[i].wingsController,
-                    ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => setState(() => blocks.removeAt(i)),
-                        child: const Text('Remove'),
-                      ),
-                    ),
-                    const Divider(),
-                  ],
-                  TextButton(
-                    onPressed: () => setState(() => blocks.add(_BlockEditorDraft())),
-                    child: const Text('Add block'),
-                  ),
-                ],
+              child: BuildingStructureFields(
+                draft: draft,
+                onChanged: () => setState(() {}),
               ),
             ),
           ),
@@ -490,34 +453,23 @@ class _BuildingStructureCard extends ConsumerWidget {
     );
 
     if (saved != true) {
-      for (final b in blocks) {
-        b.dispose();
+      draft.dispose();
+      return;
+    }
+
+    final validationError = draft.validate();
+    if (validationError != null) {
+      draft.dispose();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(validationError)),
+        );
       }
       return;
     }
 
-    final structure = TenantStructure(
-      blocks: blocks
-          .map((b) {
-            final id = b.idController.text.trim();
-            final label = b.labelController.text.trim();
-            final wings = b.wingsController.text
-                .split(',')
-                .map((w) => w.trim())
-                .where((w) => w.isNotEmpty)
-                .toList();
-            return TenantBlock(
-              id: id,
-              label: label.isEmpty ? id : label,
-              wings: wings,
-            );
-          })
-          .where((b) => b.id.isNotEmpty)
-          .toList(),
-    );
-    for (final b in blocks) {
-      b.dispose();
-    }
+    final structure = draft.toStructure();
+    draft.dispose();
 
     final client = ref.read(tenantApiClientProvider);
     await client.updateStructure(
@@ -530,23 +482,6 @@ class _BuildingStructureCard extends ConsumerWidget {
         const SnackBar(content: Text('Structure updated')),
       );
     }
-  }
-}
-
-class _BlockEditorDraft {
-  _BlockEditorDraft({String id = '', String label = '', String wings = ''})
-      : idController = TextEditingController(text: id),
-        labelController = TextEditingController(text: label),
-        wingsController = TextEditingController(text: wings);
-
-  final TextEditingController idController;
-  final TextEditingController labelController;
-  final TextEditingController wingsController;
-
-  void dispose() {
-    idController.dispose();
-    labelController.dispose();
-    wingsController.dispose();
   }
 }
 

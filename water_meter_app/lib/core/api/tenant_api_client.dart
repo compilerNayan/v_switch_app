@@ -147,6 +147,31 @@ class TenantApiClient {
     return TenantConfig.fromJson(data);
   }
 
+  Future<TenantConfig> createBuilding({
+    required String tenantId,
+    required String name,
+    required TenantStructure structure,
+  }) async {
+    if (AppConfig.useMockAuth && _authService is MockAuthService) {
+      final prefs = await _prefsProvider();
+      return (_authService as MockAuthService).createBuilding(
+        tenantId: tenantId,
+        name: name,
+        structure: structure,
+        prefs: prefs,
+      );
+    }
+    final data = await _post<Map<String, dynamic>>(
+      '/tenants/$tenantId/building',
+      {
+        'name': name,
+        'structure': structure.toJson(),
+      },
+    );
+    await _authService.refreshProfile();
+    return TenantConfig.fromJson(data);
+  }
+
   Future<TenantConfig> updateStructure({
     required String tenantId,
     required TenantStructure structure,
@@ -166,13 +191,9 @@ class TenantApiClient {
     }
     final data = await _put<Map<String, dynamic>>(
       '/tenants/$tenantId/structure',
-      structure.toJson(),
+      {'structure': structure.toJson()},
     );
-    return TenantConfig.fromJson({
-      'tenantId': tenantId,
-      'name': data['name'] ?? '',
-      'structure': data,
-    });
+    return TenantConfig.fromJson(data);
   }
 
   Future<String> createAdminInvite(String tenantId) async {

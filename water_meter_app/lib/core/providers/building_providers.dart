@@ -60,13 +60,26 @@ final distinctBlocksProvider = Provider<List<String>>((ref) {
   return distinctBlocksFromUnits(units);
 });
 
+final floorsForWingProvider =
+    Provider.family<List<String>, ({String blockId, String wingName})>(
+        (ref, args) {
+  final tenantConfig = ref.watch(tenantConfigProvider).valueOrNull;
+  if (tenantConfig == null) return const [];
+  final count = tenantConfig.structure.floorCountForWing(
+    args.blockId,
+    args.wingName,
+  );
+  if (count <= 0) return const [];
+  return List.generate(count, (index) => '${index + 1}');
+});
+
 final distinctWingsProvider = Provider<List<String>>((ref) {
   final tenantConfig = ref.watch(tenantConfigProvider).valueOrNull;
   final selectedBlocks = ref.watch(selectedBlocksProvider);
   if (tenantConfig != null && tenantConfig.hasWings) {
     if (selectedBlocks.isEmpty) {
       return tenantConfig.structure.blocks
-          .expand((b) => b.wings)
+          .expand((b) => b.wingNames)
           .toSet()
           .toList()
         ..sort();

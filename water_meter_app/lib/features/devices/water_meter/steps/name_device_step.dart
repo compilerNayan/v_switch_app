@@ -19,8 +19,10 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
   final _nameController = TextEditingController();
   final _blockController = TextEditingController();
   final _wingController = TextEditingController();
+  final _floorController = TextEditingController();
   String? _selectedBlock;
   String? _selectedWing;
+  String? _selectedFloor;
 
   @override
   void initState() {
@@ -39,6 +41,10 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
         _wingController.text = state.wing!;
         _selectedWing = state.wing;
       }
+      if (state.floor != null) {
+        _floorController.text = state.floor!;
+        _selectedFloor = state.floor;
+      }
     });
   }
 
@@ -47,6 +53,7 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
     _nameController.dispose();
     _blockController.dispose();
     _wingController.dispose();
+    _floorController.dispose();
     super.dispose();
   }
 
@@ -58,6 +65,10 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
     final wing = _selectedWing ?? _wingController.text.trim();
     notifier.setBlock(block);
     notifier.setWing(wing);
+    final floor = _selectedFloor ?? _floorController.text.trim();
+    if (floor.isNotEmpty) {
+      notifier.setFloor(floor);
+    }
     if (AppConfig.useMockProvisioning) {
       await notifier.mockEnrollAndRegister();
     } else {
@@ -75,6 +86,13 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
     final wingOptions = tenantConfig != null && tenantConfig.hasWings
         ? tenantConfig.structure.wingsForBlock(_selectedBlock ?? '')
         : ref.watch(distinctWingsProvider);
+    final blockId = _selectedBlock ?? _blockController.text.trim();
+    final wingName = _selectedWing ?? _wingController.text.trim();
+    final floorOptions = blockId.isNotEmpty && wingName.isNotEmpty
+        ? ref.watch(
+            floorsForWingProvider((blockId: blockId, wingName: wingName)),
+          )
+        : const <String>[];
 
     return ListView(
       padding: const EdgeInsets.all(24),
@@ -97,6 +115,26 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
               ),
               const SizedBox(height: 16),
               Text('Device serial: $serial'),
+              if (!isMock &&
+                  state.wifiConfigured &&
+                  !state.tenantAssociated) ...[
+                const SizedBox(height: 16),
+                Card(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .secondaryContainer
+                      .withValues(alpha: 0.5),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'Reconnect your phone to home WiFi if you have not already. '
+                      'Building registration completes on the next step once '
+                      'internet is available.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               TextFormField(
                 controller: _nameController,
@@ -130,6 +168,7 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
                   onChanged: (v) => setState(() {
                     _selectedBlock = v;
                     _selectedWing = null;
+                    _selectedFloor = null;
                   }),
                   validator: (v) => v == null || v.isEmpty ? 'Required' : null,
                 )
@@ -161,7 +200,10 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
                   items: wingOptions
                       .map((w) => DropdownMenuItem(value: w, child: Text(w)))
                       .toList(),
-                  onChanged: (v) => setState(() => _selectedWing = v),
+                  onChanged: (v) => setState(() {
+                    _selectedWing = v;
+                    _selectedFloor = null;
+                  }),
                   validator: (v) => v == null || v.isEmpty ? 'Required' : null,
                 )
               else
@@ -178,6 +220,29 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
                   textCapitalization: TextCapitalization.words,
                   validator: (value) =>
                       value == null || value.trim().isEmpty ? 'Required' : null,
+                ),
+              const SizedBox(height: 16),
+              if (floorOptions.isNotEmpty)
+                DropdownButtonFormField<String>(
+                  value: _selectedFloor,
+                  decoration: const InputDecoration(
+                    labelText: 'Floor (optional)',
+                    prefixIcon: Icon(Icons.layers_outlined),
+                  ),
+                  items: floorOptions
+                      .map((f) => DropdownMenuItem(value: f, child: Text(f)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedFloor = v),
+                )
+              else
+                TextFormField(
+                  controller: _floorController,
+                  decoration: const InputDecoration(
+                    labelText: 'Floor (optional)',
+                    hintText: 'e.g. 5',
+                    prefixIcon: Icon(Icons.layers_outlined),
+                  ),
+                  keyboardType: TextInputType.number,
                 ),
               if (state.errorMessage != null) ...[
                 const SizedBox(height: 12),

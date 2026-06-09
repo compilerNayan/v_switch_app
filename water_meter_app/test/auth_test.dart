@@ -74,7 +74,7 @@ void main() {
         prefs: prefs,
       );
 
-      expect(profile.onboardingComplete, isTrue);
+      expect(profile.onboardingComplete, isFalse);
       expect(profile.isTenantOwner, isTrue);
       expect(profile.tenantId, isNotNull);
       expect(prefs.getTenantConfig()?.name, 'Sunrise Apartments');
@@ -97,7 +97,13 @@ void main() {
       final profile = await auth.createTenant(
         name: 'Demo Building',
         structure: const TenantStructure(
-          blocks: [TenantBlock(id: 'A', label: 'Tower A', wings: ['East'])],
+          blocks: [
+            TenantBlock(
+              id: 'A',
+              label: 'Tower A',
+              wings: [TenantWing(name: 'East', floorCount: 5)],
+            ),
+          ],
         ),
         prefs: prefs,
       );

@@ -65,7 +65,7 @@ class _ConfirmSignUpScreenState extends ConsumerState<ConfirmSignUpScreen> {
       ref.read(pendingRegistrationProvider.notifier).state = null;
       ref.invalidate(userProfileProvider);
 
-      if (mounted) context.go('/');
+      if (mounted) context.go('/onboarding/building-setup');
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {

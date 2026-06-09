@@ -18,8 +18,17 @@ class OnboardingRouter {
     const authRoutes = {'/auth', '/auth/confirm'};
     const tenantOnboardingRoutes = {
       '/onboarding/tenant-setup',
+      '/onboarding/building-setup',
       '/onboarding/admin-invite',
     };
+
+    if (profile.tenantId != null &&
+        profile.isTenantOwner &&
+        !profile.onboardingComplete) {
+      return location == '/onboarding/building-setup'
+          ? null
+          : '/onboarding/building-setup';
+    }
 
     if (profile.onboardingComplete && profile.tenantId != null) {
       if (authRoutes.contains(location) ||

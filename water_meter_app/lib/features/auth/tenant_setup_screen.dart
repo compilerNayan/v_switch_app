@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_exceptions.dart';
-import '../../core/models/tenant_config.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/tenant_providers.dart';
+import 'building_structure_fields.dart';
 
 class TenantSetupScreen extends ConsumerStatefulWidget {
   const TenantSetupScreen({super.key});
@@ -17,63 +17,48 @@ class TenantSetupScreen extends ConsumerStatefulWidget {
 class _TenantSetupScreenState extends ConsumerState<TenantSetupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  bool _configureStructure = false;
+  final _structureDraft = BuildingStructureDraft();
   bool _isLoading = false;
   String? _error;
-  final List<_BlockDraft> _blocks = [];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final profile = ref.read(userProfileProvider).valueOrNull;
+      if (profile != null && _nameController.text.isEmpty) {
+        ref.read(tenantApiClientProvider).getTenant(profile.tenantId!).then(
+          (config) {
+            if (!mounted) return;
+            setState(() => _nameController.text = config.name);
+          },
+          onError: (_) {},
+        );
+      }
+    });
+  }
 
   @override
   void dispose() {
     _nameController.dispose();
-    for (final block in _blocks) {
-      block.dispose();
-    }
+    _structureDraft.dispose();
     super.dispose();
-  }
-
-  void _addBlock() {
-    setState(() => _blocks.add(_BlockDraft()));
-  }
-
-  void _removeBlock(int index) {
-    setState(() {
-      _blocks[index].dispose();
-      _blocks.removeAt(index);
-    });
-  }
-
-  TenantStructure _buildStructure() {
-    if (!_configureStructure || _blocks.isEmpty) {
-      return const TenantStructure();
-    }
-    return TenantStructure(
-      blocks: _blocks
-          .map((b) {
-            final id = b.idController.text.trim();
-            final label = b.labelController.text.trim().isEmpty
-                ? id
-                : b.labelController.text.trim();
-            final wings = b.wingsController.text
-                .split(',')
-                .map((w) => w.trim())
-                .where((w) => w.isNotEmpty)
-                .toList();
-            return TenantBlock(id: id, label: label, wings: wings);
-          })
-          .where((b) => b.id.isNotEmpty)
-          .toList(),
-    );
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_configureStructure) {
-      for (final block in _blocks) {
-        if (block.idController.text.trim().isEmpty) {
-          setState(() => _error = 'Each block needs an ID');
-          return;
-        }
-      }
+
+    final structureError = _structureDraft.validate();
+    if (structureError != null) {
+      setState(() => _error = structureError);
+      return;
+    }
+
+    final profile = ref.read(userProfileProvider).valueOrNull;
+    final tenantId = profile?.tenantId;
+    if (tenantId == null) {
+      setState(() => _error = 'No tenant found. Sign in again.');
+      return;
     }
 
     setState(() {
@@ -83,9 +68,10 @@ class _TenantSetupScreenState extends ConsumerState<TenantSetupScreen> {
 
     try {
       final client = ref.read(tenantApiClientProvider);
-      await client.createTenant(
+      await client.createBuilding(
+        tenantId: tenantId,
         name: _nameController.text.trim(),
-        structure: _buildStructure(),
+        structure: _structureDraft.toStructure(),
       );
       ref.invalidate(userProfileProvider);
       ref.invalidate(tenantConfigProvider);
@@ -108,13 +94,13 @@ class _TenantSetupScreenState extends ConsumerState<TenantSetupScreen> {
           padding: const EdgeInsets.all(24),
           children: [
             Text(
-              'Create your building',
+              'Configure your building',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 8),
             Text(
-              'You are the first admin. Name the building and optionally '
-              'define blocks and wings for filters and enrollment.',
+              'Name your building and optionally define blocks, wings, and '
+              'floors. This helps when adding water meters later.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -143,84 +129,11 @@ class _TenantSetupScreenState extends ConsumerState<TenantSetupScreen> {
                     validator: (v) =>
                         v == null || v.trim().isEmpty ? 'Required' : null,
                   ),
-                  const SizedBox(height: 16),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Configure blocks & wings'),
-                    subtitle: const Text(
-                      'Optional — drives location filters and meter enrollment',
-                    ),
-                    value: _configureStructure,
-                    onChanged: (v) {
-                      setState(() {
-                        _configureStructure = v;
-                        if (v && _blocks.isEmpty) _addBlock();
-                      });
-                    },
+                  const SizedBox(height: 24),
+                  BuildingStructureFields(
+                    draft: _structureDraft,
+                    onChanged: () => setState(() {}),
                   ),
-                  if (_configureStructure) ...[
-                    const SizedBox(height: 8),
-                    ...List.generate(_blocks.length, (index) {
-                      final block = _blocks[index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    'Block ${index + 1}',
-                                    style:
-                                        Theme.of(context).textTheme.titleSmall,
-                                  ),
-                                  const Spacer(),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete_outline),
-                                    onPressed: () => _removeBlock(index),
-                                  ),
-                                ],
-                              ),
-                              TextFormField(
-                                controller: block.idController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Block ID',
-                                  hintText: 'e.g. A',
-                                ),
-                                validator: (v) => v == null || v.trim().isEmpty
-                                    ? 'Required'
-                                    : null,
-                              ),
-                              const SizedBox(height: 8),
-                              TextFormField(
-                                controller: block.labelController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Display label (optional)',
-                                  hintText: 'e.g. Tower A',
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              TextFormField(
-                                controller: block.wingsController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Wings (comma-separated)',
-                                  hintText: 'e.g. East, West',
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-                    OutlinedButton.icon(
-                      onPressed: _addBlock,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add block'),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
                   const SizedBox(height: 24),
                   FilledButton(
                     onPressed: _isLoading ? null : _submit,
@@ -230,7 +143,7 @@ class _TenantSetupScreenState extends ConsumerState<TenantSetupScreen> {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Create building'),
+                        : const Text('Save building'),
                   ),
                 ],
               ),
@@ -239,22 +152,5 @@ class _TenantSetupScreenState extends ConsumerState<TenantSetupScreen> {
         ),
       ),
     );
-  }
-}
-
-class _BlockDraft {
-  _BlockDraft()
-      : idController = TextEditingController(),
-        labelController = TextEditingController(),
-        wingsController = TextEditingController();
-
-  final TextEditingController idController;
-  final TextEditingController labelController;
-  final TextEditingController wingsController;
-
-  void dispose() {
-    idController.dispose();
-    labelController.dispose();
-    wingsController.dispose();
   }
 }

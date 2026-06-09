@@ -82,6 +82,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const TenantSetupScreen(),
       ),
       GoRoute(
+        path: '/onboarding/building-setup',
+        builder: (context, state) => const TenantSetupScreen(),
+      ),
+      GoRoute(
         path: '/onboarding/admin-invite',
         builder: (context, state) => const AdminInviteScreen(),
       ),

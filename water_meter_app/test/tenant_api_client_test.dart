@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:water_meter_app/core/api/tenant_api_client.dart';
 import 'package:water_meter_app/core/auth/mock_auth_service.dart';
+import 'package:water_meter_app/core/models/tenant_config.dart';
 import 'package:water_meter_app/core/storage/preferences_storage.dart';
 
 void main() {
@@ -55,10 +56,27 @@ void main() {
 
       expect(profile.tenantId, isNotNull);
       expect(profile.isTenantOwner, isTrue);
-      expect(profile.onboardingComplete, isTrue);
+      expect(profile.onboardingComplete, isFalse);
+
+      final building = await client.createBuilding(
+        tenantId: profile.tenantId!,
+        name: 'Sunrise Apartments',
+        structure: const TenantStructure(
+          blocks: [
+            TenantBlock(
+              id: 'A',
+              label: 'Tower A',
+              wings: [TenantWing(name: 'East', floorCount: 8)],
+            ),
+          ],
+        ),
+      );
+      expect(building.name, 'Sunrise Apartments');
+      expect(building.structure.blocks.first.wings.first.floorCount, 8);
 
       final me = await client.getMe();
       expect(me.tenantId, profile.tenantId);
+      expect(me.onboardingComplete, isTrue);
     });
 
     test('preEnrollDevice succeeds in mock API mode', () async {

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/api_exceptions.dart';
 import '../models/water_unit.dart';
 import '../provisioning/enrollment_client.dart';
+import '../provisioning/internet_reachability_service.dart';
 import '../provisioning/mock_enrollment_client.dart';
 import '../provisioning/provisioning_state.dart';
 import '../provisioning/wifi_credentials_client.dart';
@@ -14,6 +15,11 @@ import 'unit_providers.dart';
 
 final wifiSsidServiceProvider = Provider<WifiSsidService>((ref) {
   return WifiSsidService();
+});
+
+final internetReachabilityServiceProvider =
+    Provider<InternetReachabilityService>((ref) {
+  return InternetReachabilityService();
 });
 
 final wifiCredentialsClientProvider = Provider<WifiCredentialsClient>((ref) {
@@ -61,6 +67,10 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
 
   void setWing(String wing) {
     state = state.copyWith(wing: wing.trim(), clearError: true);
+  }
+
+  void setFloor(String floor) {
+    state = state.copyWith(floor: floor.trim(), clearError: true);
   }
 
   void assignMockSerial() {
@@ -139,61 +149,21 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
         return false;
       }
 
-      final profile = await ref.read(userProfileProvider.future);
-      final tenantId = profile?.tenantId;
-      if (tenantId == null || tenantId.isEmpty) {
-        setError('No tenant found. Sign in and complete registration first.');
-        return false;
-      }
-
       final wifiClient = ref.read(wifiCredentialsClientProvider);
-      final tenantApi = ref.read(tenantApiClientProvider);
+      final wifiResult = await wifiClient.configureWifi(
+        homeWifiSsid: homeSsid,
+        homeWifiPassword: homePassword,
+        deviceSerialNumber: serial,
+      );
 
-      WifiConfigureResult? wifiResult;
-      Object? preEnrollError;
-
-      await Future.wait([
-        wifiClient
-            .configureWifi(
-              homeWifiSsid: homeSsid,
-              homeWifiPassword: homePassword,
-              deviceSerialNumber: serial,
-            )
-            .then((result) => wifiResult = result),
-        tenantApi
-            .preEnrollDevice(tenantId: tenantId, serialNumber: serial)
-            .catchError((Object error) => preEnrollError = error),
-      ]);
-
-      final wifiOk = wifiResult is WifiConfigureSuccess;
-      final tenantOk = preEnrollError == null;
-
-      if (!wifiOk && !tenantOk) {
-        setError(_wifiErrorMessage(wifiResult) +
-            ' Also failed to register device with your building.');
-        return false;
-      }
-      if (!wifiOk) {
+      if (wifiResult is! WifiConfigureSuccess) {
         setError(_wifiErrorMessage(wifiResult));
-        state = state.copyWith(
-          tenantAssociated: tenantOk,
-          isLoading: false,
-        );
-        return false;
-      }
-      if (!tenantOk) {
-        setError(_preEnrollErrorMessage(preEnrollError));
-        state = state.copyWith(
-          wifiConfigured: true,
-          isLoading: false,
-        );
         return false;
       }
 
       state = state.copyWith(
         step: WaterMeterSetupStep.nameDevice,
         wifiConfigured: true,
-        tenantAssociated: true,
         isLoading: false,
         clearError: true,
       );
@@ -223,6 +193,48 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
     return error?.toString() ?? 'Failed to register device with your building.';
   }
 
+  /// Registers the device serial with the tenant once regular WiFi + internet are available.
+  ///
+  /// Returns `false` without setting an error when the phone is still offline or on the
+  /// IoT hotspot — callers may retry after the user reconnects to home WiFi.
+  Future<bool> associateDeviceWithTenant() async {
+    if (state.tenantAssociated) {
+      return true;
+    }
+
+    final serial = state.deviceSerial;
+    if (serial == null || serial.isEmpty) {
+      setError('Device serial not detected.');
+      return false;
+    }
+    if (!state.wifiConfigured) {
+      setError('Configure device WiFi first.');
+      return false;
+    }
+
+    final reachability = ref.read(internetReachabilityServiceProvider);
+    if (!await reachability.canReachCloud()) {
+      return false;
+    }
+
+    final profile = await ref.read(userProfileProvider.future);
+    final tenantId = profile?.tenantId;
+    if (tenantId == null || tenantId.isEmpty) {
+      setError('No tenant found. Sign in and complete registration first.');
+      return false;
+    }
+
+    try {
+      final tenantApi = ref.read(tenantApiClientProvider);
+      await tenantApi.preEnrollDevice(tenantId: tenantId, serialNumber: serial);
+      state = state.copyWith(tenantAssociated: true, clearError: true);
+      return true;
+    } catch (error) {
+      setError(_preEnrollErrorMessage(error));
+      return false;
+    }
+  }
+
   /// Dummy enroll — prerequisites must be met; no device or cloud enroll yet.
   Future<bool> enrollDevice() async {
     if (!state.canEnroll) {
@@ -237,6 +249,7 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
     required String displayName,
     String? block,
     String? wing,
+    String? floor,
   }) async {
     final prefs = await ref.read(preferencesStorageProvider.future);
     final unit = WaterUnit(
@@ -246,6 +259,7 @@ class ProvisioningNotifier extends StateNotifier<ProvisioningState> {
       flatNumber: displayName.trim(),
       block: block?.trim() ?? state.block?.trim() ?? '',
       wing: wing?.trim() ?? state.wing?.trim() ?? '',
+      floor: floor?.trim() ?? state.floor?.trim() ?? '',
     );
     final saved = await prefs.addWaterUnit(unit);
     ref.invalidate(waterUnitsProvider);

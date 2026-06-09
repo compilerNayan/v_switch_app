@@ -15,6 +15,28 @@ void main() {
       expect(OnboardingRouter.redirectForProfile(null, '/auth/confirm'), isNull);
     });
 
+    test('redirects owner with pending building setup', () {
+      const profile = UserProfile(
+        userId: 'u1',
+        email: 'a@b.com',
+        displayName: 'User',
+        tenantId: 'tenant-1',
+        onboardingComplete: false,
+        isTenantOwner: true,
+      );
+      expect(
+        OnboardingRouter.redirectForProfile(profile, '/'),
+        '/onboarding/building-setup',
+      );
+      expect(
+        OnboardingRouter.redirectForProfile(
+          profile,
+          '/onboarding/building-setup',
+        ),
+        isNull,
+      );
+    });
+
     test('redirects onboarded owner away from auth routes', () {
       const profile = UserProfile(
         userId: 'u1',

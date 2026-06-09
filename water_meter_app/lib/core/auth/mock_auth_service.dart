@@ -169,12 +169,31 @@ class MockAuthService implements AuthService {
       lastName: lastName,
       displayName: '$firstName $lastName'.trim(),
       tenantId: tenantId,
-      onboardingComplete: true,
+      onboardingComplete: false,
       isTenantOwner: true,
     );
     _cached = user;
     await _storage.saveProfile(user);
     return user;
+  }
+
+  Future<TenantConfig> createBuilding({
+    required String tenantId,
+    required String name,
+    required TenantStructure structure,
+    required PreferencesStorage prefs,
+  }) async {
+    final existing = prefs.getTenantConfig();
+    if (existing == null || existing.tenantId != tenantId) {
+      throw TenantSetupException('Tenant not found');
+    }
+    final updated = existing.copyWith(name: name, structure: structure);
+    await prefs.setTenantConfig(updated);
+    var user = (await getCurrentUser())!;
+    user = user.copyWith(onboardingComplete: true);
+    _cached = user;
+    await _storage.saveProfile(user);
+    return updated;
   }
 
   Future<UserProfile> createTenant({

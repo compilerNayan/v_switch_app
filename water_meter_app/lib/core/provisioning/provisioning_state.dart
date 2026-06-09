@@ -14,6 +14,7 @@ class ProvisioningState {
     this.deviceDisplayName,
     this.block,
     this.wing,
+    this.floor,
     this.errorMessage,
     this.isLoading = false,
     this.wifiConfigured = false,
@@ -25,6 +26,7 @@ class ProvisioningState {
   final String? deviceDisplayName;
   final String? block;
   final String? wing;
+  final String? floor;
   final String? errorMessage;
   final bool isLoading;
   final bool wifiConfigured;
@@ -38,6 +40,7 @@ class ProvisioningState {
     String? deviceDisplayName,
     String? block,
     String? wing,
+    String? floor,
     String? errorMessage,
     bool? isLoading,
     bool? wifiConfigured,
@@ -51,6 +54,7 @@ class ProvisioningState {
       deviceDisplayName: deviceDisplayName ?? this.deviceDisplayName,
       block: block ?? this.block,
       wing: wing ?? this.wing,
+      floor: floor ?? this.floor,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       isLoading: isLoading ?? this.isLoading,
       wifiConfigured:

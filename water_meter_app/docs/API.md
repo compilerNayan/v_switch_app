@@ -78,10 +78,12 @@ Called once after Cognito sign-up and first sign-in. Creates the user profile an
   "firstName": "Raj",
   "lastName": "Sharma",
   "tenantId": "tenant_abc123",
-  "onboardingComplete": true,
+  "onboardingComplete": false,
   "isTenantOwner": true
 }
 ```
+
+Owner must call `POST /tenants/{tenantId}/building` before `onboardingComplete` becomes `true`.
 
 ### GET `/users/me`
 
@@ -100,7 +102,7 @@ Called once after Cognito sign-up and first sign-in. Creates the user profile an
 |-------|-------|
 | `tenantId` | null before onboarding completes |
 | `isTenantOwner` | true for the user who created the tenant |
-| `onboardingComplete` | false until tenant setup or admin invite join |
+| `onboardingComplete` | false until building setup (`POST /tenants/{tenantId}/building`) or admin invite join |
 
 **Removed:** `role`, `inviteCode`, `assignedUnitIds`, `maintainableUnitIds`
 
@@ -128,9 +130,9 @@ Returns whether the single tenant has been created. Used by app to route onboard
 { "exists": true, "tenantId": "tenant_xyz" }
 ```
 
-### POST `/tenants`
+### POST `/tenants/{tenantId}/building`
 
-**First authenticated user only.** Returns `409` if tenant already exists.
+**Tenant owner only.** Called after sign-up to save building name and optional layout. Sets `onboardingComplete: true` on the user.
 
 **Request:**
 
@@ -139,29 +141,26 @@ Returns whether the single tenant has been created. Used by app to route onboard
   "name": "Sunrise Apartments",
   "structure": {
     "blocks": [
-      { "id": "A", "label": "Tower A", "wings": ["East", "West"] },
-      { "id": "B", "label": "Tower B", "wings": [] }
+      {
+        "id": "A",
+        "label": "Tower A",
+        "wings": [
+          { "name": "East", "floorCount": 10 },
+          { "name": "West", "floorCount": 8 }
+        ]
+      }
     ]
   }
 }
 ```
 
-- `structure.blocks` may be `[]` (no block/wing dimensions)
-- Each block may have zero or more `wings`
+- `structure.blocks` may be `[]` (building name only)
+- Blocks, wings, and `floorCount` are all optional
+- Legacy `wings: ["East"]` strings are accepted when reading stored data
 
-**Response 201:**
+**Response 201:** Same shape as `GET /tenants/{tenantId}`.
 
-```json
-{
-  "tenantId": "tenant_xyz",
-  "name": "Sunrise Apartments",
-  "structure": { "blocks": [] },
-  "onboardingComplete": true,
-  "isTenantOwner": true
-}
-```
-
-Also updates the caller's profile with `tenantId` and `onboardingComplete: true`.
+**Sign-up flow:** `POST /users` creates tenant with empty structure and `onboardingComplete: false`. Owner must complete this endpoint before accessing the app home.
 
 ### GET `/tenants/{tenantId}`
 
@@ -171,7 +170,14 @@ Also updates the caller's profile with `tenantId` and `onboardingComplete: true`
   "name": "Sunrise Apartments",
   "structure": {
     "blocks": [
-      { "id": "A", "label": "Tower A", "wings": ["East", "West"] }
+      {
+        "id": "A",
+        "label": "Tower A",
+        "wings": [
+          { "name": "East", "floorCount": 10 },
+          { "name": "West", "floorCount": 8 }
+        ]
+      }
     ]
   }
 }
@@ -183,6 +189,7 @@ Also updates the caller's profile with `tenantId` and `onboardingComplete: true`
 |------|------|
 | `hasBlocks` | `structure.blocks.length > 0` |
 | `hasWings` | any block has `wings.length > 0` |
+| `hasFloors` | any wing has `floorCount > 0` |
 
 ### PUT `/tenants/{tenantId}/structure`
 
@@ -598,7 +605,7 @@ Idempotent: re-calling for the same serial refreshes the pending record.
 | POST | `http://192.168.4.1:8080/wifi-credentials` | `{ "ssid", "password" }` |
 | POST | `http://{serial}.local:8080/enrollment/enroll` | empty |
 
-**App flow (current):** WiFi credentials + pre-enroll run in parallel. Enroll button is enabled when both succeed; device enroll click is a placeholder until IoT Core integration.
+**App flow (current):** WiFi credentials are sent while the phone is on the `IoT_<serial>` hotspot. Pre-enroll runs later on the Enroll step, only after the phone reconnects to regular home WiFi and internet is reachable. Enroll button is enabled when both succeed; device enroll click is a placeholder until IoT Core integration.
 
 After real enrollment: `POST /tenants/{tenantId}/units` links device serial.
 
@@ -627,6 +634,7 @@ After real enrollment: `POST /tenants/{tenantId}/units` links device serial.
 | POST | `/tenants` |
 | GET | `/tenants/{tenantId}` |
 | PUT | `/tenants/{tenantId}/structure` |
+| POST | `/tenants/{tenantId}/building` |
 | POST | `/tenants/{tenantId}/devices/pre-enroll` |
 | POST | `/tenants/{tenantId}/admin-invites` |
 | POST | `/tenants/join/admin` |

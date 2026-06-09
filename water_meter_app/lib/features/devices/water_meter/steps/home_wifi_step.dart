@@ -49,8 +49,9 @@ class _HomeWifiStepState extends ConsumerState<HomeWifiStep> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Enter your home WiFi credentials. The device will use them after '
-              'provisioning.',
+              'Enter your home WiFi credentials while connected to the device '
+              'hotspot. After configuration, reconnect your phone to home WiFi '
+              'so the app can register the meter with your building.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),

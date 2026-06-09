@@ -1,3 +1,36 @@
+class TenantWing {
+  const TenantWing({
+    required this.name,
+    this.floorCount = 0,
+  });
+
+  factory TenantWing.fromJson(dynamic json) {
+    if (json is String) {
+      return TenantWing(name: json);
+    }
+    final map = json as Map<String, dynamic>;
+    return TenantWing(
+      name: map['name'] as String? ?? '',
+      floorCount: map['floorCount'] as int? ?? 0,
+    );
+  }
+
+  final String name;
+  final int floorCount;
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        if (floorCount > 0) 'floorCount': floorCount,
+      };
+
+  TenantWing copyWith({String? name, int? floorCount}) {
+    return TenantWing(
+      name: name ?? this.name,
+      floorCount: floorCount ?? this.floorCount,
+    );
+  }
+}
+
 class TenantBlock {
   const TenantBlock({
     required this.id,
@@ -6,30 +39,30 @@ class TenantBlock {
   });
 
   factory TenantBlock.fromJson(Map<String, dynamic> json) {
+    final rawWings = json['wings'] as List<dynamic>? ?? const [];
     return TenantBlock(
       id: json['id'] as String,
       label: json['label'] as String? ?? json['id'] as String,
-      wings: (json['wings'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
-          const [],
+      wings: rawWings.map(TenantWing.fromJson).toList(),
     );
   }
 
   final String id;
   final String label;
-  final List<String> wings;
+  final List<TenantWing> wings;
+
+  List<String> get wingNames => wings.map((w) => w.name).toList();
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'label': label,
-        'wings': wings,
+        'wings': wings.map((w) => w.toJson()).toList(),
       };
 
   TenantBlock copyWith({
     String? id,
     String? label,
-    List<String>? wings,
+    List<TenantWing>? wings,
   }) {
     return TenantBlock(
       id: id ?? this.id,
@@ -56,13 +89,27 @@ class TenantStructure {
 
   bool get hasWings => blocks.any((b) => b.wings.isNotEmpty);
 
+  bool get hasFloors => blocks.any(
+        (b) => b.wings.any((w) => w.floorCount > 0),
+      );
+
   List<String> get blockIds => blocks.map((b) => b.id).toList();
 
   List<String> wingsForBlock(String blockId) {
     for (final block in blocks) {
-      if (block.id == blockId) return block.wings;
+      if (block.id == blockId) return block.wingNames;
     }
     return const [];
+  }
+
+  int floorCountForWing(String blockId, String wingName) {
+    for (final block in blocks) {
+      if (block.id != blockId) continue;
+      for (final wing in block.wings) {
+        if (wing.name == wingName) return wing.floorCount;
+      }
+    }
+    return 0;
   }
 
   bool isValidBlock(String? blockId) {
@@ -105,6 +152,7 @@ class TenantConfig {
 
   bool get hasBlocks => structure.hasBlocks;
   bool get hasWings => structure.hasWings;
+  bool get hasFloors => structure.hasFloors;
 
   Map<String, dynamic> toJson() => {
         'tenantId': tenantId,
