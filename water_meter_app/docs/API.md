@@ -343,6 +343,51 @@ Regenerate per-meter invite code (display/copy in app; no join flow yet).
 
 ---
 
+## 4b. IoT MQTT topic contract (device → backend)
+
+Devices publish telemetry to AWS IoT Core. The backend ingestion Lambda subscribes to these topics (mock scheduler simulates the same payloads in development).
+
+| Topic | Purpose |
+|-------|---------|
+| `vswitch/water/{tenantId}/{deviceId}/telemetry/second` | Optional 1s pulse when water flows |
+| `vswitch/water/{tenantId}/{deviceId}/telemetry/bucket/30m` | 30 × 1-min buckets + cumulative reading |
+| `vswitch/water/{tenantId}/{deviceId}/state/valve` | Valve target/actual percent |
+| `vswitch/water/{tenantId}/{deviceId}/lifecycle/enrolled` | Post-enrollment confirmation |
+
+**1-second pulse** (omit when idle):
+
+```json
+{ "ts": "2026-06-09T10:30:05Z", "ml": 45 }
+```
+
+**30-minute bucket:**
+
+```json
+{
+  "tenantId": "k3m9x2a",
+  "deviceId": "WM000001",
+  "periodStart": "2026-06-09T10:00:00Z",
+  "minutes": [{ "t": "2026-06-09T10:00:00Z", "ml": 120 }],
+  "cumulativeLiters": 15420.5,
+  "valveTargetPercent": 100
+}
+```
+
+**Enrollment complete:**
+
+```json
+{
+  "tenantId": "k3m9x2a",
+  "deviceId": "WM000001",
+  "serialNumber": "WM000001",
+  "enrolledAt": "2026-06-09T10:00:00Z"
+}
+```
+
+**Development:** EventBridge triggers `TelemetryIngestionFunction` every minute. It scans `WaterMeterUnits` and writes synthetic minute buckets to DynamoDB (`WaterMeterMinuteUsage`, `WaterMeterDeviceState`, `WaterMeterDailyUsage`) for every unit created via the app — even before the physical device is online.
+
+---
+
 ## 5. Device water API
 
 All paths tenant-scoped: `/tenants/{tenantId}/devices/{deviceId}/water/...`
@@ -350,6 +395,8 @@ All paths tenant-scoped: `/tenants/{tenantId}/devices/{deviceId}/water/...`
 Server verifies unit belongs to tenant and user is admin.
 
 ### GET `.../current`
+
+Reads live snapshot from `WaterMeterDeviceState` (updated by telemetry ingestion).
 
 ```json
 {
@@ -361,7 +408,7 @@ Server verifies unit belongs to tenant and user is admin.
 }
 ```
 
-`status`: `flowing` | `idle` | `offline` | `leak_suspected`
+`status`: `flowing` | `idle` | `offline` | `leak_suspected` (offline when `lastSeenAt` > 15 min ago)
 
 ### GET `.../usage`
 
@@ -413,6 +460,8 @@ Same shapes as prior API doc (`QuotaResponse`, `QuotaUpdateRequest` with `steps`
 
 ### GET `/tenants/{tenantId}/building/summary`
 
+Aggregates `WaterMeterDailyUsage` + `WaterMeterDeviceState` for all units in the tenant.
+
 ```json
 {
   "totalTodayLiters": 12450.5,
@@ -423,6 +472,8 @@ Same shapes as prior API doc (`QuotaResponse`, `QuotaUpdateRequest` with `steps`
   "activeAlerts": 7
 }
 ```
+
+`activeAlerts`: count of devices with `leak_suspected` status or offline (>15 min since last telemetry).
 
 ### GET `/tenants/{tenantId}/building/rankings`
 
