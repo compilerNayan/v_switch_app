@@ -2,7 +2,7 @@
 
 This document defines the backend API for the Water Monitor app. The deployment model is **one tenant per installation** — users belong to at most one tenant.
 
-**Base URL:** `https://api.example.com/v1` (`API_BASE_URL` dart-define)
+**Base URL:** `https://udil78wxzb.execute-api.ap-south-1.amazonaws.com/Prod` (`API_BASE_URL` dart-define; production default)
 
 **Authentication:** All requests require:
 
