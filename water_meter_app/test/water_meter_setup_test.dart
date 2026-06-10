@@ -93,19 +93,18 @@ void main() {
 
     final fields = find.byType(TextFormField);
     await tester.enterText(fields.at(0), 'D205');
-    await tester.enterText(fields.at(1), 'A');
-    await tester.enterText(fields.at(2), 'East');
-    await tester.enterText(fields.at(4), 'Ravi Kumar');
-    await tester.enterText(fields.at(5), '+919876543210');
+    await tester.enterText(fields.at(2), 'Ravi Kumar');
+    await tester.enterText(fields.at(3), '+919876543210');
     await tester.ensureVisible(addButton);
     await tester.tap(addButton);
     await tester.pumpAndSettle();
 
     expect(find.text('Required'), findsNothing);
+    expect(find.byType(DropdownButtonFormField<String>), findsNothing);
     expect(notifier!.state.step, WaterMeterSetupStep.success);
     expect(notifier!.state.deviceDisplayName, 'D205');
-    expect(notifier!.state.block, 'A');
-    expect(notifier!.state.wing, 'East');
+    expect(notifier!.state.block, isNull);
+    expect(notifier!.state.wing, isNull);
   });
 
   test('provisioning state copyWith clears error when requested', () {

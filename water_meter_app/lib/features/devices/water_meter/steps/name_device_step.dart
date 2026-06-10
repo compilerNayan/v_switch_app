@@ -163,17 +163,27 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
         setState(() => _applyStructureDefaults(tenantConfig));
       });
     }
-    final blockOptions = ref.watch(distinctBlocksProvider);
-    final blockId = tenantConfig != null
-        ? _effectiveBlockId(blockOptions)
-        : _blockController.text.trim();
-    final wingOptions = tenantConfig != null && blockId.isNotEmpty
-        ? tenantConfig.structure.wingsForBlock(blockId)
-        : ref.watch(distinctWingsProvider);
-    final wingName = tenantConfig != null
-        ? _effectiveWingName(tenantConfig, blockId)
-        : _wingController.text.trim();
-    final floorOptions = blockId.isNotEmpty && wingName.isNotEmpty
+    final showBlock =
+        tenantConfig != null && tenantConfig.hasBlocks;
+    final blockOptions =
+        showBlock ? tenantConfig!.structure.blockIds : const <String>[];
+    final blockId = showBlock ? _effectiveBlockId(blockOptions) : '';
+    final showWing = tenantConfig != null && tenantConfig.hasWings;
+    final wingOptions = showWing
+        ? (blockId.isNotEmpty
+            ? tenantConfig!.structure.wingsForBlock(blockId)
+            : tenantConfig!.structure.blocks
+                .expand((b) => b.wingNames)
+                .toSet()
+                .toList()
+              ..sort())
+        : const <String>[];
+    final wingName = showWing ? _effectiveWingName(tenantConfig!, blockId) : '';
+    final showFloorPicker = tenantConfig != null &&
+        tenantConfig.hasFloors &&
+        blockId.isNotEmpty &&
+        wingName.isNotEmpty;
+    final floorOptions = showFloorPicker
         ? ref.watch(
             floorsForWingProvider((blockId: blockId, wingName: wingName)),
           )
@@ -251,8 +261,8 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: Text(
-                      'No block/wing layout saved for this building. Add '
-                      'structure under Settings → Building, or enter details below.',
+                      'No block/wing layout saved for this building. You can '
+                      'add structure later under Settings → Building.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),
@@ -275,10 +285,8 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
-              if (tenantConfig != null &&
-                  tenantConfig.hasBlocks &&
-                  blockOptions.isNotEmpty)
+              if (showBlock) ...[
+                const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: _selectedBlock,
                   decoration: const InputDecoration(
@@ -294,30 +302,10 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
                     _selectedFloor = null;
                   }),
                   validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                )
-              else
-                TextFormField(
-                  controller: _blockController,
-                  decoration: InputDecoration(
-                    labelText: 'Block',
-                    hintText: 'e.g. A, B, Tower 1',
-                    prefixIcon: const Icon(Icons.apartment_outlined),
-                    helperText: blockOptions.isNotEmpty
-                        ? 'Existing: ${blockOptions.take(6).join(', ')}'
-                        : null,
-                  ),
-                  textCapitalization: TextCapitalization.words,
-                  validator: (value) {
-                    if (tenantConfig != null && tenantConfig.hasBlocks) {
-                      return value == null || value.trim().isEmpty
-                          ? 'Required'
-                          : null;
-                    }
-                    return null;
-                  },
                 ),
-              const SizedBox(height: 16),
-              if (tenantConfig != null && wingOptions.isNotEmpty)
+              ],
+              if (showWing) ...[
+                const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: _selectedWing,
                   decoration: const InputDecoration(
@@ -332,30 +320,10 @@ class _NameDeviceStepState extends ConsumerState<NameDeviceStep> {
                     _selectedFloor = null;
                   }),
                   validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                )
-              else
-                TextFormField(
-                  controller: _wingController,
-                  decoration: InputDecoration(
-                    labelText: 'Wing',
-                    hintText: 'e.g. East, North',
-                    prefixIcon: const Icon(Icons.holiday_village_outlined),
-                    helperText: wingOptions.isNotEmpty
-                        ? 'Existing: ${wingOptions.take(6).join(', ')}'
-                        : null,
-                  ),
-                  textCapitalization: TextCapitalization.words,
-                  validator: (value) {
-                    if (tenantConfig != null && tenantConfig.hasWings) {
-                      return value == null || value.trim().isEmpty
-                          ? 'Required'
-                          : null;
-                    }
-                    return null;
-                  },
                 ),
+              ],
               const SizedBox(height: 16),
-              if (floorOptions.isNotEmpty)
+              if (showFloorPicker && floorOptions.isNotEmpty)
                 DropdownButtonFormField<String>(
                   value: _selectedFloor,
                   decoration: const InputDecoration(

@@ -233,92 +233,67 @@ class _EditUnitScreenState extends ConsumerState<EditUnitScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: _floorController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Floor',
-                                  border: OutlineInputBorder(),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: tenantConfig != null &&
-                                      tenantConfig.hasWings &&
-                                      wingOptions.isNotEmpty
-                                  ? DropdownButtonFormField<String>(
-                                      value: _wingController.text.isEmpty
-                                          ? null
-                                          : _wingController.text,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Wing',
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      items: wingOptions
-                                          .map(
-                                            (w) => DropdownMenuItem(
-                                              value: w,
-                                              child: Text(w),
-                                            ),
-                                          )
-                                          .toList(),
-                                      onChanged: (v) => setState(
-                                        () => _wingController.text = v ?? '',
-                                      ),
-                                      validator: (v) =>
-                                          v == null || v.isEmpty ? 'Required' : null,
-                                    )
-                                  : TextFormField(
-                                      controller: _wingController,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Wing',
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      validator: (v) => v == null || v.trim().isEmpty
-                                          ? 'Required'
-                                          : null,
-                                    ),
-                            ),
-                          ],
+                        TextFormField(
+                          controller: _floorController,
+                          decoration: const InputDecoration(
+                            labelText: 'Floor',
+                            border: OutlineInputBorder(),
+                          ),
                         ),
-                        const SizedBox(height: 12),
-                        tenantConfig != null &&
-                                tenantConfig.hasBlocks &&
-                                blockOptions.isNotEmpty
-                            ? DropdownButtonFormField<String>(
-                                value: _blockController.text.isEmpty
-                                    ? null
-                                    : _blockController.text,
-                                decoration: const InputDecoration(
-                                  labelText: 'Block',
-                                  border: OutlineInputBorder(),
-                                ),
-                                items: blockOptions
-                                    .map(
-                                      (b) => DropdownMenuItem(
-                                        value: b,
-                                        child: Text(b),
-                                      ),
-                                    )
-                                    .toList(),
-                                onChanged: (v) => setState(
-                                  () => _blockController.text = v ?? '',
-                                ),
-                                validator: (v) =>
-                                    v == null || v.isEmpty ? 'Required' : null,
-                              )
-                            : TextFormField(
-                                controller: _blockController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Block',
-                                  border: OutlineInputBorder(),
-                                ),
-                                validator: (v) =>
-                                    v == null || v.trim().isEmpty ? 'Required' : null,
-                              ),
+                        if (tenantConfig != null &&
+                            tenantConfig.hasWings &&
+                            wingOptions.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          DropdownButtonFormField<String>(
+                            value: _wingController.text.isEmpty
+                                ? null
+                                : _wingController.text,
+                            decoration: const InputDecoration(
+                              labelText: 'Wing',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: wingOptions
+                                .map(
+                                  (w) => DropdownMenuItem(
+                                    value: w,
+                                    child: Text(w),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (v) => setState(
+                              () => _wingController.text = v ?? '',
+                            ),
+                            validator: (v) =>
+                                v == null || v.isEmpty ? 'Required' : null,
+                          ),
+                        ],
+                        if (tenantConfig != null &&
+                            tenantConfig.hasBlocks &&
+                            blockOptions.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          DropdownButtonFormField<String>(
+                            value: _blockController.text.isEmpty
+                                ? null
+                                : _blockController.text,
+                            decoration: const InputDecoration(
+                              labelText: 'Block',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: blockOptions
+                                .map(
+                                  (b) => DropdownMenuItem(
+                                    value: b,
+                                    child: Text(b),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (v) => setState(
+                              () => _blockController.text = v ?? '',
+                            ),
+                            validator: (v) =>
+                                v == null || v.isEmpty ? 'Required' : null,
+                          ),
+                        ],
                         if (unit.unitInviteCode != null) ...[
                           const SizedBox(height: 12),
                           ListTile(
