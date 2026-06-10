@@ -867,6 +867,8 @@ Single DynamoDB read on tenant row when hash is stored.
 
 ### 3. `GET /v2/tenants/{tenantId}/dashboard`
 
+Query: `timezone` (optional, default `UTC`) — IANA zone id or offset such as `+05:30`. Used to align `todayLiters` with the device usage screen (minute buckets from local midnight). `monthLiters` sums completed daily rows for the month plus live `todayLiters`.
+
 Dynamic telemetry only:
 
 ```json

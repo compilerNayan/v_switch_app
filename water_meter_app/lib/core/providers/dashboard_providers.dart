@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/v2_tenant_api_client.dart';
 import '../config/app_config.dart';
 import '../models/home_dashboard.dart';
+import '../utils/timezone_offset.dart';
 import 'app_providers.dart';
 
 final v2TenantApiClientProvider = Provider<V2TenantApiClient>((ref) {
@@ -25,7 +26,10 @@ final homeSnapshotProvider = FutureProvider<HomeSnapshot?>((ref) async {
   final prefs = await ref.watch(preferencesStorageProvider.future);
 
   try {
-    final dashboardFuture = client.getDashboard(tenantId);
+    final dashboardFuture = client.getDashboard(
+      tenantId,
+      timezone: localTimezoneOffsetParam(),
+    );
     var metadata = prefs.getTenantMetadataV2(tenantId);
     final dashboard = await dashboardFuture;
 

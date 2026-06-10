@@ -191,16 +191,27 @@ class V2TenantApiClient {
     return TenantMetadataResponse.fromJson(data);
   }
 
-  Future<HomeDashboardResponse> getDashboard(String tenantId) async {
+  Future<HomeDashboardResponse> getDashboard(
+    String tenantId, {
+    String? timezone,
+  }) async {
     final data = await _get<Map<String, dynamic>>(
       '/v2/tenants/$tenantId/dashboard',
+      queryParameters:
+          timezone != null && timezone.isNotEmpty ? {'timezone': timezone} : null,
     );
     return HomeDashboardResponse.fromJson(data);
   }
 
-  Future<T> _get<T>(String path) async {
+  Future<T> _get<T>(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
     try {
-      final response = await _dio.get<T>(path);
+      final response = await _dio.get<T>(
+        path,
+        queryParameters: queryParameters,
+      );
       return response.data as T;
     } on DioException catch (e) {
       throw _mapError(e);

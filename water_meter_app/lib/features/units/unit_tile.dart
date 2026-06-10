@@ -469,7 +469,7 @@ class _QuotaUsageRow extends ConsumerWidget {
       return const _ShimmerLine(width: 160);
     }
     if (homeTelemetry != null) {
-      final used = homeTelemetry!.quotaUsedLiters;
+      final used = homeTelemetry!.todayLiters;
       final quotaEnabled = homeTelemetry!.quotaEnabled;
       final dailyLimit = homeTelemetry!.dailyLimitLiters;
       if (quotaEnabled && dailyLimit > 0) {
