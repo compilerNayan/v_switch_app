@@ -24,34 +24,53 @@ final homeSnapshotProvider = FutureProvider<HomeSnapshot?>((ref) async {
   final client = ref.watch(v2TenantApiClientProvider);
   final prefs = await ref.watch(preferencesStorageProvider.future);
 
-  var metadata = prefs.getTenantMetadataV2(tenantId);
-  final dashboard = await client.getDashboard(tenantId);
-
-  if (metadata == null) {
-    metadata = await client.getMetadata(tenantId);
-    await prefs.setTenantMetadataV2(tenantId, metadata);
-  } else if (metadata.metadataHash != dashboard.metadataHash) {
-    unawaited(_refreshMetadataInBackground(ref, tenantId));
-  }
-
-  return HomeSnapshot(metadata: metadata, dashboard: dashboard);
-});
-
-Future<void> _refreshMetadataInBackground(Ref ref, String tenantId) async {
   try {
-    final client = ref.read(v2TenantApiClientProvider);
-    final prefs = await ref.read(preferencesStorageProvider.future);
-    final metadata = await client.getMetadata(tenantId);
-    await prefs.setTenantMetadataV2(tenantId, metadata);
-    ref.invalidate(homeSnapshotProvider);
-  } catch (_) {}
-}
+    final dashboardFuture = client.getDashboard(tenantId);
+    var metadata = prefs.getTenantMetadataV2(tenantId);
+    final dashboard = await dashboardFuture;
+
+    if (metadata == null ||
+        metadata.metadataHash != dashboard.metadataHash) {
+      metadata = await client.getMetadata(tenantId);
+      await prefs.setTenantMetadataV2(tenantId, metadata);
+    }
+
+    return HomeSnapshot(metadata: metadata, dashboard: dashboard);
+  } catch (error) {
+    final cached = prefs.getTenantMetadataV2(tenantId);
+    if (cached != null) {
+      return HomeSnapshot(
+        metadata: cached,
+        dashboard: const HomeDashboardResponse(
+          metadataHash: '',
+          generatedAt: '',
+          devices: [],
+        ),
+      );
+    }
+    throw Exception('Failed to load home dashboard: $error');
+  }
+});
 
 final deviceHomeTelemetryProvider =
     Provider.family<DashboardTelemetryDevice?, String>((ref, deviceId) {
   if (AppConfig.useMockApi) return null;
   final snapshot = ref.watch(homeSnapshotProvider).valueOrNull;
-  return snapshot?.telemetryByDeviceId[deviceId];
+  if (snapshot == null) return null;
+  return snapshot.telemetryByDeviceId[deviceId.trim()];
+});
+
+/// True only on the initial v2 snapshot load (not during background refresh).
+final homeSnapshotLoadingProvider = Provider<bool>((ref) {
+  if (AppConfig.useMockApi) return false;
+  final async = ref.watch(homeSnapshotProvider);
+  return async.isLoading && !async.hasValue;
+});
+
+final homeSnapshotErrorProvider = Provider<Object?>((ref) {
+  if (AppConfig.useMockApi) return null;
+  final async = ref.watch(homeSnapshotProvider);
+  return async.hasError ? async.error : null;
 });
 
 void invalidateHomeData(WidgetRef ref) {

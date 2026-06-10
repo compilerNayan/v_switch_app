@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/config/app_config.dart';
 import '../../core/models/home_dashboard.dart';
 import '../../core/models/water_unit.dart';
 import '../../core/providers/app_providers.dart';
@@ -76,11 +77,16 @@ class _UnitTileState extends ConsumerState<UnitTile> {
     final scheme = Theme.of(context).colorScheme;
     final isAdmin = ref.watch(isDeviceAdminProvider);
     final isPending = widget.unit.isEnrollmentPending;
+    final usesV2Home = !AppConfig.useMockApi;
+    final homeSnapshotLoading = ref.watch(homeSnapshotLoadingProvider);
     final homeTelemetry =
         ref.watch(deviceHomeTelemetryProvider(widget.unit.deviceId));
-    final healthAsync = isPending || homeTelemetry != null
-        ? null
-        : ref.watch(deviceHealthProvider(widget.unit.deviceId));
+    final usePerDeviceApis = !usesV2Home;
+    final showTelemetryLoading =
+        usesV2Home && homeSnapshotLoading && homeTelemetry == null;
+    final healthAsync = !usesV2Home && !isPending && homeTelemetry == null
+        ? ref.watch(deviceHealthProvider(widget.unit.deviceId))
+        : null;
     final hasPhone = hasCallablePhone(widget.unit.phoneNumber);
 
     return Card(
@@ -96,6 +102,14 @@ class _UnitTileState extends ConsumerState<UnitTile> {
                 children: [
                   if (isPending)
                     Icon(Icons.circle, size: 10, color: scheme.outline)
+                  else if (usesV2Home)
+                    Icon(
+                      Icons.circle,
+                      size: 10,
+                      color: homeTelemetry?.isOnline == true
+                          ? Colors.green
+                          : scheme.outline,
+                    )
                   else
                     healthAsync!.when(
                       data: (h) => Icon(
@@ -167,6 +181,8 @@ class _UnitTileState extends ConsumerState<UnitTile> {
                       maintenanceMode: widget.unit.maintenanceMode,
                       toggling: _togglingValve,
                       valveIsOff: homeTelemetry?.valveIsOff,
+                      usePerDeviceApis: usePerDeviceApis,
+                      homeSnapshotLoading: showTelemetryLoading,
                       onChanged: _onValveToggle,
                     ),
                 ],
@@ -203,6 +219,13 @@ class _UnitTileState extends ConsumerState<UnitTile> {
                     ),
                   ),
                 )
+              else if (showTelemetryLoading)
+                Text(
+                  'Loading…',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: scheme.outline,
+                      ),
+                )
               else if (homeTelemetry != null)
                 Text(
                   homeTelemetry.isOnline ? 'Online' : 'Offline',
@@ -210,6 +233,13 @@ class _UnitTileState extends ConsumerState<UnitTile> {
                         color: homeTelemetry.isOnline
                             ? Colors.green.shade700
                             : scheme.outline,
+                      ),
+                )
+              else if (usesV2Home)
+                Text(
+                  'Offline',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: scheme.outline,
                       ),
                 )
               else
@@ -231,14 +261,18 @@ class _UnitTileState extends ConsumerState<UnitTile> {
                 _LiveReadingRow(
                   deviceId: widget.unit.deviceId,
                   homeTelemetry: homeTelemetry,
+                  homeSnapshotLoading: showTelemetryLoading,
+                  usePerDeviceApis: usePerDeviceApis,
                 ),
                 const SizedBox(height: 8),
                 _QuotaUsageRow(
                   deviceId: widget.unit.deviceId,
                   homeTelemetry: homeTelemetry,
+                  homeSnapshotLoading: showTelemetryLoading,
+                  usePerDeviceApis: usePerDeviceApis,
                 ),
               ],
-              const Spacer(),
+              const SizedBox(height: 8),
               Text(
                 'Tap for details →',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -290,6 +324,8 @@ class _ValveSwitch extends ConsumerWidget {
     required this.maintenanceMode,
     required this.toggling,
     this.valveIsOff,
+    this.usePerDeviceApis = true,
+    this.homeSnapshotLoading = false,
     required this.onChanged,
   });
 
@@ -297,14 +333,24 @@ class _ValveSwitch extends ConsumerWidget {
   final bool maintenanceMode;
   final bool toggling;
   final bool? valveIsOff;
+  final bool usePerDeviceApis;
+  final bool homeSnapshotLoading;
   final ValueChanged<bool> onChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isAdmin = ref.watch(isDeviceAdminProvider);
-    if (valveIsOff != null) {
+    if (homeSnapshotLoading) {
+      return const SizedBox(
+        width: 24,
+        height: 24,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+    if (valveIsOff != null || !usePerDeviceApis) {
+      final isOff = valveIsOff ?? true;
       return Switch(
-        value: !valveIsOff!,
+        value: !isOff,
         onChanged: isAdmin && !toggling && !maintenanceMode ? onChanged : null,
       );
     }
@@ -328,14 +374,21 @@ class _LiveReadingRow extends ConsumerWidget {
   const _LiveReadingRow({
     required this.deviceId,
     this.homeTelemetry,
+    this.homeSnapshotLoading = false,
+    this.usePerDeviceApis = true,
   });
 
   final String deviceId;
   final DashboardTelemetryDevice? homeTelemetry;
+  final bool homeSnapshotLoading;
+  final bool usePerDeviceApis;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final unit = ref.watch(volumeUnitProvider);
+    if (homeSnapshotLoading) {
+      return const _ShimmerLine(width: 120);
+    }
     if (homeTelemetry != null) {
       final valveOff = homeTelemetry!.valveIsOff;
       final flowRateLpm = homeTelemetry!.flowRateLpm;
@@ -353,6 +406,20 @@ class _LiveReadingRow extends ConsumerWidget {
           ),
           const SizedBox(width: 6),
           Expanded(child: Text(label)),
+        ],
+      );
+    }
+
+    if (!usePerDeviceApis) {
+      return Row(
+        children: [
+          Icon(
+            Icons.water_drop,
+            size: 18,
+            color: Theme.of(context).colorScheme.outline,
+          ),
+          const SizedBox(width: 6),
+          const Expanded(child: Text('Water off')),
         ],
       );
     }
@@ -386,14 +453,21 @@ class _QuotaUsageRow extends ConsumerWidget {
   const _QuotaUsageRow({
     required this.deviceId,
     this.homeTelemetry,
+    this.homeSnapshotLoading = false,
+    this.usePerDeviceApis = true,
   });
 
   final String deviceId;
   final DashboardTelemetryDevice? homeTelemetry;
+  final bool homeSnapshotLoading;
+  final bool usePerDeviceApis;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final unit = ref.watch(volumeUnitProvider);
+    if (homeSnapshotLoading) {
+      return const _ShimmerLine(width: 160);
+    }
     if (homeTelemetry != null) {
       final used = homeTelemetry!.quotaUsedLiters;
       final quotaEnabled = homeTelemetry!.quotaEnabled;
@@ -418,6 +492,13 @@ class _QuotaUsageRow extends ConsumerWidget {
       }
       return Text(
         '${VolumeFormatter.format(used, unit, decimals: 0)} used today',
+        style: Theme.of(context).textTheme.bodySmall,
+      );
+    }
+
+    if (!usePerDeviceApis) {
+      return Text(
+        '${VolumeFormatter.format(0, unit, decimals: 0)} used today',
         style: Theme.of(context).textTheme.bodySmall,
       );
     }

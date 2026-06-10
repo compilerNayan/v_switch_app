@@ -42,7 +42,7 @@ class AmplifyAuthService implements AuthService {
   Future<String?> getIdToken() async {
     try {
       final session = await Amplify.Auth.fetchAuthSession(
-        options: const FetchAuthSessionOptions(forceRefresh: false),
+        options: const FetchAuthSessionOptions(forceRefresh: true),
       );
       if (!session.isSignedIn) return null;
       final cognitoSession = session as CognitoAuthSession;

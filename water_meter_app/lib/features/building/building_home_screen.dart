@@ -99,6 +99,7 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   slivers: [
                     const SliverToBoxAdapter(child: BuildingSummaryHeader()),
+                    _HomeSnapshotErrorBanner(),
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -123,7 +124,7 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
                           mainAxisSpacing: 12,
                           crossAxisSpacing: 12,
                           childAspectRatio:
-                              MediaQuery.sizeOf(context).width >= 600 ? 1.35 : 2.1,
+                              MediaQuery.sizeOf(context).width >= 600 ? 1.35 : 1.55,
                         ),
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {
@@ -389,6 +390,34 @@ class _FilterSortBar extends ConsumerWidget {
       case UnitFilter.hasAlert:
         return 'Alerts';
     }
+  }
+}
+
+class _HomeSnapshotErrorBanner extends ConsumerWidget {
+  const _HomeSnapshotErrorBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final error = ref.watch(homeSnapshotErrorProvider);
+    if (error == null) return const SliverToBoxAdapter(child: SizedBox.shrink());
+
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        child: Card(
+          color: Theme.of(context).colorScheme.errorContainer,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(
+              'Could not refresh live meter data. Pull down to retry.\n$error',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onErrorContainer,
+                  ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -10,6 +10,7 @@ import '../../core/providers/tenant_providers.dart';
 import '../../core/models/tariff_config.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/building_providers.dart';
+import '../../core/providers/dashboard_providers.dart';
 import '../auth/building_structure_fields.dart';
 import '../../core/providers/control_providers.dart';
 import '../../core/utils/units.dart';
@@ -89,6 +90,26 @@ class SettingsScreen extends ConsumerWidget {
                         : 'API: ${AppConfig.apiBaseUrl}',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
+                  if (!AppConfig.useMockApi)
+                    ref.watch(homeSnapshotProvider).when(
+                          data: (snapshot) => Text(
+                            snapshot == null
+                                ? 'Home data: no tenant'
+                                : 'Home data: ${snapshot.metadata.devices.length} units, '
+                                    '${snapshot.dashboard.devices.length} telemetry',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          loading: () => Text(
+                            'Home data: loading…',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          error: (e, _) => Text(
+                            'Home data error: $e',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                          ),
+                        ),
                 ],
               ),
             ),
