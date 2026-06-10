@@ -20,7 +20,7 @@ class AppConfig {
 
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://api.example.com/v1',
+    defaultValue: 'https://w31qj0une4.execute-api.ap-south-1.amazonaws.com/Prod',
   );
 
   static const String cognitoUserPoolId = String.fromEnvironment(
