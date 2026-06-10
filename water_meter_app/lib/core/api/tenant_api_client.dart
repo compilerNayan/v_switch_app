@@ -57,7 +57,7 @@ class TenantApiClient {
       if (user == null) throw Exception('Not authenticated');
       return user;
     }
-    final data = await _get<Map<String, dynamic>>('/users/me');
+    final data = await _get<Map<String, dynamic>>('/v2/users/me');
     final profile = UserProfile.fromJson(data);
     final token = await _authService.getIdToken();
     return profile.copyWith(idToken: token);
@@ -79,7 +79,7 @@ class TenantApiClient {
         prefs: prefs,
       );
     }
-    final data = await _post<Map<String, dynamic>>('/users', {
+    final data = await _post<Map<String, dynamic>>('/v2/users', {
       'email': email,
       'phone': phone,
       'firstName': firstName,
@@ -132,7 +132,7 @@ class TenantApiClient {
       }
       return config;
     }
-    final data = await _get<Map<String, dynamic>>('/tenants/$tenantId');
+    final data = await _get<Map<String, dynamic>>('/v2/tenants/$tenantId');
     final config = TenantConfig.fromJson(data);
     await _cacheTenantConfig(config);
     return config;
@@ -153,7 +153,7 @@ class TenantApiClient {
       );
     }
     final data = await _post<Map<String, dynamic>>(
-      '/tenants/$tenantId/building',
+      '/v2/tenants/$tenantId/building',
       {
         'name': name,
         'structure': structure.toJson(),

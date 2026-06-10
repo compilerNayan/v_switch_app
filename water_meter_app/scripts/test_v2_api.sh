@@ -104,6 +104,16 @@ TOKEN="$("$PYTHON" "$ROOT/scripts/cognito_id_token.py" \
   --username "$USERNAME" \
   --password "$PASSWORD")"
 
+echo "=== GET /v2/users/me ==="
+curl -sS -H "Authorization: Bearer $TOKEN" \
+  "$BASE/v2/users/me" | "$PYTHON" -m json.tool
+
+echo ""
+echo "=== GET /v2/tenants/$TENANT ==="
+curl -sS -H "Authorization: Bearer $TOKEN" \
+  "$BASE/v2/tenants/$TENANT" | "$PYTHON" -m json.tool
+
+echo ""
 echo "Fetching v2 metadata for tenant $TENANT ..."
 echo "=== GET /v2/tenants/$TENANT/metadata ==="
 curl -sS -H "Authorization: Bearer $TOKEN" \

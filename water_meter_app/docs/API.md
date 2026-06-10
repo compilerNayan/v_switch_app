@@ -754,9 +754,28 @@ Idempotent: re-calling for the same serial refreshes the pending record.
 | GET/PUT | `/tenants/{tenantId}/quota-templates` |
 | GET/PUT | `/tenants/{tenantId}/schedule-rules` |
 | GET/PUT | `/tenants/{tenantId}/tariff` |
+| POST | `/v2/users` |
+| GET | `/v2/users/me` |
+| GET | `/v2/tenants/{tenantId}` |
+| POST | `/v2/tenants/{tenantId}/building` |
 | GET | `/v2/tenants/{tenantId}/metadata/hash` |
 | GET | `/v2/tenants/{tenantId}/metadata` |
 | GET | `/v2/tenants/{tenantId}/dashboard` |
+
+---
+
+## V2 — Onboarding (replicas of v1 user/tenant routes)
+
+Same request/response bodies and status codes as v1; paths are under `/v2`. Used by the app from sign-up through building setup until the home dashboard loads.
+
+| Method | Path | v1 equivalent |
+|--------|------|---------------|
+| POST | `/v2/users` | `POST /users` |
+| GET | `/v2/users/me` | `GET /users/me` |
+| GET | `/v2/tenants/{tenantId}` | `GET /tenants/{tenantId}` |
+| POST | `/v2/tenants/{tenantId}/building` | `POST /tenants/{tenantId}/building` |
+
+All require Cognito JWT. `POST /v2/users` and `GET /v2/users/me` use the authenticated subject. Tenant routes enforce membership (`GET`) or owner (`POST` building).
 
 ---
 
