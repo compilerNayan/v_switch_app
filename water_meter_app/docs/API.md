@@ -764,6 +764,8 @@ Idempotent: re-calling for the same serial refreshes the pending record.
 | GET | `/v2/tenants/{tenantId}/devices/{deviceId}/enrollment-status` |
 | POST | `/v2/tenants/{tenantId}/admin-invites` |
 | POST | `/v2/tenants/join/admin` |
+| GET | `/v2/tenants/{tenantId}/devices/{deviceId}/water/valve` |
+| PUT | `/v2/tenants/{tenantId}/devices/{deviceId}/water/valve` |
 | GET | `/v2/tenants/{tenantId}/metadata/hash` |
 | GET | `/v2/tenants/{tenantId}/metadata` |
 | GET | `/v2/tenants/{tenantId}/dashboard` |
@@ -786,8 +788,12 @@ Same request/response bodies and status codes as v1; paths are under `/v2`. Used
 | GET | `/v2/tenants/{tenantId}/devices/{deviceId}/enrollment-status` | `GET /tenants/{tenantId}/devices/{deviceId}/enrollment-status` |
 | POST | `/v2/tenants/{tenantId}/admin-invites` | `POST /tenants/{tenantId}/admin-invites` |
 | POST | `/v2/tenants/join/admin` | `POST /tenants/join/admin` |
+| GET | `/v2/tenants/{tenantId}/devices/{deviceId}/water/valve` | `GET /tenants/.../water/valve` |
+| PUT | `/v2/tenants/{tenantId}/devices/{deviceId}/water/valve` | `PUT /tenants/.../water/valve` |
 
 All require Cognito JWT. User routes use the authenticated subject. Tenant routes enforce membership or owner as in v1.
+
+The home dashboard tile on/off switch uses `PUT /v2/.../water/valve` with `pressurePercent: 0` to turn off or `action: restore` to turn back on (same body as v1).
 
 ---
 

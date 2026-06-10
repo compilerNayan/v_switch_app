@@ -60,6 +60,17 @@ class DioWaterApiClient implements WaterApiClient {
     return '/tenants/$tenantId/devices/$deviceId/water/$suffix';
   }
 
+  Future<String> _valvePath(String deviceId) async {
+    final tenantId = await _tenantIdProvider();
+    if (tenantId == null || tenantId.isEmpty) {
+      throw NetworkException('No tenant configured');
+    }
+    if (!AppConfig.useMockApi) {
+      return '/v2/tenants/$tenantId/devices/$deviceId/water/valve';
+    }
+    return '/tenants/$tenantId/devices/$deviceId/water/valve';
+  }
+
   @override
   Future<CurrentReading> getCurrentReading(String deviceId) async {
     final data = await _get<Map<String, dynamic>>(
@@ -109,7 +120,7 @@ class DioWaterApiClient implements WaterApiClient {
   @override
   Future<ValveState> getValveState(String deviceId) async {
     final data = await _get<Map<String, dynamic>>(
-      await _waterPath(deviceId, 'valve'),
+      await _valvePath(deviceId),
     );
     return ValveState.fromJson(data);
   }
@@ -120,7 +131,7 @@ class DioWaterApiClient implements WaterApiClient {
     ValveUpdateRequest request,
   ) async {
     final data = await _put<Map<String, dynamic>>(
-      await _waterPath(deviceId, 'valve'),
+      await _valvePath(deviceId),
       body: request.toJson(),
     );
     return ValveState.fromJson(data);

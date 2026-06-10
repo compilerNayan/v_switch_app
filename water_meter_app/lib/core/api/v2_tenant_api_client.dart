@@ -5,6 +5,7 @@ import '../models/home_dashboard.dart';
 import '../models/tenant_config.dart';
 import '../models/tenant_metadata.dart';
 import '../models/user_profile.dart';
+import '../models/valve_state.dart';
 import '../models/water_unit.dart';
 import 'enrollment_status_result.dart';
 import '../auth/auth_service.dart';
@@ -154,6 +155,28 @@ class V2TenantApiClient {
     );
   }
 
+  Future<ValveState> getValveState({
+    required String tenantId,
+    required String deviceId,
+  }) async {
+    final data = await _get<Map<String, dynamic>>(
+      '/v2/tenants/$tenantId/devices/$deviceId/water/valve',
+    );
+    return ValveState.fromJson(data);
+  }
+
+  Future<ValveState> setValvePressure({
+    required String tenantId,
+    required String deviceId,
+    required ValveUpdateRequest request,
+  }) async {
+    final data = await _put<Map<String, dynamic>>(
+      '/v2/tenants/$tenantId/devices/$deviceId/water/valve',
+      request.toJson(),
+    );
+    return ValveState.fromJson(data);
+  }
+
   Future<String> getMetadataHash(String tenantId) async {
     final data = await _get<Map<String, dynamic>>(
       '/v2/tenants/$tenantId/metadata/hash',
@@ -187,6 +210,15 @@ class V2TenantApiClient {
   Future<T> _post<T>(String path, Map<String, dynamic> body) async {
     try {
       final response = await _dio.post<T>(path, data: body);
+      return response.data as T;
+    } on DioException catch (e) {
+      throw _mapError(e);
+    }
+  }
+
+  Future<T> _put<T>(String path, Map<String, dynamic> body) async {
+    try {
+      final response = await _dio.put<T>(path, data: body);
       return response.data as T;
     } on DioException catch (e) {
       throw _mapError(e);

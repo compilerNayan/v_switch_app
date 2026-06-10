@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/valve_actions.dart';
+import '../config/app_config.dart';
 import '../models/current_reading.dart';
 import '../models/device_health.dart';
 import '../models/quota_config.dart';
@@ -8,6 +9,7 @@ import '../models/usage_response.dart';
 import '../models/valve_state.dart';
 import '../utils/granularity.dart';
 import 'app_providers.dart';
+import 'dashboard_providers.dart';
 
 final deviceCurrentReadingProvider = FutureProvider.autoDispose
     .family<CurrentReading, String>((ref, deviceId) async {
@@ -58,7 +60,26 @@ Future<ValveState> toggleDeviceValveForId(
   bool forceOff = false,
 }) async {
   final client = ref.read(waterApiClientProvider);
-  final current = await ref.read(deviceValveProvider(deviceId).future);
+  final ValveState current;
+  if (!AppConfig.useMockApi) {
+    final telemetry = ref.read(deviceHomeTelemetryProvider(deviceId));
+    if (telemetry != null) {
+      current = ValveState(
+        deviceId: deviceId,
+        timestamp: DateTime.now().toUtc(),
+        targetPressurePercent: telemetry.valveOpenPercent,
+        actualPressurePercent: telemetry.valveOpenPercent,
+        lastUserPressurePercent: telemetry.valveOpenPercent,
+        isOff: telemetry.valveIsOff,
+        controlMode: ValveControlMode.manual,
+        effectivePressurePercent: telemetry.valveOpenPercent,
+      );
+    } else {
+      current = await ref.read(deviceValveProvider(deviceId).future);
+    }
+  } else {
+    current = await ref.read(deviceValveProvider(deviceId).future);
+  }
   final updated = forceOff
       ? await setDeviceValvePressure(client, deviceId, 0)
       : await toggleDeviceValve(client, deviceId, current);
