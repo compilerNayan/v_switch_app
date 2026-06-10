@@ -5,6 +5,8 @@ import '../models/home_dashboard.dart';
 import '../models/tenant_config.dart';
 import '../models/tenant_metadata.dart';
 import '../models/user_profile.dart';
+import '../models/water_unit.dart';
+import 'enrollment_status_result.dart';
 import '../auth/auth_service.dart';
 import 'api_exceptions.dart';
 
@@ -75,6 +77,81 @@ class V2TenantApiClient {
       },
     );
     return TenantConfig.fromJson(data);
+  }
+
+  Future<void> preEnrollDevice({
+    required String tenantId,
+    required String serialNumber,
+  }) async {
+    await _post<Map<String, dynamic>>(
+      '/v2/tenants/$tenantId/devices/pre-enroll',
+      {'serialNumber': serialNumber},
+    );
+  }
+
+  Future<List<WaterUnit>> listUnits(String tenantId) async {
+    final data = await _get<Map<String, dynamic>>('/v2/tenants/$tenantId/units');
+    final unitsJson = data['units'] as List<dynamic>? ?? [];
+    return unitsJson
+        .map((entry) => WaterUnit.fromJson(entry as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<WaterUnit> createUnit({
+    required String tenantId,
+    required String deviceId,
+    required String name,
+    required String flatNumber,
+    required String floor,
+    required String block,
+    required String wing,
+    required String residentName,
+    required String phoneNumber,
+    String? notes,
+  }) async {
+    final data = await _post<Map<String, dynamic>>(
+      '/v2/tenants/$tenantId/units',
+      {
+        'deviceId': deviceId,
+        'name': name,
+        'flatNumber': flatNumber,
+        'floor': floor,
+        'block': block,
+        'wing': wing,
+        'residentName': residentName,
+        'phoneNumber': phoneNumber,
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
+      },
+    );
+    return WaterUnit.fromJson(data);
+  }
+
+  Future<EnrollmentStatusResult> getEnrollmentStatus({
+    required String tenantId,
+    required String deviceId,
+  }) async {
+    final data = await _get<Map<String, dynamic>>(
+      '/v2/tenants/$tenantId/devices/$deviceId/enrollment-status',
+    );
+    return EnrollmentStatusResult(
+      enrolled: data['enrolled'] as bool? ?? false,
+      status: data['status'] as String? ?? 'pending',
+    );
+  }
+
+  Future<String> createAdminInvite(String tenantId) async {
+    final data = await _post<Map<String, dynamic>>(
+      '/v2/tenants/$tenantId/admin-invites',
+      {},
+    );
+    return data['inviteCode'] as String;
+  }
+
+  Future<Map<String, dynamic>> joinAsAdmin(String inviteCode) async {
+    return _post<Map<String, dynamic>>(
+      '/v2/tenants/join/admin',
+      {'inviteCode': inviteCode.trim().toUpperCase()},
+    );
   }
 
   Future<String> getMetadataHash(String tenantId) async {

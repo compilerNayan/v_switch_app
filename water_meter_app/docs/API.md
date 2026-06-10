@@ -758,6 +758,12 @@ Idempotent: re-calling for the same serial refreshes the pending record.
 | GET | `/v2/users/me` |
 | GET | `/v2/tenants/{tenantId}` |
 | POST | `/v2/tenants/{tenantId}/building` |
+| POST | `/v2/tenants/{tenantId}/devices/pre-enroll` |
+| GET | `/v2/tenants/{tenantId}/units` |
+| POST | `/v2/tenants/{tenantId}/units` |
+| GET | `/v2/tenants/{tenantId}/devices/{deviceId}/enrollment-status` |
+| POST | `/v2/tenants/{tenantId}/admin-invites` |
+| POST | `/v2/tenants/join/admin` |
 | GET | `/v2/tenants/{tenantId}/metadata/hash` |
 | GET | `/v2/tenants/{tenantId}/metadata` |
 | GET | `/v2/tenants/{tenantId}/dashboard` |
@@ -774,8 +780,14 @@ Same request/response bodies and status codes as v1; paths are under `/v2`. Used
 | GET | `/v2/users/me` | `GET /users/me` |
 | GET | `/v2/tenants/{tenantId}` | `GET /tenants/{tenantId}` |
 | POST | `/v2/tenants/{tenantId}/building` | `POST /tenants/{tenantId}/building` |
+| POST | `/v2/tenants/{tenantId}/devices/pre-enroll` | `POST /tenants/{tenantId}/devices/pre-enroll` |
+| GET | `/v2/tenants/{tenantId}/units` | `GET /tenants/{tenantId}/units` |
+| POST | `/v2/tenants/{tenantId}/units` | `POST /tenants/{tenantId}/units` |
+| GET | `/v2/tenants/{tenantId}/devices/{deviceId}/enrollment-status` | `GET /tenants/{tenantId}/devices/{deviceId}/enrollment-status` |
+| POST | `/v2/tenants/{tenantId}/admin-invites` | `POST /tenants/{tenantId}/admin-invites` |
+| POST | `/v2/tenants/join/admin` | `POST /tenants/join/admin` |
 
-All require Cognito JWT. `POST /v2/users` and `GET /v2/users/me` use the authenticated subject. Tenant routes enforce membership (`GET`) or owner (`POST` building).
+All require Cognito JWT. User routes use the authenticated subject. Tenant routes enforce membership or owner as in v1.
 
 ---
 

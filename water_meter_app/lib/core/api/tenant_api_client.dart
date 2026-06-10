@@ -115,7 +115,7 @@ class TenantApiClient {
       return;
     }
     await _post<Map<String, dynamic>>(
-      '/tenants/$tenantId/devices/pre-enroll',
+      '/v2/tenants/$tenantId/devices/pre-enroll',
       {'serialNumber': serialNumber},
     );
   }
@@ -196,7 +196,7 @@ class TenantApiClient {
       final prefs = await _prefsProvider();
       return prefs.getWaterUnits();
     }
-    final data = await _get<Map<String, dynamic>>('/tenants/$tenantId/units');
+    final data = await _get<Map<String, dynamic>>('/v2/tenants/$tenantId/units');
     final unitsJson = data['units'] as List<dynamic>? ?? [];
     return unitsJson
         .map((entry) => WaterUnit.fromJson(entry as Map<String, dynamic>))
@@ -233,7 +233,7 @@ class TenantApiClient {
       return prefs.addWaterUnit(unit);
     }
     final data = await _post<Map<String, dynamic>>(
-      '/tenants/$tenantId/units',
+      '/v2/tenants/$tenantId/units',
       {
         'deviceId': deviceId,
         'name': name,
@@ -257,7 +257,7 @@ class TenantApiClient {
       return const EnrollmentStatusResult(enrolled: true, status: 'enrolled');
     }
     final data = await _get<Map<String, dynamic>>(
-      '/tenants/$tenantId/devices/$deviceId/enrollment-status',
+      '/v2/tenants/$tenantId/devices/$deviceId/enrollment-status',
     );
     return EnrollmentStatusResult(
       enrolled: data['enrolled'] as bool? ?? false,
@@ -271,7 +271,7 @@ class TenantApiClient {
       return (_authService as MockAuthService).generateAdminInvite(prefs);
     }
     final data = await _post<Map<String, dynamic>>(
-      '/tenants/$tenantId/admin-invites',
+      '/v2/tenants/$tenantId/admin-invites',
       {},
     );
     return data['inviteCode'] as String;
@@ -293,7 +293,7 @@ class TenantApiClient {
       }
     }
     final data = await _post<Map<String, dynamic>>(
-      '/tenants/join/admin',
+      '/v2/tenants/join/admin',
       {'inviteCode': inviteCode.trim().toUpperCase()},
     );
     await _authService.refreshProfile();
