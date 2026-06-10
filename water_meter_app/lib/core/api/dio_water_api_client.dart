@@ -3,9 +3,11 @@ import 'package:dio/dio.dart';
 import '../config/app_config.dart';
 import '../models/current_reading.dart';
 import '../models/daily_summary.dart';
+import '../models/minute_series.dart';
 import '../models/quota_config.dart';
 import '../models/usage_response.dart';
 import '../models/valve_state.dart';
+import '../utils/usage_aggregation.dart';
 import 'api_exceptions.dart';
 import 'water_api_client.dart';
 
@@ -25,7 +27,7 @@ class DioWaterApiClient implements WaterApiClient {
               BaseOptions(
                 baseUrl: baseUrl ?? AppConfig.apiBaseUrl,
                 connectTimeout: const Duration(seconds: 15),
-                receiveTimeout: const Duration(seconds: 15),
+                receiveTimeout: const Duration(seconds: 30),
                 headers: {'Accept': 'application/json'},
               ),
             ) {
@@ -52,23 +54,34 @@ class DioWaterApiClient implements WaterApiClient {
   final AuthCredentialsProvider _credentialsProvider;
   final TenantIdProvider _tenantIdProvider;
 
+  bool get _useV2 => !AppConfig.useMockApi;
+
   Future<String> _waterPath(String deviceId, String suffix) async {
     final tenantId = await _tenantIdProvider();
     if (tenantId == null || tenantId.isEmpty) {
       throw NetworkException('No tenant configured');
     }
-    return '/tenants/$tenantId/devices/$deviceId/water/$suffix';
+    final prefix = _useV2 ? '/v2' : '';
+    return '$prefix/tenants/$tenantId/devices/$deviceId/water/$suffix';
   }
 
   Future<String> _valvePath(String deviceId) async {
-    final tenantId = await _tenantIdProvider();
-    if (tenantId == null || tenantId.isEmpty) {
-      throw NetworkException('No tenant configured');
-    }
-    if (!AppConfig.useMockApi) {
-      return '/v2/tenants/$tenantId/devices/$deviceId/water/valve';
-    }
-    return '/tenants/$tenantId/devices/$deviceId/water/valve';
+    return _waterPath(deviceId, 'valve');
+  }
+
+  Future<MinutesHistoryResponse> _fetchHistoryMinutes({
+    required String deviceId,
+    required int days,
+    required String timezone,
+  }) async {
+    final data = await _get<Map<String, dynamic>>(
+      await _waterPath(deviceId, 'minutes/history'),
+      queryParameters: {
+        'days': days,
+        'timezone': timezone,
+      },
+    );
+    return MinutesHistoryResponse.fromJson(data);
   }
 
   @override
@@ -87,16 +100,43 @@ class DioWaterApiClient implements WaterApiClient {
     required Granularity granularity,
     required String timezone,
   }) async {
-    final data = await _get<Map<String, dynamic>>(
-      await _waterPath(deviceId, 'usage'),
-      queryParameters: {
-        'from': from.toUtc().toIso8601String(),
-        'to': to.toUtc().toIso8601String(),
-        'granularity': granularity.apiValue,
-        'timezone': timezone,
-      },
+    if (!_useV2) {
+      final data = await _get<Map<String, dynamic>>(
+        await _waterPath(deviceId, 'usage'),
+        queryParameters: {
+          'from': from.toUtc().toIso8601String(),
+          'to': to.toUtc().toIso8601String(),
+          'granularity': granularity.apiValue,
+          'timezone': timezone,
+        },
+      );
+      return UsageResponse.fromJson(data);
+    }
+
+    final days = UsageAggregation.daysForRange(from, to).clamp(1, 31);
+    final range = to.difference(from);
+    final history = await _fetchHistoryMinutes(
+      deviceId: deviceId,
+      days: days,
+      timezone: timezone,
     );
-    return UsageResponse.fromJson(data);
+    final minutes = UsageAggregation.flattenHistory(history);
+    final prevFrom = from.subtract(range);
+    final prevHistory = await _fetchHistoryMinutes(
+      deviceId: deviceId,
+      days: UsageAggregation.daysForRange(prevFrom, from).clamp(1, 31),
+      timezone: timezone,
+    );
+    final previousMinutes = UsageAggregation.flattenHistory(prevHistory);
+
+    return UsageAggregation.buildUsage(
+      deviceId: deviceId,
+      from: from,
+      to: to,
+      granularity: granularity,
+      minutes: minutes,
+      previousMinutes: previousMinutes,
+    );
   }
 
   @override
@@ -106,15 +146,25 @@ class DioWaterApiClient implements WaterApiClient {
     required DateTime to,
     required String timezone,
   }) async {
-    final data = await _get<Map<String, dynamic>>(
-      await _waterPath(deviceId, 'daily'),
-      queryParameters: {
-        'from': _dateOnly(from),
-        'to': _dateOnly(to),
-        'timezone': timezone,
-      },
+    if (!_useV2) {
+      final data = await _get<Map<String, dynamic>>(
+        await _waterPath(deviceId, 'daily'),
+        queryParameters: {
+          'from': _dateOnly(from),
+          'to': _dateOnly(to),
+          'timezone': timezone,
+        },
+      );
+      return DailySummaryResponse.fromJson(data);
+    }
+
+    final days = UsageAggregation.daysForRange(from, to).clamp(1, 31);
+    final history = await _fetchHistoryMinutes(
+      deviceId: deviceId,
+      days: days,
+      timezone: timezone,
     );
-    return DailySummaryResponse.fromJson(data);
+    return UsageAggregation.buildDailySummary(history, from: from, to: to);
   }
 
   @override
@@ -164,15 +214,25 @@ class DioWaterApiClient implements WaterApiClient {
     required DateTime to,
     required String timezone,
   }) async {
-    final data = await _get<Map<String, dynamic>>(
-      await _waterPath(deviceId, 'hourly-pattern'),
-      queryParameters: {
-        'from': _dateOnly(from),
-        'to': _dateOnly(to),
-        'timezone': timezone,
-      },
+    if (!_useV2) {
+      final data = await _get<Map<String, dynamic>>(
+        await _waterPath(deviceId, 'hourly-pattern'),
+        queryParameters: {
+          'from': _dateOnly(from),
+          'to': _dateOnly(to),
+          'timezone': timezone,
+        },
+      );
+      return HourlyPatternResponse.fromJson(data);
+    }
+
+    final days = UsageAggregation.daysForRange(from, to).clamp(1, 31);
+    final history = await _fetchHistoryMinutes(
+      deviceId: deviceId,
+      days: days,
+      timezone: timezone,
     );
-    return HourlyPatternResponse.fromJson(data);
+    return UsageAggregation.buildHourlyPattern(history);
   }
 
   Future<T> _get<T>(

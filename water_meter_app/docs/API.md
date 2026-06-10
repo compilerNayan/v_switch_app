@@ -384,7 +384,7 @@ Devices publish telemetry to AWS IoT Core. The backend ingestion Lambda subscrib
 }
 ```
 
-**Development:** EventBridge triggers `TelemetryIngestionFunction` every minute. It scans enrolled `WaterMeterUnits` and calls `MockDeviceFacade` ingest methods (synthetic per-device MQTT payloads: second pulse when flowing, 1-minute bucket every tick, 30-minute bucket on `:00` and `:30`). The facade writes `WaterMeterMinuteUsage`, `WaterMeterDeviceState`, `WaterMeterDailyUsage`, and reads valve/quota desired state from `WaterMeterDeviceConfig`.
+**Development:** EventBridge triggers `TelemetryIngestionFunction` every minute. It scans enrolled `WaterMeterUnits` and calls `MockDeviceFacade` ingest methods (synthetic per-device MQTT payloads: second pulse when flowing, live tick every minute, 30-minute bucket on `:00` and `:30`). The facade writes `WaterMeterTodaySlots`, `WaterMeterDeviceState`, and reads valve/quota desired state from `WaterMeterDeviceConfig`. Completed days roll into `WaterMeterDayHistory` via `DayRollupFunction`.
 
 **Internal architecture:** `DeviceFacade` is the device ingest + live-read + write boundary. REST historical queries (`/usage`, `/daily`, `/building/*`) read DynamoDB directly; live per-device reads (`/current`, `/valve`, quota rules) and all writes (`PUT /valve`, `PUT /quota`) go through the facade.
 
@@ -454,7 +454,7 @@ Query: `from`, `to` (YYYY-MM-DD), `timezone`
 
 ### GET / PUT `.../quota`
 
-Quota **rules** (`enabled`, `dailyLimitLiters`, `steps`) are stored in `WaterMeterDeviceConfig` via the internal DeviceFacade. **Status** (`usedLiters`, `activeStepIndex`, `quotaCapPercent`, etc.) is computed from today's row in `WaterMeterDailyUsage`.
+Quota **rules** (`enabled`, `dailyLimitLiters`, `steps`) are stored in `WaterMeterDeviceConfig` via the internal DeviceFacade. **Status** (`usedLiters`, `activeStepIndex`, `quotaCapPercent`, etc.) is computed from today's `WaterMeterTodaySlots` sum.
 
 **GET** response:
 
@@ -504,7 +504,7 @@ When quota is enabled and a step is active, `GET .../valve` may return `controlM
 
 ### GET `/tenants/{tenantId}/building/summary`
 
-Aggregates `WaterMeterDailyUsage` + `WaterMeterDeviceState` for all units in the tenant.
+Aggregates `WaterMeterDayHistory` / today's slots + `WaterMeterDeviceState` for all units in the tenant.
 
 ```json
 {
@@ -766,6 +766,12 @@ Idempotent: re-calling for the same serial refreshes the pending record.
 | POST | `/v2/tenants/join/admin` |
 | GET | `/v2/tenants/{tenantId}/devices/{deviceId}/water/valve` |
 | PUT | `/v2/tenants/{tenantId}/devices/{deviceId}/water/valve` |
+| GET | `/v2/tenants/{tenantId}/devices/{deviceId}/water/current` |
+| GET | `/v2/tenants/{tenantId}/devices/{deviceId}/water/quota` |
+| PUT | `/v2/tenants/{tenantId}/devices/{deviceId}/water/quota` |
+| GET | `/v2/tenants/{tenantId}/devices/{deviceId}/water/minutes/today` |
+| GET | `/v2/tenants/{tenantId}/devices/{deviceId}/water/minutes/history` |
+| GET | `/v2/tenants/{tenantId}/building/daily` |
 | GET | `/v2/tenants/{tenantId}/metadata/hash` |
 | GET | `/v2/tenants/{tenantId}/metadata` |
 | GET | `/v2/tenants/{tenantId}/dashboard` |
@@ -794,6 +800,59 @@ Same request/response bodies and status codes as v1; paths are under `/v2`. Used
 All require Cognito JWT. User routes use the authenticated subject. Tenant routes enforce membership or owner as in v1.
 
 The home dashboard tile on/off switch uses `PUT /v2/.../water/valve` with `pressurePercent: 0` to turn off or `action: restore` to turn back on (same body as v1).
+
+---
+
+## V2 — Device water (minute arrays + client-side charts)
+
+Production app uses these for the device detail screens. Charts are built on the client from per-minute arrays.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/v2/.../water/current` | Live flow snapshot (`WaterMeterDeviceState`) |
+| GET | `/v2/.../water/quota` | Quota rules + today's `usedLiters` from today's slots |
+| PUT | `/v2/.../water/quota` | Update quota rules |
+| GET | `/v2/.../water/minutes/today` | Today's per-minute liters (query `timezone`) |
+| GET | `/v2/.../water/minutes/history` | Last N days × up to 1440 points/day (`days`, `timezone`) |
+| GET | `/v2/tenants/{tenantId}/building/daily` | Building aggregate liters per day (`days`, `timezone`) |
+
+### `GET .../water/minutes/today`
+
+```json
+{
+  "deviceId": "WM000001",
+  "date": "2026-06-06",
+  "timezone": "UTC",
+  "slotMinutes": 1,
+  "startAt": "2026-06-06T00:00:00Z",
+  "v": [0, 0, 1.2, 0.5]
+}
+```
+
+`v` — liters per minute from local midnight through now (length ≤ 1440).
+
+### `GET .../water/minutes/history?days=30`
+
+```json
+{
+  "deviceId": "WM000001",
+  "timezone": "UTC",
+  "slotMinutes": 1,
+  "days": [
+    { "date": "2026-06-05", "startAt": "2026-06-05T00:00:00Z", "v": [0, 1.2, ...] }
+  ]
+}
+```
+
+### Storage (DynamoDB)
+
+| Table | Content |
+|-------|---------|
+| `WaterMeterTodaySlots` | One row per 30-min ingest window (`slot#` + CSV of 30 ml values) |
+| `WaterMeterDayHistory` | One row per completed day (`day#` + CSV of 1440 ml values) |
+| `WaterMeterDeviceState` | Live flow; 1s pulses update here only (not stored as history) |
+
+EOD Lambda (`DayRollupFunction`, `cron(5 0 * * ? *)`) merges yesterday's slots into `WaterMeterDayHistory`.
 
 ---
 
