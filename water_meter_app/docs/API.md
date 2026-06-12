@@ -347,7 +347,7 @@ Regenerate per-meter invite code (display/copy in app; no join flow yet).
 
 ## 4b. IoT MQTT topic contract (device → backend)
 
-Devices publish telemetry to AWS IoT Core. IoT topic rules forward matching messages to the backend ingestion Lambda (`DeviceMqttIngestionFunction`). When `MOCK_TELEMETRY_ENABLED=true`, a mock scheduler simulates the same payloads for local development; production uses real device MQTT only.
+Devices publish telemetry to AWS IoT Core. The backend **subscribes** to `+/water_meter/#` over MQTT (mTLS client in the API Lambda) and ingests messages into DynamoDB. When `MOCK_TELEMETRY_ENABLED=true`, a mock scheduler simulates payloads for local development only; production uses real device MQTT only.
 
 | Topic | Purpose |
 |-------|---------|
@@ -707,6 +707,24 @@ Called in parallel with device WiFi configuration while the phone is on the `IoT
 ```
 
 Idempotent: re-calling for the same serial refreshes the pending record.
+
+### Fleet provisioning tenant lookup (public)
+
+**`GET /devices/{serialNumber}/tenant`** (no auth)
+
+Used by the AWS IoT Core fleet provisioning Lambda to resolve the tenant for a device serial after cloud pre-enrollment.
+
+**Response 200:**
+```json
+{
+  "serialNumber": "WM000123",
+  "tenantId": "k3m9x2a"
+}
+```
+
+**Response 404:** Serial not pre-enrolled, or no tenant associated.
+
+Fleet provisioning pre-provisioning hook (`validate-serial` Lambda) calls this endpoint with `event.parameters.serialNumber` and passes the returned `tenantId` as `parameterOverrides.TenantId`.
 
 ### LAN device APIs (not cloud)
 
