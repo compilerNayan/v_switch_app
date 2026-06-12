@@ -293,7 +293,7 @@ Idempotent on `deviceId`: re-posting the same serial returns the existing unit.
 
 ### GET `/tenants/{tenantId}/devices/{deviceId}/enrollment-status`
 
-Poll cloud enrollment completion (placeholder until AWS IoT Core integration).
+Poll cloud enrollment completion after the device publishes `lifecycle/enrolled` to AWS IoT Core.
 
 **Response 200:**
 
@@ -304,7 +304,9 @@ Poll cloud enrollment completion (placeholder until AWS IoT Core integration).
 }
 ```
 
-In development, `POST /units` immediately sets `enrollmentStatus: "enrolled"` and **backfills the last 10 days** of usage into DynamoDB (600–1200 L/day, lower overnight, morning/evening peaks). `GET .../enrollment-status` returns `enrolled: true` right away. The app polls every **1 minute** after LAN enroll + unit create until it sees enrolled.
+`POST /units` sets `enrollmentStatus: "pending"`. The device completes fleet provisioning and publishes `{tenantId}/water_meter/{deviceId}/lifecycle/enrolled`; the backend IoT rule forwards that message to the ingestion Lambda, which marks the unit enrolled and initializes device state/config. The app polls every **1 minute** after LAN enroll + unit create until `enrolled: true`.
+
+When `MOCK_TELEMETRY_ENABLED=true` (local dev only), a mock scheduler can still simulate telemetry and immediate enrollment; production sets `MOCK_TELEMETRY_ENABLED=false` and relies on real MQTT ingestion.
 
 ### GET `/tenants/{tenantId}/units/{unitId}`
 
@@ -345,14 +347,15 @@ Regenerate per-meter invite code (display/copy in app; no join flow yet).
 
 ## 4b. IoT MQTT topic contract (device → backend)
 
-Devices publish telemetry to AWS IoT Core. The backend ingestion Lambda subscribes to these topics (mock scheduler simulates the same payloads in development).
+Devices publish telemetry to AWS IoT Core. IoT topic rules forward matching messages to the backend ingestion Lambda (`DeviceMqttIngestionFunction`). When `MOCK_TELEMETRY_ENABLED=true`, a mock scheduler simulates the same payloads for local development; production uses real device MQTT only.
 
 | Topic | Purpose |
 |-------|---------|
-| `vswitch/water/{tenantId}/{deviceId}/telemetry/second` | Optional 1s pulse when water flows |
-| `vswitch/water/{tenantId}/{deviceId}/telemetry/bucket/30m` | 30 × 1-min buckets + cumulative reading |
-| `vswitch/water/{tenantId}/{deviceId}/state/valve` | Valve target/actual percent |
-| `vswitch/water/{tenantId}/{deviceId}/lifecycle/enrolled` | Post-enrollment confirmation |
+| `{tenantId}/water_meter/{deviceId}/water/1s` | Optional 1s pulse when water flows |
+| `{tenantId}/water_meter/{deviceId}/water/30m` | 30 × 1-min buckets + cumulative reading |
+| `{tenantId}/water_meter/{deviceId}/status` | HTTP response to a cloud command (valve state, etc.) |
+| `{tenantId}/water_meter/{deviceId}/lifecycle/enrolled` | Post-enrollment confirmation |
+| `{tenantId}/water_meter/{deviceId}/command` | Cloud → device HTTP request (one in-flight at a time) |
 
 **1-second pulse** (omit when idle):
 
@@ -383,6 +386,8 @@ Devices publish telemetry to AWS IoT Core. The backend ingestion Lambda subscrib
   "enrolledAt": "2026-06-09T10:00:00Z"
 }
 ```
+
+**Cloud command / status:** The backend publishes an HTTP request string to `{tenantId}/water_meter/{deviceId}/command`. The device executes it and publishes the HTTP response on `{tenantId}/water_meter/{deviceId}/status`. Only one command is in flight per device at a time, so any `/status` message is treated as the response to the last command. Valve responses use `targetPressurePercent` / `actualPressurePercent` in the JSON body.
 
 **Development:** EventBridge triggers `TelemetryIngestionFunction` every minute. It scans enrolled `WaterMeterUnits` and calls `MockDeviceFacade` ingest methods (synthetic per-device MQTT payloads: second pulse when flowing, live tick every minute, 30-minute bucket on `:00` and `:30`). The facade writes `WaterMeterTodaySlots`, `WaterMeterDeviceState`, and reads valve/quota desired state from `WaterMeterDeviceConfig`. Completed days roll into `WaterMeterDayHistory` via `DayRollupFunction`.
 
