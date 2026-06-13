@@ -8,7 +8,6 @@ import '../../core/models/quota_config.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/control_providers.dart';
 import '../../core/providers/dashboard_providers.dart';
-import '../../core/providers/live_device_reading_provider.dart';
 import '../../core/providers/unit_providers.dart';
 import '../../core/providers/water_providers.dart';
 import '../../core/theme/app_theme.dart';
@@ -63,13 +62,12 @@ class _DashboardLiveFlowSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final deviceId = ref.watch(activeDeviceApiIdProvider);
-    final liveReading = ref.watch(liveDeviceReadingProvider);
     final homeTelemetry = ref.watch(deviceHomeTelemetryProvider(deviceId));
     final currentAsync = ref.watch(currentReadingProvider);
     final volumeUnit = ref.watch(volumeUnitProvider);
 
-    CurrentReading? resolvedLiveReading = liveReading;
-    if (resolvedLiveReading == null && homeTelemetry != null) {
+    CurrentReading? resolvedLiveReading;
+    if (homeTelemetry != null) {
       resolvedLiveReading = CurrentReading(
         deviceId: homeTelemetry.deviceId,
         timestamp: homeTelemetry.lastSeenAt != null

@@ -28,6 +28,34 @@ DashboardTelemetryDevice _device({
 }
 
 void main() {
+  test('zeros flow after stale timeout when updates stop', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    container.read(liveTelemetryPatchesProvider.notifier).applyWaterFlow(
+          const LiveUpdateWaterFlow(
+            tenantId: 'tenant-1',
+            deviceId: 'WM000001',
+            unitId: 'wm-WM000001',
+            ts: '2026-06-09T10:30:05Z',
+            ml: 100,
+            flowRateLpm: 6.0,
+            status: 'flowing',
+          ),
+        );
+
+    expect(
+      container.read(liveTelemetryPatchProvider('WM000001'))?.flowRateLpm,
+      6.0,
+    );
+
+    await Future<void>.delayed(liveFlowStaleAfter);
+
+    final expired = container.read(liveTelemetryPatchProvider('WM000001'));
+    expect(expired?.flowRateLpm, 0);
+    expect(expired?.status, 'idle');
+  });
+
   test('live patch updates only the matching device telemetry', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
