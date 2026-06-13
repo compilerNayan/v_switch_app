@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
+import 'core/live/live_updates_service.dart';
 import 'core/providers/app_providers.dart';
 
 void main() {
@@ -19,6 +20,7 @@ class _AppBootstrap extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final init = ref.watch(authInitProvider);
+    ref.watch(liveUpdatesBindingProvider);
     return init.when(
       data: (_) => const WaterMeterApp(),
       loading: () => const MaterialApp(

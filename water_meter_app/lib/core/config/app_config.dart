@@ -20,7 +20,7 @@ class AppConfig {
 
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://w31qj0une4.execute-api.ap-south-1.amazonaws.com/Prod',
+    defaultValue: 'https://tkl8wm622f.execute-api.ap-south-1.amazonaws.com/Prod',
   );
 
   static const String cognitoUserPoolId = String.fromEnvironment(
@@ -47,6 +47,16 @@ class AppConfig {
 
   static const String oauthRedirectUri = 'com.vswitch.watermeter://callback/';
   static const String oauthSignOutUri = 'com.vswitch.watermeter://signout/';
+
+  static const String liveUpdatesWsUrl = String.fromEnvironment(
+    'LIVE_UPDATES_WS_URL',
+    defaultValue: '',
+  );
+
+  static const bool liveUpdatesEnabled = bool.fromEnvironment(
+    'LIVE_UPDATES_ENABLED',
+    defaultValue: true,
+  );
 
   static bool get isAmplifyConfigured =>
       cognitoUserPoolId.isNotEmpty && cognitoClientId.isNotEmpty;

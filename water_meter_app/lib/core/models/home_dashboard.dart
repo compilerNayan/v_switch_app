@@ -59,6 +59,40 @@ class DashboardTelemetryDevice {
 
   bool get isFlowing => flowRateLpm > 0.2 || status == 'flowing';
 
+  DashboardTelemetryDevice copyWith({
+    double? todayLiters,
+    double? monthLiters,
+    bool? isOnline,
+    String? lastSeenAt,
+    String? status,
+    double? flowRateLpm,
+    bool? quotaEnabled,
+    double? dailyLimitLiters,
+    double? quotaUsedLiters,
+    double? quotaPercent,
+    double? valveOpenPercent,
+    bool? valveIsOff,
+    bool? hasAlert,
+  }) {
+    return DashboardTelemetryDevice(
+      unitId: unitId,
+      deviceId: deviceId,
+      todayLiters: todayLiters ?? this.todayLiters,
+      monthLiters: monthLiters ?? this.monthLiters,
+      isOnline: isOnline ?? this.isOnline,
+      lastSeenAt: lastSeenAt ?? this.lastSeenAt,
+      status: status ?? this.status,
+      flowRateLpm: flowRateLpm ?? this.flowRateLpm,
+      quotaEnabled: quotaEnabled ?? this.quotaEnabled,
+      dailyLimitLiters: dailyLimitLiters ?? this.dailyLimitLiters,
+      quotaUsedLiters: quotaUsedLiters ?? this.quotaUsedLiters,
+      quotaPercent: quotaPercent ?? this.quotaPercent,
+      valveOpenPercent: valveOpenPercent ?? this.valveOpenPercent,
+      valveIsOff: valveIsOff ?? this.valveIsOff,
+      hasAlert: hasAlert ?? this.hasAlert,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
         'unitId': unitId,
         'deviceId': deviceId,
@@ -105,6 +139,16 @@ class HomeDashboardResponse {
   Map<String, DashboardTelemetryDevice> get byDeviceId => {
         for (final device in devices) device.deviceId: device,
       };
+
+  HomeDashboardResponse copyWith({
+    List<DashboardTelemetryDevice>? devices,
+  }) {
+    return HomeDashboardResponse(
+      metadataHash: metadataHash,
+      generatedAt: generatedAt,
+      devices: devices ?? this.devices,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'metadataHash': metadataHash,

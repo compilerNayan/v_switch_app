@@ -1,9 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/v2_tenant_api_client.dart';
 import '../config/app_config.dart';
+import '../live/live_update_message.dart';
 import '../models/home_dashboard.dart';
 import '../utils/timezone_offset.dart';
 import 'app_providers.dart';
@@ -15,46 +14,92 @@ final v2TenantApiClientProvider = Provider<V2TenantApiClient>((ref) {
 
 final usesV2HomeDataProvider = Provider<bool>((ref) => !AppConfig.useMockApi);
 
-final homeSnapshotProvider = FutureProvider<HomeSnapshot?>((ref) async {
-  if (AppConfig.useMockApi) return null;
+final homeSnapshotProvider =
+    AsyncNotifierProvider<HomeSnapshotNotifier, HomeSnapshot?>(
+  HomeSnapshotNotifier.new,
+);
 
-  final profile = await ref.watch(userProfileProvider.future);
-  final tenantId = profile?.tenantId;
-  if (tenantId == null || tenantId.isEmpty) return null;
-
-  final client = ref.watch(v2TenantApiClientProvider);
-  final prefs = await ref.watch(preferencesStorageProvider.future);
-
-  try {
-    final dashboardFuture = client.getDashboard(
-      tenantId,
-      timezone: localTimezoneOffsetParam(),
-    );
-    var metadata = prefs.getTenantMetadataV2(tenantId);
-    final dashboard = await dashboardFuture;
-
-    if (metadata == null ||
-        metadata.metadataHash != dashboard.metadataHash) {
-      metadata = await client.getMetadata(tenantId);
-      await prefs.setTenantMetadataV2(tenantId, metadata);
-    }
-
-    return HomeSnapshot(metadata: metadata, dashboard: dashboard);
-  } catch (error) {
-    final cached = prefs.getTenantMetadataV2(tenantId);
-    if (cached != null) {
-      return HomeSnapshot(
-        metadata: cached,
-        dashboard: const HomeDashboardResponse(
-          metadataHash: '',
-          generatedAt: '',
-          devices: [],
-        ),
-      );
-    }
-    throw Exception('Failed to load home dashboard: $error');
+class HomeSnapshotNotifier extends AsyncNotifier<HomeSnapshot?> {
+  @override
+  Future<HomeSnapshot?> build() async {
+    return _loadSnapshot();
   }
-});
+
+  Future<HomeSnapshot?> _loadSnapshot() async {
+    if (AppConfig.useMockApi) return null;
+
+    final profile = await ref.watch(userProfileProvider.future);
+    final tenantId = profile?.tenantId;
+    if (tenantId == null || tenantId.isEmpty) return null;
+
+    final client = ref.watch(v2TenantApiClientProvider);
+    final prefs = await ref.watch(preferencesStorageProvider.future);
+
+    try {
+      final dashboardFuture = client.getDashboard(
+        tenantId,
+        timezone: localTimezoneOffsetParam(),
+      );
+      var metadata = prefs.getTenantMetadataV2(tenantId);
+      final dashboard = await dashboardFuture;
+
+      if (metadata == null ||
+          metadata.metadataHash != dashboard.metadataHash) {
+        metadata = await client.getMetadata(tenantId);
+        await prefs.setTenantMetadataV2(tenantId, metadata);
+      }
+
+      return HomeSnapshot(metadata: metadata, dashboard: dashboard);
+    } catch (error) {
+      final cached = prefs.getTenantMetadataV2(tenantId);
+      if (cached != null) {
+        return HomeSnapshot(
+          metadata: cached,
+          dashboard: const HomeDashboardResponse(
+            metadataHash: '',
+            generatedAt: '',
+            devices: [],
+          ),
+        );
+      }
+      throw Exception('Failed to load home dashboard: $error');
+    }
+  }
+
+  void applyWaterFlow(LiveUpdateWaterFlow event) {
+    final current = state.valueOrNull;
+    if (current == null) return;
+
+    final deviceId = event.deviceId.trim();
+    final existing = current.dashboard.byDeviceId[deviceId];
+    if (existing == null) return;
+
+    final updatedDevice = existing.copyWith(
+      flowRateLpm: event.flowRateLpm,
+      status: event.status,
+      isOnline: true,
+      lastSeenAt: event.ts,
+    );
+
+    final updatedDevices = current.dashboard.devices
+        .map(
+          (device) => device.deviceId.trim() == deviceId ? updatedDevice : device,
+        )
+        .toList();
+
+    state = AsyncData(
+      HomeSnapshot(
+        metadata: current.metadata,
+        dashboard: current.dashboard.copyWith(devices: updatedDevices),
+      ),
+    );
+  }
+
+  Future<void> refresh() async {
+    state = const AsyncLoading<HomeSnapshot?>().copyWithPrevious(state);
+    state = await AsyncValue.guard(_loadSnapshot);
+  }
+}
 
 final deviceHomeTelemetryProvider =
     Provider.family<DashboardTelemetryDevice?, String>((ref, deviceId) {
