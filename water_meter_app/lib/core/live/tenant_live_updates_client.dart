@@ -13,6 +13,8 @@ class TenantLiveUpdatesClient {
     required this.tenantId,
     required this.tokenProvider,
     this.onMessage,
+    this.onSocketOpen,
+    this.onSocketClosed,
     this.baseReconnectDelay = const Duration(seconds: 2),
     this.maxReconnectDelay = const Duration(seconds: 60),
     WebSocketChannel Function(Uri uri)? channelFactory,
@@ -22,6 +24,8 @@ class TenantLiveUpdatesClient {
   final String tenantId;
   final Future<String?> Function() tokenProvider;
   final LiveUpdatesMessageHandler? onMessage;
+  final void Function()? onSocketOpen;
+  final void Function()? onSocketClosed;
   final Duration baseReconnectDelay;
   final Duration maxReconnectDelay;
   final WebSocketChannel Function(Uri uri) _channelFactory;
@@ -81,6 +85,7 @@ class TenantLiveUpdatesClient {
           'token': token,
         }),
       );
+      onSocketOpen?.call();
       _connected = true;
       _reconnectAttempt = 0;
     } catch (_) {
@@ -104,6 +109,7 @@ class TenantLiveUpdatesClient {
 
   void _handleDisconnect() {
     _connected = false;
+    onSocketClosed?.call();
     if (_stopped) return;
     _scheduleReconnect();
   }

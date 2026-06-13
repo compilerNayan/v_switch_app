@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/config/app_config.dart';
+import '../../core/live/live_updates_debug_provider.dart';
 import '../../core/models/current_reading.dart';
 import '../../core/models/usage_response.dart';
 import '../../core/models/quota_config.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/control_providers.dart';
+import '../../core/providers/dashboard_providers.dart';
+import '../../core/providers/live_device_reading_provider.dart';
+import '../../core/providers/unit_providers.dart';
 import '../../core/providers/water_providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/units.dart';
@@ -18,11 +23,32 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final deviceId = ref.watch(activeDeviceApiIdProvider);
+    final liveReading = ref.watch(liveDeviceReadingProvider);
+    final homeTelemetry = ref.watch(deviceHomeTelemetryProvider(deviceId));
     final currentAsync = ref.watch(currentReadingProvider);
+    final wsDebug = ref.watch(liveUpdatesDebugProvider);
     final hourlyAsync = ref.watch(todayHourlyUsageProvider);
     final quotaAsync = ref.watch(quotaStateProvider);
     final volumeUnit = ref.watch(volumeUnitProvider);
     final scheme = Theme.of(context).colorScheme;
+
+    CurrentReading? resolvedLiveReading = liveReading;
+    if (resolvedLiveReading == null && homeTelemetry != null) {
+      resolvedLiveReading = CurrentReading(
+        deviceId: homeTelemetry.deviceId,
+        timestamp: homeTelemetry.lastSeenAt != null
+            ? DateTime.tryParse(homeTelemetry.lastSeenAt!) ?? DateTime.now()
+            : DateTime.now(),
+        flowRateLpm: homeTelemetry.flowRateLpm,
+        cumulativeLiters: homeTelemetry.todayLiters,
+        status: homeTelemetry.isFlowing
+            ? WaterDeviceStatus.flowing
+            : (homeTelemetry.isOnline
+                ? WaterDeviceStatus.idle
+                : WaterDeviceStatus.offline),
+      );
+    }
 
     return Scaffold(
       body: RefreshIndicator(
@@ -52,11 +78,20 @@ class DashboardScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  currentAsync.when(
-                    data: (reading) => _LiveFlowCard(reading: reading, unit: volumeUnit),
-                    loading: () => const _LoadingCard(height: 100),
-                    error: (e, _) => _ErrorCard(message: e.toString()),
-                  ),
+                  if (!AppConfig.useMockApi)
+                    _LiveSocketDebugBanner(debug: wsDebug),
+                  if (!AppConfig.useMockApi) const SizedBox(height: 12),
+                  resolvedLiveReading != null
+                      ? _LiveFlowCard(
+                          reading: resolvedLiveReading,
+                          unit: volumeUnit,
+                        )
+                      : currentAsync.when(
+                          data: (reading) =>
+                              _LiveFlowCard(reading: reading, unit: volumeUnit),
+                          loading: () => const _LoadingCard(height: 100),
+                          error: (e, _) => _ErrorCard(message: e.toString()),
+                        ),
                   const SizedBox(height: 12),
                   hourlyAsync.when(
                     data: (usage) => _TodaySummaryCard(
@@ -98,6 +133,62 @@ class DashboardScreen extends ConsumerWidget {
                 ]),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LiveSocketDebugBanner extends StatelessWidget {
+  const _LiveSocketDebugBanner({required this.debug});
+
+  final LiveUpdatesDebugState debug;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final statusText = !debug.socketEnabled
+        ? 'WS disabled (check LIVE_UPDATES_WS_URL build flag)'
+        : debug.socketConnected
+            ? 'WS connected'
+            : 'WS disconnected';
+
+    return Card(
+      color: scheme.surfaceContainerHighest,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Live socket debug',
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$statusText · messages: ${debug.messagesReceived} '
+              '(flow: ${debug.waterFlowReceived}, 30m: ${debug.bucket30mReceived})',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            if (debug.lastMessageType != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                'Last: ${debug.lastMessageType} at '
+                '${debug.lastMessageAt != null ? TimeOfDay.fromDateTime(debug.lastMessageAt!).format(context) : '-'}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+            if (debug.lastError != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                'Error: ${debug.lastError}',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: scheme.error),
+              ),
+            ],
           ],
         ),
       ),

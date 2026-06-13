@@ -40,8 +40,11 @@ final activeWaterUnitProvider = Provider<WaterUnit?>((ref) {
   final unitsAsync = ref.watch(waterUnitsProvider);
   return unitsAsync.maybeWhen(
     data: (units) {
+      final normalizedRoute = routeId.trim();
       for (final unit in units) {
-        if (unit.id == routeId) return unit;
+        if (unit.id == normalizedRoute || unit.deviceId == normalizedRoute) {
+          return unit;
+        }
       }
       return null;
     },
@@ -54,5 +57,7 @@ final activeUserDeviceProvider = activeWaterUnitProvider;
 final activeDeviceApiIdProvider = Provider<String>((ref) {
   final unit = ref.watch(activeWaterUnitProvider);
   if (unit != null) return unit.deviceId;
+  final routeId = ref.watch(selectedRouteDeviceIdProvider);
+  if (routeId != null && routeId.isNotEmpty) return routeId;
   return 'WM-DEMO';
 });

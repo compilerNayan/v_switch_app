@@ -71,7 +71,7 @@ class HomeSnapshotNotifier extends AsyncNotifier<HomeSnapshot?> {
     if (current == null) return;
 
     final deviceId = event.deviceId.trim();
-    final existing = current.dashboard.byDeviceId[deviceId];
+    final existing = _findDevice(current, deviceId);
     if (existing == null) return;
 
     final updatedDevice = existing.copyWith(
@@ -83,7 +83,10 @@ class HomeSnapshotNotifier extends AsyncNotifier<HomeSnapshot?> {
 
     final updatedDevices = current.dashboard.devices
         .map(
-          (device) => device.deviceId.trim() == deviceId ? updatedDevice : device,
+          (device) =>
+              device.deviceId.trim().toUpperCase() == deviceId.toUpperCase()
+                  ? updatedDevice
+                  : device,
         )
         .toList();
 
@@ -93,6 +96,19 @@ class HomeSnapshotNotifier extends AsyncNotifier<HomeSnapshot?> {
         dashboard: current.dashboard.copyWith(devices: updatedDevices),
       ),
     );
+  }
+
+  DashboardTelemetryDevice? _findDevice(HomeSnapshot snapshot, String deviceId) {
+    final direct = snapshot.dashboard.byDeviceId[deviceId];
+    if (direct != null) return direct;
+
+    final normalized = deviceId.toUpperCase();
+    for (final device in snapshot.dashboard.devices) {
+      if (device.deviceId.trim().toUpperCase() == normalized) {
+        return device;
+      }
+    }
+    return null;
   }
 
   Future<void> refresh() async {
