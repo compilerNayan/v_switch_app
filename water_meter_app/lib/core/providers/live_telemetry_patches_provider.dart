@@ -121,7 +121,7 @@ final deviceLiveMeterReadingProvider =
     Provider.family<DeviceMeterReading?, String>((ref, deviceId) {
   final patch = ref.watch(liveTelemetryPatchProvider(deviceId));
   final cumulative = patch?.cumulativeLiters;
-  if (cumulative == null) return null;
+  if (cumulative == null || cumulative <= 0) return null;
   return DeviceMeterReading(
     cumulativeLiters: cumulative,
     isLiveEstimate: true,
