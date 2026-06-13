@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/config/app_config.dart';
-import '../../core/live/live_updates_debug_provider.dart';
 import '../../core/models/current_reading.dart';
 import '../../core/models/usage_response.dart';
 import '../../core/models/quota_config.dart';
@@ -49,27 +47,12 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            if (!AppConfig.useMockApi)
-              const SliverToBoxAdapter(child: _LiveSocketDebugBanner()),
             const SliverToBoxAdapter(child: _DashboardLiveFlowSection()),
             const SliverToBoxAdapter(child: _DashboardTodaySummarySection()),
             const SliverToBoxAdapter(child: _DashboardHourlyChartSection()),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _LiveSocketDebugBanner extends ConsumerWidget {
-  const _LiveSocketDebugBanner();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final debug = ref.watch(liveUpdatesDebugProvider);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: _LiveSocketDebugCard(debug: debug),
     );
   }
 }
@@ -176,62 +159,6 @@ class _DashboardHourlyChartSection extends ConsumerWidget {
         ),
         loading: () => const _LoadingCard(height: 200),
         error: (e, _) => _ErrorCard(message: e.toString()),
-      ),
-    );
-  }
-}
-
-class _LiveSocketDebugCard extends StatelessWidget {
-  const _LiveSocketDebugCard({required this.debug});
-
-  final LiveUpdatesDebugState debug;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final statusText = !debug.socketEnabled
-        ? 'WS disabled (check LIVE_UPDATES_WS_URL build flag)'
-        : debug.socketConnected
-            ? 'WS connected'
-            : 'WS disconnected';
-
-    return Card(
-      color: scheme.surfaceContainerHighest,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Live socket debug',
-              style: Theme.of(context).textTheme.labelLarge,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '$statusText · messages: ${debug.messagesReceived} '
-              '(flow: ${debug.waterFlowReceived}, 30m: ${debug.bucket30mReceived})',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            if (debug.lastMessageType != null) ...[
-              const SizedBox(height: 2),
-              Text(
-                'Last: ${debug.lastMessageType} at '
-                '${debug.lastMessageAt != null ? TimeOfDay.fromDateTime(debug.lastMessageAt!).format(context) : '-'}',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-            if (debug.lastError != null) ...[
-              const SizedBox(height: 2),
-              Text(
-                'Error: ${debug.lastError}',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: scheme.error),
-              ),
-            ],
-          ],
-        ),
       ),
     );
   }
