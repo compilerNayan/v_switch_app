@@ -8,11 +8,13 @@ import '../../core/models/quota_config.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/control_providers.dart';
 import '../../core/providers/dashboard_providers.dart';
+import '../../core/providers/live_telemetry_patches_provider.dart';
 import '../../core/providers/unit_providers.dart';
 import '../../core/providers/water_providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/units.dart';
 import '../../shared/widgets/device_scaffold_actions.dart';
+import '../../shared/widgets/flow_status_indicator.dart';
 import '../../shared/widgets/usage_chart.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -63,18 +65,22 @@ class _DashboardLiveFlowSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final deviceId = ref.watch(activeDeviceApiIdProvider);
     final homeTelemetry = ref.watch(deviceHomeTelemetryProvider(deviceId));
+    final liveMeter = ref.watch(deviceLiveMeterReadingProvider(deviceId));
     final currentAsync = ref.watch(currentReadingProvider);
     final volumeUnit = ref.watch(volumeUnitProvider);
 
     CurrentReading? resolvedLiveReading;
     if (homeTelemetry != null) {
+      final cumulativeLiters = liveMeter?.cumulativeLiters ??
+          currentAsync.valueOrNull?.cumulativeLiters ??
+          0;
       resolvedLiveReading = CurrentReading(
         deviceId: homeTelemetry.deviceId,
         timestamp: homeTelemetry.lastSeenAt != null
             ? DateTime.tryParse(homeTelemetry.lastSeenAt!) ?? DateTime.now()
             : DateTime.now(),
         flowRateLpm: homeTelemetry.flowRateLpm,
-        cumulativeLiters: homeTelemetry.todayLiters,
+        cumulativeLiters: cumulativeLiters,
         status: homeTelemetry.isFlowing
             ? WaterDeviceStatus.flowing
             : (homeTelemetry.isOnline
@@ -86,10 +92,17 @@ class _DashboardLiveFlowSection extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: resolvedLiveReading != null
-          ? _LiveFlowCard(reading: resolvedLiveReading, unit: volumeUnit)
+          ? _LiveFlowCard(
+              reading: resolvedLiveReading,
+              unit: volumeUnit,
+              valveOff: homeTelemetry?.valveIsOff ?? false,
+              isLiveMeterEstimate: liveMeter != null,
+            )
           : currentAsync.when(
-              data: (reading) =>
-                  _LiveFlowCard(reading: reading, unit: volumeUnit),
+              data: (reading) => _LiveFlowCard(
+                reading: reading,
+                unit: volumeUnit,
+              ),
               loading: () => const _LoadingCard(height: 100),
               error: (e, _) => _ErrorCard(message: e.toString()),
             ),
@@ -163,26 +176,40 @@ class _DashboardHourlyChartSection extends ConsumerWidget {
 }
 
 class _LiveFlowCard extends StatelessWidget {
-  const _LiveFlowCard({required this.reading, required this.unit});
+  const _LiveFlowCard({
+    required this.reading,
+    required this.unit,
+    this.valveOff = false,
+    this.isLiveMeterEstimate = false,
+  });
 
   final CurrentReading reading;
   final VolumeUnit unit;
+  final bool valveOff;
+  final bool isLiveMeterEstimate;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final isFlowing = reading.status == WaterDeviceStatus.flowing;
+    final flowing = isWaterFlowing(
+      valveOff: valveOff,
+      flowRateLpm: reading.flowRateLpm,
+      status: reading.status.name,
+    );
 
     return Card(
-      color: scheme.primaryContainer.withValues(alpha: 0.35),
+      color: flowing
+          ? scheme.primaryContainer.withValues(alpha: 0.35)
+          : scheme.surfaceContainerHighest.withValues(alpha: 0.5),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(
-              Icons.water_drop,
-              size: 40,
-              color: isFlowing ? scheme.primary : scheme.outline,
+            FlowStatusIndicator(
+              isFlowing: flowing,
+              size: 48,
+              activeColor: scheme.primary,
+              idleColor: scheme.outline,
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -197,11 +224,22 @@ class _LiveFlowCard extends StatelessWidget {
                     '${VolumeFormatter.fromLiters(reading.flowRateLpm, unit).toStringAsFixed(1)} ${unit.symbol}/min',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.bold,
+                          color: flowing ? scheme.primary : null,
                         ),
                   ),
                   Text(
                     '${reading.status.label} · Updated ${DateFormat.Hm().format(reading.timestamp.toLocal())}',
                     style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Meter: ${VolumeFormatter.format(reading.cumulativeLiters, unit, decimals: 1)}'
+                    '${isLiveMeterEstimate ? ' (live estimate)' : ''}',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          fontStyle:
+                              isLiveMeterEstimate ? FontStyle.italic : null,
+                        ),
                   ),
                 ],
               ),

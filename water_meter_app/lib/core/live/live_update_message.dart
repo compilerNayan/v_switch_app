@@ -16,6 +16,7 @@ sealed class LiveUpdateMessage {
           ts: json['ts'] as String? ?? '',
           ml: (json['ml'] as num?)?.toDouble() ?? 0,
           flowRateLpm: (json['flowRateLpm'] as num?)?.toDouble() ?? 0,
+          cumulativeLiters: (json['cumulativeLiters'] as num?)?.toDouble(),
           status: json['status'] as String? ?? 'flowing',
         );
       case 'bucket_30m':
@@ -51,6 +52,7 @@ class LiveUpdateWaterFlow extends LiveUpdateMessage {
     required this.ts,
     required this.ml,
     required this.flowRateLpm,
+    this.cumulativeLiters,
     required this.status,
   });
 
@@ -60,6 +62,7 @@ class LiveUpdateWaterFlow extends LiveUpdateMessage {
   final String ts;
   final double ml;
   final double flowRateLpm;
+  final double? cumulativeLiters;
   final String status;
 }
 

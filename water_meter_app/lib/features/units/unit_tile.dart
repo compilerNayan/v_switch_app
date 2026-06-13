@@ -9,8 +9,10 @@ import '../../core/providers/app_providers.dart';
 import '../../core/providers/control_providers.dart';
 import '../../core/providers/dashboard_providers.dart';
 import '../../core/providers/device_tile_providers.dart';
+import '../../core/providers/live_telemetry_patches_provider.dart';
 import '../../core/utils/contact_launcher.dart';
 import '../../core/utils/units.dart';
+import '../../shared/widgets/flow_status_indicator.dart';
 
 class UnitTile extends ConsumerStatefulWidget {
   const UnitTile({super.key, required this.unit});
@@ -264,6 +266,11 @@ class _UnitTileState extends ConsumerState<UnitTile> {
                   homeSnapshotLoading: showTelemetryLoading,
                   usePerDeviceApis: usePerDeviceApis,
                 ),
+                const SizedBox(height: 4),
+                _MeterReadingRow(
+                  deviceId: widget.unit.deviceId,
+                  homeSnapshotLoading: showTelemetryLoading,
+                ),
                 const SizedBox(height: 8),
                 _QuotaUsageRow(
                   deviceId: widget.unit.deviceId,
@@ -392,19 +399,18 @@ class _LiveReadingRow extends ConsumerWidget {
     if (homeTelemetry != null) {
       final valveOff = homeTelemetry!.valveIsOff;
       final flowRateLpm = homeTelemetry!.flowRateLpm;
+      final flowing = isWaterFlowing(
+        valveOff: valveOff,
+        flowRateLpm: flowRateLpm,
+        status: homeTelemetry!.status,
+      );
       final label = valveOff
           ? 'Water off'
           : '${VolumeFormatter.fromLiters(flowRateLpm, unit).toStringAsFixed(1)} ${unit.symbol}/min';
       return Row(
         children: [
-          Icon(
-            Icons.water_drop,
-            size: 18,
-            color: valveOff
-                ? Theme.of(context).colorScheme.outline
-                : Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(width: 6),
+          FlowStatusIndicator(isFlowing: flowing, size: 22),
+          const SizedBox(width: 8),
           Expanded(child: Text(label)),
         ],
       );
@@ -413,12 +419,8 @@ class _LiveReadingRow extends ConsumerWidget {
     if (!usePerDeviceApis) {
       return Row(
         children: [
-          Icon(
-            Icons.water_drop,
-            size: 18,
-            color: Theme.of(context).colorScheme.outline,
-          ),
-          const SizedBox(width: 6),
+          const FlowStatusIndicator(isFlowing: false, size: 22),
+          const SizedBox(width: 8),
           const Expanded(child: Text('Water off')),
         ],
       );
@@ -429,22 +431,56 @@ class _LiveReadingRow extends ConsumerWidget {
     return readingAsync.when(
       data: (reading) {
         final valveOff = valveAsync.valueOrNull?.isOff ?? false;
+        final flowing = isWaterFlowing(
+          valveOff: valveOff,
+          flowRateLpm: reading.flowRateLpm,
+          status: reading.status.name,
+        );
         final label = valveOff
             ? 'Water off'
             : '${VolumeFormatter.fromLiters(reading.flowRateLpm, unit).toStringAsFixed(1)} ${unit.symbol}/min';
         return Row(
           children: [
-            Icon(Icons.water_drop, size: 18,
-                color: valveOff
-                    ? Theme.of(context).colorScheme.outline
-                    : Theme.of(context).colorScheme.primary),
-            const SizedBox(width: 6),
+            FlowStatusIndicator(isFlowing: flowing, size: 22),
+            const SizedBox(width: 8),
             Expanded(child: Text(label)),
           ],
         );
       },
       loading: () => const _ShimmerLine(width: 120),
       error: (_, __) => const Text('Flow unavailable'),
+    );
+  }
+}
+
+class _MeterReadingRow extends ConsumerWidget {
+  const _MeterReadingRow({
+    required this.deviceId,
+    this.homeSnapshotLoading = false,
+  });
+
+  final String deviceId;
+  final bool homeSnapshotLoading;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (homeSnapshotLoading) {
+      return const _ShimmerLine(width: 140);
+    }
+
+    final liveMeter = ref.watch(deviceLiveMeterReadingProvider(deviceId));
+    if (liveMeter == null) {
+      return const SizedBox.shrink();
+    }
+
+    final unit = ref.watch(volumeUnitProvider);
+    final scheme = Theme.of(context).colorScheme;
+    return Text(
+      'Meter: ${VolumeFormatter.format(liveMeter.cumulativeLiters, unit, decimals: 1)} (live)',
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: scheme.onSurfaceVariant,
+            fontStyle: FontStyle.italic,
+          ),
     );
   }
 }

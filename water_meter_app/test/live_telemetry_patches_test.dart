@@ -40,6 +40,7 @@ void main() {
             ts: '2026-06-09T10:30:05Z',
             ml: 100,
             flowRateLpm: 6.0,
+            cumulativeLiters: 123.1,
             status: 'flowing',
           ),
         );
@@ -48,12 +49,41 @@ void main() {
       container.read(liveTelemetryPatchProvider('WM000001'))?.flowRateLpm,
       6.0,
     );
+    expect(
+      container.read(liveTelemetryPatchProvider('WM000001'))?.cumulativeLiters,
+      123.1,
+    );
 
     await Future<void>.delayed(liveFlowStaleAfter);
 
     final expired = container.read(liveTelemetryPatchProvider('WM000001'));
     expect(expired?.flowRateLpm, 0);
     expect(expired?.status, 'idle');
+    expect(expired?.cumulativeLiters, 123.1);
+  });
+
+  test('clearDevice removes live meter reading overlay', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    container.read(liveTelemetryPatchesProvider.notifier).applyWaterFlow(
+          const LiveUpdateWaterFlow(
+            tenantId: 'tenant-1',
+            deviceId: 'WM000001',
+            unitId: 'wm-WM000001',
+            ts: '2026-06-09T10:30:05Z',
+            ml: 45,
+            flowRateLpm: 2.7,
+            cumulativeLiters: 50.5,
+            status: 'flowing',
+          ),
+        );
+
+    expect(container.read(deviceLiveMeterReadingProvider('WM000001')), isNotNull);
+
+    container.read(liveTelemetryPatchesProvider.notifier).clearDevice('WM000001');
+
+    expect(container.read(deviceLiveMeterReadingProvider('WM000001')), isNull);
   });
 
   test('live patch updates only the matching device telemetry', () {
@@ -68,6 +98,7 @@ void main() {
             ts: '2026-06-09T10:30:05Z',
             ml: 45,
             flowRateLpm: 2.7,
+            cumulativeLiters: 88.2,
             status: 'flowing',
           ),
         );

@@ -20,12 +20,14 @@ class LiveTelemetryPatch {
     required this.status,
     required this.isOnline,
     required this.lastSeenAt,
+    this.cumulativeLiters,
   });
 
   final double flowRateLpm;
   final String status;
   final bool isOnline;
   final String lastSeenAt;
+  final double? cumulativeLiters;
 
   @override
   bool operator ==(Object other) {
@@ -33,12 +35,13 @@ class LiveTelemetryPatch {
         other.flowRateLpm == flowRateLpm &&
         other.status == status &&
         other.isOnline == isOnline &&
-        other.lastSeenAt == lastSeenAt;
+        other.lastSeenAt == lastSeenAt &&
+        other.cumulativeLiters == cumulativeLiters;
   }
 
   @override
   int get hashCode =>
-      Object.hash(flowRateLpm, status, isOnline, lastSeenAt);
+      Object.hash(flowRateLpm, status, isOnline, lastSeenAt, cumulativeLiters);
 }
 
 class LiveTelemetryPatchesNotifier
@@ -60,6 +63,7 @@ class LiveTelemetryPatchesNotifier
       status: event.status,
       isOnline: true,
       lastSeenAt: event.ts,
+      cumulativeLiters: event.cumulativeLiters,
     );
     state = next;
   }
@@ -95,6 +99,7 @@ class LiveTelemetryPatchesNotifier
       status: 'idle',
       isOnline: existing.isOnline,
       lastSeenAt: existing.lastSeenAt,
+      cumulativeLiters: existing.cumulativeLiters,
     );
     state = next;
   }
@@ -109,6 +114,28 @@ class LiveTelemetryPatchesNotifier
     }
     _staleTimers.clear();
   }
+}
+
+/// Live meter reading from WebSocket; cleared on authoritative `bucket_30m`.
+final deviceLiveMeterReadingProvider =
+    Provider.family<DeviceMeterReading?, String>((ref, deviceId) {
+  final patch = ref.watch(liveTelemetryPatchProvider(deviceId));
+  final cumulative = patch?.cumulativeLiters;
+  if (cumulative == null) return null;
+  return DeviceMeterReading(
+    cumulativeLiters: cumulative,
+    isLiveEstimate: true,
+  );
+});
+
+class DeviceMeterReading {
+  const DeviceMeterReading({
+    required this.cumulativeLiters,
+    required this.isLiveEstimate,
+  });
+
+  final double cumulativeLiters;
+  final bool isLiveEstimate;
 }
 
 String normalizeDeviceId(String deviceId) => deviceId.trim().toUpperCase();

@@ -13,6 +13,7 @@ void main() {
         'ts': '2026-06-09T10:30:05Z',
         'ml': 45,
         'flowRateLpm': 2.7,
+        'cumulativeLiters': 123.45,
         'status': 'flowing',
       });
 
@@ -20,6 +21,7 @@ void main() {
       final flow = message as LiveUpdateWaterFlow;
       expect(flow.deviceId, 'WM000001');
       expect(flow.flowRateLpm, 2.7);
+      expect(flow.cumulativeLiters, 123.45);
       expect(flow.status, 'flowing');
     });
 
