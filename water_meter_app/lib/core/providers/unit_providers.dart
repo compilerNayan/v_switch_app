@@ -15,9 +15,10 @@ final waterUnitsProvider = FutureProvider<List<WaterUnit>>((ref) async {
   }
 
   try {
-    final snapshot = await ref.watch(homeSnapshotProvider.future);
-    if (snapshot != null) {
-      return snapshot.metadata.devices.map((d) => d.toWaterUnit()).toList();
+    await ref.watch(homeSnapshotProvider.future);
+    final metadata = ref.read(tenantMetadataFromSnapshotProvider);
+    if (metadata != null) {
+      return metadata.devices.map((d) => d.toWaterUnit()).toList();
     }
   } catch (_) {}
 

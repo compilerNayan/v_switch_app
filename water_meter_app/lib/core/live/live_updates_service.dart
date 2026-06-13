@@ -5,6 +5,7 @@ import '../models/user_profile.dart';
 import '../providers/app_providers.dart';
 import '../providers/dashboard_providers.dart';
 import '../providers/live_device_reading_provider.dart';
+import '../providers/live_telemetry_patches_provider.dart';
 import '../providers/unit_providers.dart';
 import '../providers/water_providers.dart';
 import 'live_update_message.dart';
@@ -91,10 +92,11 @@ class LiveUpdatesService {
     switch (message) {
       case LiveUpdateWaterFlow():
         debug.recordMessage(type: 'water_flow');
-        _ref.read(homeSnapshotProvider.notifier).applyWaterFlow(message);
+        _ref.read(liveTelemetryPatchesProvider.notifier).applyWaterFlow(message);
         _patchActiveDeviceReading(message);
       case LiveUpdateBucket30m():
         debug.recordMessage(type: 'bucket_30m');
+        _ref.read(liveTelemetryPatchesProvider.notifier).clearDevice(message.deviceId);
         invalidateHomeDataFromRef(_ref);
         final activeDeviceId = _ref.read(activeDeviceApiIdProvider);
         if (activeDeviceId.trim().toUpperCase() ==

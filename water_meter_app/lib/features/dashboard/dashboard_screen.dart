@@ -23,32 +23,7 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final deviceId = ref.watch(activeDeviceApiIdProvider);
-    final liveReading = ref.watch(liveDeviceReadingProvider);
-    final homeTelemetry = ref.watch(deviceHomeTelemetryProvider(deviceId));
-    final currentAsync = ref.watch(currentReadingProvider);
-    final wsDebug = ref.watch(liveUpdatesDebugProvider);
-    final hourlyAsync = ref.watch(todayHourlyUsageProvider);
-    final quotaAsync = ref.watch(quotaStateProvider);
-    final volumeUnit = ref.watch(volumeUnitProvider);
     final scheme = Theme.of(context).colorScheme;
-
-    CurrentReading? resolvedLiveReading = liveReading;
-    if (resolvedLiveReading == null && homeTelemetry != null) {
-      resolvedLiveReading = CurrentReading(
-        deviceId: homeTelemetry.deviceId,
-        timestamp: homeTelemetry.lastSeenAt != null
-            ? DateTime.tryParse(homeTelemetry.lastSeenAt!) ?? DateTime.now()
-            : DateTime.now(),
-        flowRateLpm: homeTelemetry.flowRateLpm,
-        cumulativeLiters: homeTelemetry.todayLiters,
-        status: homeTelemetry.isFlowing
-            ? WaterDeviceStatus.flowing
-            : (homeTelemetry.isOnline
-                ? WaterDeviceStatus.idle
-                : WaterDeviceStatus.offline),
-      );
-    }
 
     return Scaffold(
       body: RefreshIndicator(
@@ -74,65 +49,11 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  if (!AppConfig.useMockApi)
-                    _LiveSocketDebugBanner(debug: wsDebug),
-                  if (!AppConfig.useMockApi) const SizedBox(height: 12),
-                  resolvedLiveReading != null
-                      ? _LiveFlowCard(
-                          reading: resolvedLiveReading,
-                          unit: volumeUnit,
-                        )
-                      : currentAsync.when(
-                          data: (reading) =>
-                              _LiveFlowCard(reading: reading, unit: volumeUnit),
-                          loading: () => const _LoadingCard(height: 100),
-                          error: (e, _) => _ErrorCard(message: e.toString()),
-                        ),
-                  const SizedBox(height: 12),
-                  hourlyAsync.when(
-                    data: (usage) => _TodaySummaryCard(
-                      usage: usage,
-                      unit: volumeUnit,
-                      quota: quotaAsync.valueOrNull,
-                    ),
-                    loading: () => const _LoadingCard(height: 160),
-                    error: (e, _) => _ErrorCard(message: e.toString()),
-                  ),
-                  const SizedBox(height: 12),
-                  hourlyAsync.when(
-                    data: (usage) => Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Today by hour',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 12),
-                            UsageChart(
-                              dataPoints: usage.dataPoints,
-                              granularity: usage.granularity,
-                              unit: volumeUnit,
-                              mode: ChartDisplayMode.bar,
-                              height: 160,
-                              compactLabels: true,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    loading: () => const _LoadingCard(height: 200),
-                    error: (e, _) => _ErrorCard(message: e.toString()),
-                  ),
-                ]),
-              ),
-            ),
+            if (!AppConfig.useMockApi)
+              const SliverToBoxAdapter(child: _LiveSocketDebugBanner()),
+            const SliverToBoxAdapter(child: _DashboardLiveFlowSection()),
+            const SliverToBoxAdapter(child: _DashboardTodaySummarySection()),
+            const SliverToBoxAdapter(child: _DashboardHourlyChartSection()),
           ],
         ),
       ),
@@ -140,8 +61,128 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
-class _LiveSocketDebugBanner extends StatelessWidget {
-  const _LiveSocketDebugBanner({required this.debug});
+class _LiveSocketDebugBanner extends ConsumerWidget {
+  const _LiveSocketDebugBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final debug = ref.watch(liveUpdatesDebugProvider);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: _LiveSocketDebugCard(debug: debug),
+    );
+  }
+}
+
+class _DashboardLiveFlowSection extends ConsumerWidget {
+  const _DashboardLiveFlowSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final deviceId = ref.watch(activeDeviceApiIdProvider);
+    final liveReading = ref.watch(liveDeviceReadingProvider);
+    final homeTelemetry = ref.watch(deviceHomeTelemetryProvider(deviceId));
+    final currentAsync = ref.watch(currentReadingProvider);
+    final volumeUnit = ref.watch(volumeUnitProvider);
+
+    CurrentReading? resolvedLiveReading = liveReading;
+    if (resolvedLiveReading == null && homeTelemetry != null) {
+      resolvedLiveReading = CurrentReading(
+        deviceId: homeTelemetry.deviceId,
+        timestamp: homeTelemetry.lastSeenAt != null
+            ? DateTime.tryParse(homeTelemetry.lastSeenAt!) ?? DateTime.now()
+            : DateTime.now(),
+        flowRateLpm: homeTelemetry.flowRateLpm,
+        cumulativeLiters: homeTelemetry.todayLiters,
+        status: homeTelemetry.isFlowing
+            ? WaterDeviceStatus.flowing
+            : (homeTelemetry.isOnline
+                ? WaterDeviceStatus.idle
+                : WaterDeviceStatus.offline),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: resolvedLiveReading != null
+          ? _LiveFlowCard(reading: resolvedLiveReading, unit: volumeUnit)
+          : currentAsync.when(
+              data: (reading) =>
+                  _LiveFlowCard(reading: reading, unit: volumeUnit),
+              loading: () => const _LoadingCard(height: 100),
+              error: (e, _) => _ErrorCard(message: e.toString()),
+            ),
+    );
+  }
+}
+
+class _DashboardTodaySummarySection extends ConsumerWidget {
+  const _DashboardTodaySummarySection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hourlyAsync = ref.watch(todayHourlyUsageProvider);
+    final quotaAsync = ref.watch(quotaStateProvider);
+    final volumeUnit = ref.watch(volumeUnitProvider);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: hourlyAsync.when(
+        data: (usage) => _TodaySummaryCard(
+          usage: usage,
+          unit: volumeUnit,
+          quota: quotaAsync.valueOrNull,
+        ),
+        loading: () => const _LoadingCard(height: 160),
+        error: (e, _) => _ErrorCard(message: e.toString()),
+      ),
+    );
+  }
+}
+
+class _DashboardHourlyChartSection extends ConsumerWidget {
+  const _DashboardHourlyChartSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hourlyAsync = ref.watch(todayHourlyUsageProvider);
+    final volumeUnit = ref.watch(volumeUnitProvider);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      child: hourlyAsync.when(
+        data: (usage) => Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Today by hour',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 12),
+                UsageChart(
+                  dataPoints: usage.dataPoints,
+                  granularity: usage.granularity,
+                  unit: volumeUnit,
+                  mode: ChartDisplayMode.bar,
+                  height: 160,
+                  compactLabels: true,
+                ),
+              ],
+            ),
+          ),
+        ),
+        loading: () => const _LoadingCard(height: 200),
+        error: (e, _) => _ErrorCard(message: e.toString()),
+      ),
+    );
+  }
+}
+
+class _LiveSocketDebugCard extends StatelessWidget {
+  const _LiveSocketDebugCard({required this.debug});
 
   final LiveUpdatesDebugState debug;
 

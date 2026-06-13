@@ -134,7 +134,10 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
                                     context.push('/devices/water-meter/setup'),
                               );
                             }
-                            return UnitTile(unit: sorted[index]);
+                            return UnitTile(
+                              key: ValueKey(sorted[index].deviceId),
+                              unit: sorted[index],
+                            );
                           },
                           childCount: sorted.length + 1,
                         ),

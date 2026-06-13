@@ -1,0 +1,59 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:water_meter_app/core/live/live_update_message.dart';
+import 'package:water_meter_app/core/models/home_dashboard.dart';
+import 'package:water_meter_app/core/providers/live_telemetry_patches_provider.dart';
+
+DashboardTelemetryDevice _device({
+  required String deviceId,
+  double flowRateLpm = 0,
+  String status = 'idle',
+}) {
+  return DashboardTelemetryDevice(
+    unitId: 'wm-$deviceId',
+    deviceId: deviceId,
+    todayLiters: 10,
+    monthLiters: 100,
+    isOnline: true,
+    status: status,
+    flowRateLpm: flowRateLpm,
+    quotaEnabled: false,
+    dailyLimitLiters: 0,
+    quotaUsedLiters: 0,
+    valveOpenPercent: 100,
+    valveIsOff: false,
+    hasAlert: false,
+  );
+}
+
+void main() {
+  test('live patch updates only the matching device telemetry', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    container.read(liveTelemetryPatchesProvider.notifier).applyWaterFlow(
+          const LiveUpdateWaterFlow(
+            tenantId: 'tenant-1',
+            deviceId: 'WM000001',
+            unitId: 'wm-WM000001',
+            ts: '2026-06-09T10:30:05Z',
+            ml: 45,
+            flowRateLpm: 2.7,
+            status: 'flowing',
+          ),
+        );
+
+    final patch = container.read(liveTelemetryPatchProvider('WM000001'));
+    expect(patch?.flowRateLpm, 2.7);
+    expect(patch?.status, 'flowing');
+
+    final merged = mergeTelemetryPatch(_device(deviceId: 'WM000001'), patch);
+    expect(merged?.flowRateLpm, 2.7);
+    expect(merged?.status, 'flowing');
+    expect(merged?.lastSeenAt, '2026-06-09T10:30:05Z');
+
+    final otherPatch = container.read(liveTelemetryPatchProvider('WM000002'));
+    expect(otherPatch, isNull);
+  });
+}

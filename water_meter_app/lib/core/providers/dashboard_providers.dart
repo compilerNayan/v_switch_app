@@ -2,10 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/v2_tenant_api_client.dart';
 import '../config/app_config.dart';
-import '../live/live_update_message.dart';
 import '../models/home_dashboard.dart';
+import '../models/tenant_metadata.dart';
 import '../utils/timezone_offset.dart';
 import 'app_providers.dart';
+import 'live_telemetry_patches_provider.dart';
 
 final v2TenantApiClientProvider = Provider<V2TenantApiClient>((ref) {
   final auth = ref.watch(authServiceProvider);
@@ -66,63 +67,39 @@ class HomeSnapshotNotifier extends AsyncNotifier<HomeSnapshot?> {
     }
   }
 
-  void applyWaterFlow(LiveUpdateWaterFlow event) {
-    final current = state.valueOrNull;
-    if (current == null) return;
-
-    final deviceId = event.deviceId.trim();
-    final existing = _findDevice(current, deviceId);
-    if (existing == null) return;
-
-    final updatedDevice = existing.copyWith(
-      flowRateLpm: event.flowRateLpm,
-      status: event.status,
-      isOnline: true,
-      lastSeenAt: event.ts,
-    );
-
-    final updatedDevices = current.dashboard.devices
-        .map(
-          (device) =>
-              device.deviceId.trim().toUpperCase() == deviceId.toUpperCase()
-                  ? updatedDevice
-                  : device,
-        )
-        .toList();
-
-    state = AsyncData(
-      HomeSnapshot(
-        metadata: current.metadata,
-        dashboard: current.dashboard.copyWith(devices: updatedDevices),
-      ),
-    );
-  }
-
-  DashboardTelemetryDevice? _findDevice(HomeSnapshot snapshot, String deviceId) {
-    final direct = snapshot.dashboard.byDeviceId[deviceId];
-    if (direct != null) return direct;
-
-    final normalized = deviceId.toUpperCase();
-    for (final device in snapshot.dashboard.devices) {
-      if (device.deviceId.trim().toUpperCase() == normalized) {
-        return device;
-      }
-    }
-    return null;
-  }
-
   Future<void> refresh() async {
     state = const AsyncLoading<HomeSnapshot?>().copyWithPrevious(state);
     state = await AsyncValue.guard(_loadSnapshot);
   }
 }
 
+final tenantMetadataFromSnapshotProvider = Provider<TenantMetadataResponse?>((ref) {
+  return ref.watch(
+    homeSnapshotProvider.select((async) => async.valueOrNull?.metadata),
+  );
+});
+
 final deviceHomeTelemetryProvider =
     Provider.family<DashboardTelemetryDevice?, String>((ref, deviceId) {
   if (AppConfig.useMockApi) return null;
-  final snapshot = ref.watch(homeSnapshotProvider).valueOrNull;
-  if (snapshot == null) return null;
-  return snapshot.telemetryByDeviceId[deviceId.trim()];
+
+  final normalizedId = normalizeDeviceId(deviceId);
+  final base = ref.watch(
+    homeSnapshotProvider.select((async) {
+      final snapshot = async.valueOrNull;
+      if (snapshot == null) return null;
+      final direct = snapshot.telemetryByDeviceId[deviceId.trim()];
+      if (direct != null) return direct;
+      for (final device in snapshot.dashboard.devices) {
+        if (normalizeDeviceId(device.deviceId) == normalizedId) {
+          return device;
+        }
+      }
+      return null;
+    }),
+  );
+  final patch = ref.watch(liveTelemetryPatchProvider(deviceId));
+  return mergeTelemetryPatch(base, patch);
 });
 
 /// True only on the initial v2 snapshot load (not during background refresh).
