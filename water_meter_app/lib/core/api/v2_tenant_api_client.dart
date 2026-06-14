@@ -10,6 +10,7 @@ import '../models/water_unit.dart';
 import 'enrollment_status_result.dart';
 import '../auth/auth_service.dart';
 import 'api_exceptions.dart';
+import 'stream_valve_api_client.dart';
 
 class V2TenantApiClient {
   V2TenantApiClient({
@@ -39,6 +40,7 @@ class V2TenantApiClient {
   }
 
   final Dio _dio;
+  final StreamValveApiClient _streamValveClient = StreamValveApiClient();
 
   Future<UserProfile> getMe() async {
     final data = await _get<Map<String, dynamic>>('/v2/users/me');
@@ -159,10 +161,7 @@ class V2TenantApiClient {
     required String tenantId,
     required String deviceId,
   }) async {
-    final data = await _get<Map<String, dynamic>>(
-      '/v2/tenants/$tenantId/devices/$deviceId/water/valve',
-    );
-    return ValveState.fromJson(data);
+    return _streamValveClient.getValveState(deviceId);
   }
 
   Future<ValveState> setValvePressure({
@@ -170,11 +169,7 @@ class V2TenantApiClient {
     required String deviceId,
     required ValveUpdateRequest request,
   }) async {
-    final data = await _put<Map<String, dynamic>>(
-      '/v2/tenants/$tenantId/devices/$deviceId/water/valve',
-      request.toJson(),
-    );
-    return ValveState.fromJson(data);
+    return _streamValveClient.setValvePressure(deviceId, request);
   }
 
   Future<String> getMetadataHash(String tenantId) async {

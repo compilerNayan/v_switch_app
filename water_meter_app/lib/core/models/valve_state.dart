@@ -36,6 +36,11 @@ class ValveState {
   });
 
   factory ValveState.fromJson(Map<String, dynamic> json) {
+    if (json['deviceId'] == null) {
+      throw ArgumentError(
+        'deviceId is required; use fromStreamApiJson for injection service responses',
+      );
+    }
     return ValveState(
       deviceId: json['deviceId'] as String,
       timestamp: DateTime.parse(json['timestamp'] as String),
@@ -50,6 +55,26 @@ class ValveState {
           : (json['quotaCapPercent'] as num).toDouble(),
       effectivePressurePercent:
           (json['effectivePressurePercent'] as num).toDouble(),
+    );
+  }
+
+  /// Maps {@code ValveApiResponse} from water_meter_data_injection_service.
+  factory ValveState.fromStreamApiJson(
+    Map<String, dynamic> json, {
+    required String deviceId,
+  }) {
+    final target = (json['targetPressurePercent'] as num?)?.toDouble() ?? 0;
+    final actual =
+        (json['actualPressurePercent'] as num?)?.toDouble() ?? target;
+    return ValveState(
+      deviceId: deviceId,
+      timestamp: DateTime.now().toUtc(),
+      targetPressurePercent: target,
+      actualPressurePercent: actual,
+      lastUserPressurePercent: target > 0 ? target : actual,
+      isOff: target == 0,
+      controlMode: ValveControlMode.manual,
+      effectivePressurePercent: actual,
     );
   }
 

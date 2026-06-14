@@ -15,11 +15,9 @@ Future<ValveState> setDeviceValvePressure(
 Future<ValveState> restoreDeviceValvePressure(
   WaterApiClient client,
   String deviceId,
+  double lastUserPressurePercent,
 ) {
-  return client.setValvePressure(
-    deviceId,
-    const ValveUpdateRequest(action: 'restore'),
-  );
+  return setDeviceValvePressure(client, deviceId, lastUserPressurePercent);
 }
 
 Future<ValveState> toggleDeviceValve(
@@ -28,7 +26,11 @@ Future<ValveState> toggleDeviceValve(
   ValveState current,
 ) {
   if (current.isOff) {
-    return restoreDeviceValvePressure(client, deviceId);
+    return restoreDeviceValvePressure(
+      client,
+      deviceId,
+      current.lastUserPressurePercent,
+    );
   }
   return setDeviceValvePressure(client, deviceId, 0);
 }

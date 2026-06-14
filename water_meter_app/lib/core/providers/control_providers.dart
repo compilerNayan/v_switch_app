@@ -89,7 +89,12 @@ class ValveControlNotifier extends AutoDisposeAsyncNotifier<ValveState> {
     try {
       final client = ref.read(waterApiClientProvider);
       final deviceId = ref.read(activeDeviceApiIdProvider);
-      final updated = await restoreDeviceValvePressure(client, deviceId);
+      final percent = previous?.lastUserPressurePercent ?? 100;
+      final updated = await restoreDeviceValvePressure(
+        client,
+        deviceId,
+        percent,
+      );
       state = AsyncData(updated);
       ref.invalidate(quotaStateProvider);
     } catch (e, st) {

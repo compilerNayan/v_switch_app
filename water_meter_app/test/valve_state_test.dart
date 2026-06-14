@@ -23,6 +23,22 @@ void main() {
       expect(state.controlMode, ValveControlMode.manual);
     });
 
+    test('fromStreamApiJson maps injection service response', () {
+      final state = ValveState.fromStreamApiJson(
+        {
+          'targetPressurePercent': 50,
+          'actualPressurePercent': 48,
+        },
+        deviceId: 'QJPDXN094',
+      );
+
+      expect(state.deviceId, 'QJPDXN094');
+      expect(state.targetPressurePercent, 50);
+      expect(state.actualPressurePercent, 48);
+      expect(state.isOff, isFalse);
+      expect(state.controlMode, ValveControlMode.manual);
+    });
+
     test('ValveUpdateRequest serializes restore action', () {
       const request = ValveUpdateRequest(action: 'restore');
       expect(request.toJson(), {'action': 'restore'});

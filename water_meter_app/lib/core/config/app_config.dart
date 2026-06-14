@@ -48,6 +48,13 @@ class AppConfig {
   static const String oauthRedirectUri = 'com.vswitch.watermeter://callback/';
   static const String oauthSignOutUri = 'com.vswitch.watermeter://signout/';
 
+  /// HTTP base URL for water_meter_data_injection_service (valve control, live WS host).
+  static const String injectionApiBaseUrl = String.fromEnvironment(
+    'INJECTION_API_BASE_URL',
+    defaultValue:
+        'http://water-meter-data-injection-env.eba-udmynr49.ap-south-1.elasticbeanstalk.com',
+  );
+
   static const String liveUpdatesWsUrl = String.fromEnvironment(
     'LIVE_UPDATES_WS_URL',
     defaultValue: '',

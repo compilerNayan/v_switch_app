@@ -9,6 +9,7 @@ import '../models/usage_response.dart';
 import '../models/valve_state.dart';
 import '../utils/usage_aggregation.dart';
 import 'api_exceptions.dart';
+import 'stream_valve_api_client.dart';
 import 'water_api_client.dart';
 
 typedef AuthCredentialsProvider = Future<({String deviceId, String apiKey})?> Function();
@@ -20,8 +21,10 @@ class DioWaterApiClient implements WaterApiClient {
     required TenantIdProvider tenantIdProvider,
     String? baseUrl,
     Dio? dio,
+    StreamValveApiClient? streamValveClient,
   })  : _credentialsProvider = credentialsProvider,
         _tenantIdProvider = tenantIdProvider,
+        _streamValveClient = streamValveClient ?? StreamValveApiClient(),
         _dio = dio ??
             Dio(
               BaseOptions(
@@ -53,6 +56,7 @@ class DioWaterApiClient implements WaterApiClient {
   final Dio _dio;
   final AuthCredentialsProvider _credentialsProvider;
   final TenantIdProvider _tenantIdProvider;
+  final StreamValveApiClient _streamValveClient;
 
   bool get _useV2 => !AppConfig.useMockApi;
 
@@ -63,10 +67,6 @@ class DioWaterApiClient implements WaterApiClient {
     }
     final prefix = _useV2 ? '/v2' : '';
     return '$prefix/tenants/$tenantId/devices/$deviceId/water/$suffix';
-  }
-
-  Future<String> _valvePath(String deviceId) async {
-    return _waterPath(deviceId, 'valve');
   }
 
   Future<MinutesHistoryResponse> _fetchHistoryMinutes({
@@ -82,6 +82,19 @@ class DioWaterApiClient implements WaterApiClient {
       },
     );
     return MinutesHistoryResponse.fromJson(data);
+  }
+
+  @override
+  Future<ValveState> getValveState(String deviceId) async {
+    return _streamValveClient.getValveState(deviceId);
+  }
+
+  @override
+  Future<ValveState> setValvePressure(
+    String deviceId,
+    ValveUpdateRequest request,
+  ) async {
+    return _streamValveClient.setValvePressure(deviceId, request);
   }
 
   @override
@@ -165,26 +178,6 @@ class DioWaterApiClient implements WaterApiClient {
       timezone: timezone,
     );
     return UsageAggregation.buildDailySummary(history, from: from, to: to);
-  }
-
-  @override
-  Future<ValveState> getValveState(String deviceId) async {
-    final data = await _get<Map<String, dynamic>>(
-      await _valvePath(deviceId),
-    );
-    return ValveState.fromJson(data);
-  }
-
-  @override
-  Future<ValveState> setValvePressure(
-    String deviceId,
-    ValveUpdateRequest request,
-  ) async {
-    final data = await _put<Map<String, dynamic>>(
-      await _valvePath(deviceId),
-      body: request.toJson(),
-    );
-    return ValveState.fromJson(data);
   }
 
   @override
