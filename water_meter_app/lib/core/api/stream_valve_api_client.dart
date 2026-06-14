@@ -12,7 +12,7 @@ class StreamValveApiClient {
   }) : _dio = dio ??
             Dio(
               BaseOptions(
-                baseUrl: baseUrl ?? AppConfig.injectionApiBaseUrl,
+                baseUrl: baseUrl ?? AppConfig.apiBaseUrl,
                 connectTimeout: const Duration(seconds: 15),
                 receiveTimeout: const Duration(seconds: 30),
                 headers: {

@@ -20,7 +20,8 @@ class AppConfig {
 
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://tkl8wm622f.execute-api.ap-south-1.amazonaws.com/Prod',
+    defaultValue:
+        'http://water-meter-data-injection-env.eba-udmynr49.ap-south-1.elasticbeanstalk.com',
   );
 
   static const String cognitoUserPoolId = String.fromEnvironment(
@@ -48,7 +49,7 @@ class AppConfig {
   static const String oauthRedirectUri = 'com.vswitch.watermeter://callback/';
   static const String oauthSignOutUri = 'com.vswitch.watermeter://signout/';
 
-  /// HTTP base URL for water_meter_data_injection_service (valve control, live WS host).
+  /// Same host as [apiBaseUrl]. Kept for builds that still pass INJECTION_API_BASE_URL.
   static const String injectionApiBaseUrl = String.fromEnvironment(
     'INJECTION_API_BASE_URL',
     defaultValue:
