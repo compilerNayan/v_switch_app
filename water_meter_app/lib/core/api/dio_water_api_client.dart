@@ -126,7 +126,8 @@ class DioWaterApiClient implements WaterApiClient {
       return UsageResponse.fromJson(data);
     }
 
-    final days = UsageAggregation.daysForRange(from, to).clamp(1, 31);
+    final now = DateTime.now();
+    final days = UsageAggregation.historyDaysToFetch(from, to, now).clamp(1, 31);
     final range = to.difference(from);
     final history = await _fetchHistoryMinutes(
       deviceId: deviceId,
@@ -135,12 +136,11 @@ class DioWaterApiClient implements WaterApiClient {
     );
     final minutes = UsageAggregation.flattenHistory(history);
     final prevFrom = from.subtract(range);
-    final prevHistory = await _fetchHistoryMinutes(
-      deviceId: deviceId,
-      days: UsageAggregation.daysForRange(prevFrom, from).clamp(1, 31),
-      timezone: timezone,
-    );
-    final previousMinutes = UsageAggregation.flattenHistory(prevHistory);
+    final previousMinutes = minutes
+        .where(
+          (m) => !m.timestamp.isBefore(prevFrom) && m.timestamp.isBefore(from),
+        )
+        .toList();
 
     return UsageAggregation.buildUsage(
       deviceId: deviceId,
@@ -171,7 +171,8 @@ class DioWaterApiClient implements WaterApiClient {
       return DailySummaryResponse.fromJson(data);
     }
 
-    final days = UsageAggregation.daysForRange(from, to).clamp(1, 31);
+    final days =
+        UsageAggregation.historyDaysToFetch(from, to, DateTime.now()).clamp(1, 31);
     final history = await _fetchHistoryMinutes(
       deviceId: deviceId,
       days: days,
@@ -219,7 +220,8 @@ class DioWaterApiClient implements WaterApiClient {
       return HourlyPatternResponse.fromJson(data);
     }
 
-    final days = UsageAggregation.daysForRange(from, to).clamp(1, 31);
+    final days =
+        UsageAggregation.historyDaysToFetch(from, to, DateTime.now()).clamp(1, 31);
     final history = await _fetchHistoryMinutes(
       deviceId: deviceId,
       days: days,

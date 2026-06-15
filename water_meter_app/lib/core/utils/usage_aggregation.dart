@@ -170,4 +170,22 @@ class UsageAggregation {
     final end = DateTime(to.year, to.month, to.day);
     return end.difference(start).inDays + 1;
   }
+
+  /// The v2 history API returns the last N calendar days ending today, not an
+  /// arbitrary [from]/[to] window. Request enough days to include [from].
+  static int historyDaysToFetch(
+    DateTime from,
+    DateTime to, [
+    DateTime? clockNow,
+  ]) {
+    final now = clockNow ?? DateTime.now();
+    final fromDay = DateTime(from.year, from.month, from.day);
+    final toDay = DateTime(to.year, to.month, to.day);
+    final earliest = fromDay.isBefore(toDay) ? fromDay : toDay;
+    final today = DateTime(now.year, now.month, now.day);
+    if (earliest.isAfter(today)) {
+      return 1;
+    }
+    return today.difference(earliest).inDays + 1;
+  }
 }

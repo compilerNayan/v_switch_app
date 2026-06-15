@@ -171,28 +171,27 @@ class _TopConsumersPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLowest,
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.45),
+        side: BorderSide(
+          color: scheme.outlineVariant.withValues(alpha: 0.55),
         ),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Column(
-          children: [
-            for (var i = 0; i < rankings.length; i++)
-              _TopConsumerRow(
-                rank: i + 1,
-                unit: rankings[i].unit,
-                liters: rankings[i].liters,
-                volumeUnit: volumeUnit,
-                showDivider: i < rankings.length - 1,
-              ),
-          ],
-        ),
+      child: Column(
+        children: [
+          for (var i = 0; i < rankings.length; i++)
+            _TopConsumerRow(
+              rank: i + 1,
+              unit: rankings[i].unit,
+              liters: rankings[i].liters,
+              volumeUnit: volumeUnit,
+              showDivider: i < rankings.length - 1,
+            ),
+        ],
       ),
     );
   }
