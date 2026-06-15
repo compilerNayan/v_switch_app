@@ -104,6 +104,25 @@ class WaterUnit {
     return name;
   }
 
+  /// Location chips for rankings (wing, block, floor) — flat is shown in the title.
+  List<({String label, String value})> get locationTagEntries {
+    return [
+      if (wing.isNotEmpty) (label: 'Wing', value: wing),
+      if (block.isNotEmpty) (label: 'Block', value: block),
+      if (floor.isNotEmpty) (label: 'Floor', value: floor),
+    ];
+  }
+
+  /// Primary line for top-consumer rows: resident name and flat when available.
+  String get topConsumerTitle {
+    final owner = ownerLabel;
+    final flat = flatNumber.trim();
+    if (owner != null && flat.isNotEmpty) return '$owner · $flat';
+    if (owner != null) return owner;
+    if (flat.isNotEmpty) return flat;
+    return name;
+  }
+
   String get displaySubtitle {
     final location = locationLabel;
     if (location.isNotEmpty) return location;

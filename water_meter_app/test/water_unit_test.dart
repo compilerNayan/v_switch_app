@@ -43,4 +43,45 @@ void main() {
 
     expect(unit.ownerLabel, 'Ravi Kumar');
   });
+
+  test('locationTagEntries lists wing block floor without flat', () {
+    const unit = WaterUnit(
+      id: 'u1',
+      name: 'D205',
+      deviceId: 'WM000001',
+      block: 'A',
+      wing: 'East',
+      floor: '2',
+      flatNumber: '205',
+    );
+
+    expect(
+      unit.locationTagEntries.map((e) => '${e.label} ${e.value}').toList(),
+      ['Wing East', 'Block A', 'Floor 2'],
+    );
+  });
+
+  test('topConsumerTitle combines resident name and flat number', () {
+    const unit = WaterUnit(
+      id: 'u1',
+      name: 'D205',
+      deviceId: 'WM000001',
+      flatNumber: '205',
+      residentName: 'Ravi Kumar',
+    );
+
+    expect(unit.topConsumerTitle, 'Ravi Kumar · 205');
+  });
+
+  test('topConsumerTitle falls back to flat then unit name', () {
+    expect(
+      const WaterUnit(id: 'u1', name: 'D205', deviceId: 'WM000001', flatNumber: '205')
+          .topConsumerTitle,
+      '205',
+    );
+    expect(
+      const WaterUnit(id: 'u1', name: 'D205', deviceId: 'WM000001').topConsumerTitle,
+      'D205',
+    );
+  });
 }
