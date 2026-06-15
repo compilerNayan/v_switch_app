@@ -212,14 +212,7 @@ class _UnitTileState extends ConsumerState<UnitTile> {
                   ),
                 ),
               const SizedBox(height: 4),
-              Text(
-                widget.unit.displaySubtitle,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              _UnitIdentitySection(unit: widget.unit),
               if (isPending)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
@@ -280,6 +273,7 @@ class _UnitTileState extends ConsumerState<UnitTile> {
                 _MeterReadingRow(
                   deviceId: widget.unit.deviceId,
                   homeSnapshotLoading: showTelemetryLoading,
+                  usePerDeviceApis: usePerDeviceApis,
                 ),
                 const SizedBox(height: 8),
                 _QuotaUsageRow(
@@ -300,6 +294,64 @@ class _UnitTileState extends ConsumerState<UnitTile> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _UnitIdentitySection extends StatelessWidget {
+  const _UnitIdentitySection({required this.unit});
+
+  final WaterUnit unit;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final muted = Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: scheme.onSurfaceVariant,
+        );
+    final location = unit.locationLabel;
+    final owner = unit.ownerLabel;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (location.isNotEmpty)
+          Text(
+            location,
+            style: muted,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        if (owner != null) ...[
+          if (location.isNotEmpty) const SizedBox(height: 2),
+          Row(
+            children: [
+              Icon(
+                Icons.person_outline,
+                size: 14,
+                color: scheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  owner,
+                  style: muted,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ],
+        if (location.isEmpty && owner == null && unit.isEnrollmentPending) ...[
+          Text(
+            'Meter ${unit.deviceId}',
+            style: muted,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ],
     );
   }
 }
@@ -467,10 +519,12 @@ class _MeterReadingRow extends ConsumerWidget {
   const _MeterReadingRow({
     required this.deviceId,
     this.homeSnapshotLoading = false,
+    this.usePerDeviceApis = true,
   });
 
   final String deviceId;
   final bool homeSnapshotLoading;
+  final bool usePerDeviceApis;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -478,19 +532,29 @@ class _MeterReadingRow extends ConsumerWidget {
       return const _ShimmerLine(width: 140);
     }
 
-    final liveMeter = ref.watch(deviceLiveMeterReadingProvider(deviceId));
-    if (liveMeter == null) {
+    final patch = ref.watch(liveTelemetryPatchProvider(deviceId));
+    final cumulative = patch?.cumulativeLiters;
+    if (cumulative != null && cumulative > 0) {
+      return _readingText(context, ref, cumulative);
+    }
+
+    if (!usePerDeviceApis) {
       return const SizedBox.shrink();
     }
 
+    final readingAsync = ref.watch(deviceCurrentReadingProvider(deviceId));
+    return readingAsync.when(
+      data: (reading) => _readingText(context, ref, reading.cumulativeLiters),
+      loading: () => const _ShimmerLine(width: 140),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _readingText(BuildContext context, WidgetRef ref, double liters) {
     final unit = ref.watch(volumeUnitProvider);
-    final scheme = Theme.of(context).colorScheme;
     return Text(
-      'Meter: ${VolumeFormatter.format(liveMeter.cumulativeLiters, unit, decimals: 1)} (live)',
-      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: scheme.onSurfaceVariant,
-            fontStyle: FontStyle.italic,
-          ),
+      'Reading: ${VolumeFormatter.format(liters, unit, decimals: 2)}',
+      style: Theme.of(context).textTheme.bodySmall,
     );
   }
 }

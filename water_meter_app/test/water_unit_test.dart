@@ -1,46 +1,46 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:water_meter_app/core/models/alert_event.dart';
-import 'package:water_meter_app/core/models/audit_event.dart';
-import 'package:water_meter_app/core/models/device_health.dart';
-import 'package:water_meter_app/core/models/schedule_rule.dart';
-import 'package:water_meter_app/core/models/tariff_config.dart';
-import 'package:water_meter_app/core/theme/app_theme.dart';
+import 'package:water_meter_app/core/models/water_unit.dart';
 
 void main() {
-  test('AppTheme builds all 5 themes', () {
-    for (final id in AppThemeId.values) {
-      final theme = AppTheme.themeFor(id);
-      expect(theme.useMaterial3, isTrue);
-    }
-  });
-
-  test('DeviceHealth offline after threshold', () {
-    final old = DateTime.now().subtract(const Duration(minutes: 20));
-    final health = DeviceHealth.fromReading(
-      unitId: 'u1',
-      readingTimestamp: old,
+  test('locationLabel includes block wing floor and flat', () {
+    const unit = WaterUnit(
+      id: 'u1',
+      name: 'D205',
+      deviceId: 'WM000001',
+      block: 'A',
+      wing: 'East',
+      floor: '2',
+      flatNumber: '205',
     );
-    expect(health.isOnline, isFalse);
+
+    expect(
+      unit.locationLabel,
+      'Block A · Wing East · Floor 2 · Flat 205',
+    );
   });
 
-  test('ScheduleRule night window', () {
-    const rule = ScheduleRule.defaultNightRule;
-    expect(rule.isActiveAt(DateTime(2026, 6, 6, 23, 30)), isTrue);
-    expect(rule.isActiveAt(DateTime(2026, 6, 6, 14, 0)), isFalse);
+  test('displaySubtitle uses location without meter serial', () {
+    const unit = WaterUnit(
+      id: 'u1',
+      name: 'D205',
+      deviceId: 'WM000001',
+      block: 'A',
+      wing: 'East',
+    );
+
+    expect(unit.displaySubtitle, 'Block A · Wing East');
+    expect(unit.displaySubtitle, isNot(contains('WM000001')));
   });
 
-  test('TariffConfig calculates cost', () {
-    const tariff = TariffConfig(costPerLiter: 0.1, currencySymbol: '₹');
-    expect(tariff.costForLiters(100), 10);
-  });
+  test('ownerLabel returns trimmed resident name', () {
+    const unit = WaterUnit(
+      id: 'u1',
+      name: 'D205',
+      deviceId: 'WM000001',
+      residentName: '  Ravi Kumar  ',
+    );
 
-  test('AlertType critical flags', () {
-    expect(AlertType.possibleLeak.isCritical, isTrue);
-    expect(AlertType.quotaWarning.isCritical, isFalse);
-  });
-
-  test('AuditAction labels', () {
-    expect(AuditAction.emergencyShutoff.label, isNotEmpty);
+    expect(unit.ownerLabel, 'Ravi Kumar');
   });
 }

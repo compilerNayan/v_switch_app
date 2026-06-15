@@ -65,13 +65,15 @@ class _DashboardLiveFlowSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final deviceId = ref.watch(activeDeviceApiIdProvider);
     final homeTelemetry = ref.watch(deviceHomeTelemetryProvider(deviceId));
+    final patch = ref.watch(liveTelemetryPatchProvider(deviceId));
     final liveMeter = ref.watch(deviceLiveMeterReadingProvider(deviceId));
     final currentAsync = ref.watch(currentReadingProvider);
     final volumeUnit = ref.watch(volumeUnitProvider);
 
     CurrentReading? resolvedLiveReading;
     if (homeTelemetry != null) {
-      final cumulativeLiters = liveMeter?.cumulativeLiters ??
+      final cumulativeLiters = patch?.cumulativeLiters ??
+          liveMeter?.cumulativeLiters ??
           currentAsync.valueOrNull?.cumulativeLiters ??
           0;
       resolvedLiveReading = CurrentReading(
@@ -96,7 +98,6 @@ class _DashboardLiveFlowSection extends ConsumerWidget {
               reading: resolvedLiveReading,
               unit: volumeUnit,
               valveOff: homeTelemetry?.valveIsOff ?? false,
-              isLiveMeterEstimate: liveMeter != null,
             )
           : currentAsync.when(
               data: (reading) => _LiveFlowCard(
@@ -180,13 +181,11 @@ class _LiveFlowCard extends StatelessWidget {
     required this.reading,
     required this.unit,
     this.valveOff = false,
-    this.isLiveMeterEstimate = false,
   });
 
   final CurrentReading reading;
   final VolumeUnit unit;
   final bool valveOff;
-  final bool isLiveMeterEstimate;
 
   @override
   Widget build(BuildContext context) {
@@ -233,12 +232,9 @@ class _LiveFlowCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Meter: ${VolumeFormatter.format(reading.cumulativeLiters, unit, decimals: 1)}'
-                    '${isLiveMeterEstimate ? ' (live estimate)' : ''}',
+                    'Reading: ${VolumeFormatter.format(reading.cumulativeLiters, unit, decimals: 2)}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
-                          fontStyle:
-                              isLiveMeterEstimate ? FontStyle.italic : null,
                         ),
                   ),
                 ],

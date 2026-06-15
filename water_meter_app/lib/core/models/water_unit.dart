@@ -87,14 +87,27 @@ class WaterUnit {
   bool get isEnrollmentPending => enrollmentStatus == UnitEnrollmentStatus.pending;
   bool get isActive => enrollmentStatus == UnitEnrollmentStatus.enrolled;
 
-  String get displaySubtitle {
+  /// Block, wing, floor, and flat for list tiles and subtitles.
+  String get locationLabel {
     final parts = <String>[
-      if (flatNumber.isNotEmpty) 'Flat $flatNumber',
+      if (block.isNotEmpty) 'Block $block',
+      if (wing.isNotEmpty) 'Wing $wing',
       if (floor.isNotEmpty) 'Floor $floor',
-      if (wing.isNotEmpty) wing,
+      if (flatNumber.isNotEmpty) 'Flat $flatNumber',
     ];
-    if (parts.isEmpty) return deviceId;
-    return '${parts.join(' · ')} · $deviceId';
+    return parts.join(' · ');
+  }
+
+  String? get ownerLabel {
+    final name = residentName?.trim();
+    if (name == null || name.isEmpty) return null;
+    return name;
+  }
+
+  String get displaySubtitle {
+    final location = locationLabel;
+    if (location.isNotEmpty) return location;
+    return deviceId;
   }
 
   Map<String, dynamic> toJson() => {
