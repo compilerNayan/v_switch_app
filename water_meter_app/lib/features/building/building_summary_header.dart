@@ -53,26 +53,29 @@ class BuildingSummaryHeader extends ConsumerWidget {
                   ),
                 ],
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _UsageStatTile(
-                        label: 'Today',
-                        display: today,
-                        icon: Icons.water_drop_outlined,
-                        color: scheme.primary,
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _UsageStatTile(
+                          label: 'Today',
+                          display: today,
+                          icon: Icons.water_drop_outlined,
+                          color: scheme.primary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _UsageStatTile(
-                        label: 'This month',
-                        display: month,
-                        icon: Icons.calendar_month_outlined,
-                        color: scheme.secondary,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _UsageStatTile(
+                          label: 'This month',
+                          display: month,
+                          icon: Icons.calendar_month_outlined,
+                          color: scheme.secondary,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -154,7 +157,6 @@ class _UsageStatTile extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 20, color: color),
           const SizedBox(height: 8),
@@ -167,15 +169,22 @@ class _UsageStatTile extends StatelessWidget {
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
-          if (display.compact != null) ...[
-            const SizedBox(height: 2),
-            Text(
-              display.compact!,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
+          const SizedBox(height: 2),
+          SizedBox(
+            height: 16,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                display.compact ?? '',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: display.compact == null
+                      ? Colors.transparent
+                      : scheme.onSurfaceVariant,
+                  height: 1.2,
+                ),
               ),
             ),
-          ],
+          ),
         ],
       ),
     );
