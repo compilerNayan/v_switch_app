@@ -30,6 +30,8 @@ class DashboardScreen extends ConsumerWidget {
           ref.invalidate(currentReadingProvider);
           ref.invalidate(todayHourlyUsageProvider);
           ref.invalidate(usageResponseProvider);
+          ref.invalidate(barUsageResponseProvider);
+          ref.invalidate(cumulativeUsageResponseProvider);
           ref.invalidate(quotaStateProvider);
         },
         child: CustomScrollView(

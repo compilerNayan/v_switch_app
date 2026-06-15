@@ -111,6 +111,10 @@ class _UnitTileState extends ConsumerState<UnitTile> {
             (widget.unit.name != widget.unit.tileFlatLabel
                 ? widget.unit.name
                 : ''));
+    const tightText = TextHeightBehavior(
+      applyHeightToFirstAscent: false,
+      applyHeightToLastDescent: false,
+    );
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -123,114 +127,49 @@ class _UnitTileState extends ConsumerState<UnitTile> {
       child: InkWell(
         onTap: () => context.go('/devices/${widget.unit.id}/dashboard'),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(10, 6, 2, 6),
+          padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 5),
-                    child: _StatusDot(
-                      isPending: isPending,
-                      usesV2Home: usesV2Home,
-                      homeTelemetry: homeTelemetry,
-                      healthAsync: healthAsync,
-                    ),
+                  _StatusDot(
+                    isPending: isPending,
+                    usesV2Home: usesV2Home,
+                    homeTelemetry: homeTelemetry,
+                    healthAsync: healthAsync,
                   ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              isPending
-                                  ? widget.unit.deviceId
-                                  : widget.unit.tileFlatLabel,
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                height: 1.0,
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures(),
-                                ],
-                              ),
-                            ),
-                            if (hasTags) ...[
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  child: LocationTagChips(
-                                    unit: widget.unit,
-                                    compact: true,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                        if (subtitle.isNotEmpty || isAdmin)
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  subtitle,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: scheme.onSurfaceVariant,
-                                    height: 1.0,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              if (isAdmin && !isPending) ...[
-                                _TileIconButton(
-                                  icon: Icons.phone_outlined,
-                                  tooltip: 'Call resident',
-                                  enabled: hasPhone,
-                                  onPressed: _onCallPressed,
-                                ),
-                                _TileIconButton(
-                                  icon: Icons.chat_outlined,
-                                  tooltip: 'WhatsApp',
-                                  enabled: hasPhone,
-                                  onPressed: _onWhatsAppPressed,
-                                ),
-                              ],
-                              if (isAdmin)
-                                PopupMenuButton<String>(
-                                  icon: Icon(
-                                    Icons.more_vert_rounded,
-                                    size: 18,
-                                    color: scheme.onSurfaceVariant,
-                                  ),
-                                  padding: EdgeInsets.zero,
-                                  tooltip: 'Options',
-                                  onSelected: (value) {
-                                    if (value == 'edit') {
-                                      context.push(
-                                        '/units/${widget.unit.id}/edit',
-                                      );
-                                    }
-                                  },
-                                  itemBuilder: (_) => const [
-                                    PopupMenuItem(
-                                      value: 'edit',
-                                      child: Text('Edit unit'),
-                                    ),
-                                  ],
-                                ),
-                            ],
+                  const SizedBox(width: 7),
+                  Text(
+                    isPending
+                        ? widget.unit.deviceId
+                        : widget.unit.tileFlatLabel,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      height: 1.0,
+                      fontSize: 15,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                    textHeightBehavior: tightText,
+                  ),
+                  if (hasTags) ...[
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: LocationTagChips(
+                            unit: widget.unit,
+                            compact: true,
                           ),
-                      ],
+                        ),
+                      ),
                     ),
-                  ),
+                  ] else
+                    const Spacer(),
                   if (isPending)
                     _StatusPill(
                       label: 'Enrolling',
@@ -255,10 +194,69 @@ class _UnitTileState extends ConsumerState<UnitTile> {
                     ),
                 ],
               ),
+              if (subtitle.isNotEmpty || isAdmin)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: Text(
+                        subtitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          height: 1.0,
+                          fontSize: 12,
+                        ),
+                        textHeightBehavior: tightText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isAdmin && !isPending) ...[
+                      _TileIconButton(
+                        icon: Icons.phone_outlined,
+                        tooltip: 'Call resident',
+                        enabled: hasPhone,
+                        onPressed: _onCallPressed,
+                      ),
+                      _TileIconButton(
+                        icon: Icons.chat_outlined,
+                        tooltip: 'WhatsApp',
+                        enabled: hasPhone,
+                        onPressed: _onWhatsAppPressed,
+                      ),
+                    ],
+                    if (isAdmin)
+                      PopupMenuButton<String>(
+                        icon: Icon(
+                          Icons.more_vert_rounded,
+                          size: 18,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 28,
+                          minHeight: 28,
+                        ),
+                        tooltip: 'Options',
+                        onSelected: (value) {
+                          if (value == 'edit') {
+                            context.push('/units/${widget.unit.id}/edit');
+                          }
+                        },
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(
+                            value: 'edit',
+                            child: Text('Edit unit'),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
               if (!isPending) ...[
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Padding(
-                  padding: const EdgeInsets.only(left: 14),
+                  padding: const EdgeInsets.only(left: 15),
                   child: _MetricsRow(
                     deviceId: widget.unit.deviceId,
                     homeTelemetry: homeTelemetry,
@@ -300,7 +298,7 @@ class _TileIconButton extends StatelessWidget {
       tooltip: tooltip,
       visualDensity: VisualDensity.compact,
       padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
       onPressed: onPressed,
     );
   }
@@ -672,40 +670,50 @@ class _ValveSwitch extends ConsumerWidget {
     final isAdmin = ref.watch(isDeviceAdminProvider);
     if (homeSnapshotLoading) {
       return const SizedBox(
-        width: 18,
-        height: 18,
-        child: CircularProgressIndicator(strokeWidth: 2),
+        width: 28,
+        height: 28,
+        child: Center(
+          child: SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
       );
     }
     if (valveIsOff != null || !usePerDeviceApis) {
-      final isOff = valveIsOff ?? true;
-      return Transform.scale(
-        scale: 0.78,
+      return _switch(valveIsOff ?? true, isAdmin);
+    }
+    final valveAsync = ref.watch(deviceValveProvider(deviceId));
+    return valveAsync.when(
+      data: (valve) => _switch(valve.isOff, isAdmin),
+      loading: () => const SizedBox(
+        width: 28,
+        height: 28,
+        child: Center(
+          child: SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      ),
+      error: (_, __) => const Icon(Icons.error_outline, size: 16),
+    );
+  }
+
+  Widget _switch(bool isOff, bool isAdmin) {
+    return SizedBox(
+      height: 28,
+      child: FittedBox(
+        fit: BoxFit.contain,
         child: Switch(
           value: !isOff,
           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           onChanged:
               isAdmin && !toggling && !maintenanceMode ? onChanged : null,
         ),
-      );
-    }
-    final valveAsync = ref.watch(deviceValveProvider(deviceId));
-    return valveAsync.when(
-      data: (valve) => Transform.scale(
-        scale: 0.78,
-        child: Switch(
-          value: !valve.isOff,
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          onChanged:
-              isAdmin && !toggling && !maintenanceMode ? onChanged : null,
-        ),
       ),
-      loading: () => const SizedBox(
-        width: 18,
-        height: 18,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      ),
-      error: (_, __) => const Icon(Icons.error_outline, size: 16),
     );
   }
 }
@@ -727,9 +735,10 @@ class AddUnitTile extends StatelessWidget {
       ),
       child: InkWell(
         onTap: onTap,
-        child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.add_rounded, size: 20, color: scheme.primary),
               const SizedBox(width: 6),

@@ -121,6 +121,10 @@ class LiveUpdatesService {
             message.deviceId.trim().toUpperCase()) {
           _ref.invalidate(currentReadingProvider);
           _ref.invalidate(usageResponseProvider);
+          _ref.invalidate(barUsageResponseProvider);
+          _ref.invalidate(cumulativeUsageResponseProvider);
+          _ref.invalidate(todayUsageSummaryProvider);
+          _ref.invalidate(yesterdayUsageSummaryProvider);
         }
       case LiveUpdateSubscribed():
         _ref.read(liveConnectionStatusProvider.notifier).setConnected();

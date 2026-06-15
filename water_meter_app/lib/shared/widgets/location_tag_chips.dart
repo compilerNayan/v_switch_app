@@ -17,17 +17,31 @@ class LocationTagChips extends StatelessWidget {
     final tags = unit.locationTagEntries;
     if (tags.isEmpty) return const SizedBox.shrink();
 
+    final chips = [
+      for (final tag in tags)
+        LocationTagChip(
+          label: tag.label,
+          value: tag.value,
+          compact: compact,
+        ),
+    ];
+
+    if (compact) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < chips.length; i++) ...[
+            if (i > 0) const SizedBox(width: 4),
+            chips[i],
+          ],
+        ],
+      );
+    }
+
     return Wrap(
-      spacing: compact ? 4 : 6,
-      runSpacing: compact ? 4 : 6,
-      children: [
-        for (final tag in tags)
-          LocationTagChip(
-            label: tag.label,
-            value: tag.value,
-            compact: compact,
-          ),
-      ],
+      spacing: 6,
+      runSpacing: 6,
+      children: chips,
     );
   }
 }
@@ -88,7 +102,8 @@ class LocationTagChip extends StatelessWidget {
               color: fg,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.1,
-              height: 1.2,
+              height: compact ? 1.0 : 1.2,
+              fontSize: compact ? 10 : null,
             ),
       ),
     );

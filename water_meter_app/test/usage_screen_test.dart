@@ -13,7 +13,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('today and 7-day presets load usage data', (tester) async {
+  testWidgets('usage screen shows dual charts and day summaries', (tester) async {
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(home: UsageScreen()),
@@ -21,17 +21,19 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('No data for this period'), findsNothing);
-    expect(find.text('Total'), findsOneWidget);
+    expect(find.text('Today'), findsWidgets);
+    expect(find.text('Yesterday'), findsWidgets);
+    expect(find.text('Usage by period'), findsOneWidget);
+    expect(find.text('Total'), findsWidgets);
 
-    await tester.tap(find.text('7 days'));
+    await tester.drag(find.byType(ListView), const Offset(0, -400));
     await tester.pumpAndSettle();
 
-    expect(find.text('No data for this period'), findsNothing);
-    expect(find.text('Total'), findsOneWidget);
+    expect(find.text('Cumulative usage'), findsOneWidget);
+    expect(find.text('7 days'), findsOneWidget);
   });
 
-  testWidgets('usage query is not reset on every rebuild for today preset', (tester) async {
+  testWidgets('bar chart query is not reset on every rebuild', (tester) async {
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(home: UsageScreen()),
@@ -42,13 +44,36 @@ void main() {
     final container = ProviderScope.containerOf(
       tester.element(find.byType(UsageScreen)),
     );
-    final queryAfterLoad = container.read(usageQueryProvider);
+    final queryAfterLoad = container.read(barUsageQueryProvider);
     expect(queryAfterLoad, isNotNull);
 
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    final queryAfterRebuild = container.read(usageQueryProvider);
+    final queryAfterRebuild = container.read(barUsageQueryProvider);
     expect(queryAfterRebuild, queryAfterLoad);
+  });
+
+  testWidgets('cumulative range chips update cumulative query', (tester) async {
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(home: UsageScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(ListView), const Offset(0, -400));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('30 days'));
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(UsageScreen)),
+    );
+    expect(
+      container.read(cumulativeUsageQueryProvider)?.preset.name,
+      'thirtyDays',
+    );
   });
 }

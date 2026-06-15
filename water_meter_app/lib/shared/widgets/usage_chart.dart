@@ -65,8 +65,14 @@ class UsageChart extends StatelessWidget {
     double chartMaxY,
   ) {
     final color = Theme.of(context).colorScheme.primary;
+    final labelIndices = _bottomLabelIndices(values.length);
+    final showBottomLabels = values.length <= 24;
+    final barWidth = values.length > 48 ? 3.0 : (values.length > 24 ? 5.0 : 12.0);
+
     return BarChartData(
       maxY: chartMaxY,
+      alignment: BarChartAlignment.spaceBetween,
+      groupsSpace: 0,
       gridData: FlGridData(
         drawVerticalLine: false,
         horizontalInterval: chartMaxY / 4,
@@ -76,16 +82,22 @@ class UsageChart extends StatelessWidget {
         ),
       ),
       borderData: FlBorderData(show: false),
-      titlesData: _titles(context, values.length),
+      titlesData: _titles(
+        context,
+        values.length,
+        labelIndices: labelIndices,
+        showBottomLabels: showBottomLabels,
+      ),
       barGroups: List.generate(values.length, (i) {
         return BarChartGroupData(
           x: i,
+          barsSpace: 0,
           barRods: [
             BarChartRodData(
               toY: values[i],
               color: color,
-              width: values.length > 48 ? 4 : 10,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+              width: barWidth,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
             ),
           ],
         );
@@ -126,7 +138,13 @@ class UsageChart extends StatelessWidget {
         ),
       ),
       borderData: FlBorderData(show: false),
-      titlesData: _titles(context, values.length),
+      titlesData: _titles(
+        context,
+        values.length,
+        labelIndices: _bottomLabelIndices(values.length),
+        showBottomLabels: true,
+        isLineChart: true,
+      ),
       lineBarsData: [
         LineChartBarData(
           spots: spots,
@@ -158,8 +176,13 @@ class UsageChart extends StatelessWidget {
     );
   }
 
-  FlTitlesData _titles(BuildContext context, int count) {
-    final labelInterval = _labelInterval(count);
+  FlTitlesData _titles(
+    BuildContext context,
+    int count, {
+    required Set<int> labelIndices,
+    required bool showBottomLabels,
+    bool isLineChart = false,
+  }) {
     return FlTitlesData(
       topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
       rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -167,30 +190,41 @@ class UsageChart extends StatelessWidget {
         sideTitles: SideTitles(
           showTitles: true,
           reservedSize: 40,
-          getTitlesWidget: (value, meta) => Text(
-            value.toStringAsFixed(0),
-            style: Theme.of(context).textTheme.labelSmall,
-          ),
+          interval: null,
+          getTitlesWidget: (value, meta) {
+            if (value == meta.max || value == meta.min) {
+              return const SizedBox.shrink();
+            }
+            return Text(
+              value.toStringAsFixed(0),
+              style: Theme.of(context).textTheme.labelSmall,
+            );
+          },
         ),
       ),
       bottomTitles: AxisTitles(
         sideTitles: SideTitles(
-          showTitles: true,
-          reservedSize: 28,
-          interval: labelInterval,
+          showTitles: showBottomLabels,
+          reservedSize: showBottomLabels ? (isLineChart ? 28 : 32) : 8,
+          interval: 1,
           getTitlesWidget: (value, meta) {
             final index = value.toInt();
             if (index < 0 || index >= dataPoints.length) {
               return const SizedBox.shrink();
             }
-            if (index % labelInterval.round() != 0 && count > 12) {
+            if (!labelIndices.contains(index)) {
               return const SizedBox.shrink();
             }
             return Padding(
-              padding: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.only(top: 8),
               child: Text(
                 _formatAxisLabel(dataPoints[index].timestamp),
-                style: Theme.of(context).textTheme.labelSmall,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      fontSize: 10,
+                    ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.clip,
               ),
             );
           },
@@ -199,11 +233,16 @@ class UsageChart extends StatelessWidget {
     );
   }
 
-  double _labelInterval(int count) {
-    if (count <= 12) return 1;
-    if (count <= 24) return 2;
-    if (count <= 48) return 4;
-    return (count / 6).ceilToDouble();
+  Set<int> _bottomLabelIndices(int count) {
+    const maxLabels = 6;
+    if (count <= maxLabels) {
+      return Set<int>.from(List.generate(count, (i) => i));
+    }
+    final indices = <int>{0, count - 1};
+    for (var i = 1; i < maxLabels - 1; i++) {
+      indices.add((i * (count - 1) / (maxLabels - 1)).round());
+    }
+    return indices;
   }
 
   String _formatAxisLabel(DateTime timestamp) {

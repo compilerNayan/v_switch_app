@@ -133,34 +133,61 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
                       ),
                     ),
                     SliverToBoxAdapter(child: _FilterSortBar()),
-                    SliverPadding(
-                      padding: const EdgeInsets.all(16),
-                      sliver: SliverGrid(
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount:
-                              MediaQuery.sizeOf(context).width >= 600 ? 2 : 1,
-                          mainAxisSpacing: 12,
-                          crossAxisSpacing: 12,
-                          childAspectRatio:
-                              MediaQuery.sizeOf(context).width >= 600 ? 1.5 : 1.9,
-                        ),
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            if (index == sorted.length) {
-                              return AddUnitTile(
-                                onTap: () =>
-                                    context.push('/devices/water-meter/setup'),
+                    if (MediaQuery.sizeOf(context).width >= 600)
+                      SliverPadding(
+                        padding: const EdgeInsets.all(16),
+                        sliver: SliverGrid(
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 12,
+                            crossAxisSpacing: 12,
+                            mainAxisExtent: 132,
+                          ),
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              if (index == sorted.length) {
+                                return AddUnitTile(
+                                  onTap: () =>
+                                      context.push('/devices/water-meter/setup'),
+                                );
+                              }
+                              return UnitTile(
+                                key: ValueKey(sorted[index].deviceId),
+                                unit: sorted[index],
                               );
-                            }
-                            return UnitTile(
-                              key: ValueKey(sorted[index].deviceId),
-                              unit: sorted[index],
-                            );
-                          },
-                          childCount: sorted.length + 1,
+                            },
+                            childCount: sorted.length + 1,
+                          ),
+                        ),
+                      )
+                    else
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              final child = index == sorted.length
+                                  ? AddUnitTile(
+                                      onTap: () => context
+                                          .push('/devices/water-meter/setup'),
+                                    )
+                                  : UnitTile(
+                                      key: ValueKey(sorted[index].deviceId),
+                                      unit: sorted[index],
+                                    );
+                              return Padding(
+                                padding: EdgeInsets.only(
+                                  bottom:
+                                      index == sorted.length ? 0 : 10,
+                                ),
+                                child: child,
+                              );
+                            },
+                            childCount: sorted.length + 1,
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               );
