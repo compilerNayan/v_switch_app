@@ -32,14 +32,8 @@ void main() {
       final display =
           VolumeFormatter.formatDashboard(45000000, VolumeUnit.liters);
       expect(display.amount, '45,000,000.00');
+      expect(display.primary, '45,000,000.00 L');
       expect(display.compact, '45,000.0k L');
-    });
-
-    test('dashboardValueFontSize scales down for long values', () {
-      expect(
-        VolumeFormatter.dashboardValueFontSize('45,000,000.00', 160),
-        lessThan(VolumeFormatter.dashboardValueFontSize('1,420.11', 160)),
-      );
     });
   });
 }

@@ -95,16 +95,6 @@ class VolumeFormatter {
     return VolumeDisplay(amount: amount, unit: unit.symbol, compact: compact);
   }
 
-  /// Picks a font size so full-precision dashboard values fit without shrinking
-  /// one tile differently from its neighbour (tested up to ~45,000,000.00 L).
-  static double dashboardValueFontSize(String amount, double maxWidth) {
-    const minSize = 11.0;
-    const maxSize = 19.0;
-    if (maxWidth <= 0) return maxSize;
-    final estimated = maxWidth / (amount.length * 0.56 + 3);
-    return estimated.clamp(minSize, maxSize);
-  }
-
   static String formatCompact(double liters, VolumeUnit unit) {
     final value = fromLiters(liters, unit);
     if (value >= 1000) {

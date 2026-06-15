@@ -53,29 +53,26 @@ class BuildingSummaryHeader extends ConsumerWidget {
                   ),
                 ],
                 const SizedBox(height: 16),
-                IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        child: _UsageStatTile(
-                          label: 'Today',
-                          display: today,
-                          icon: Icons.water_drop_outlined,
-                          color: scheme.primary,
-                        ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _UsageStatTile(
+                        label: 'Today',
+                        display: today,
+                        icon: Icons.water_drop_outlined,
+                        color: scheme.primary,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _UsageStatTile(
-                          label: 'This month',
-                          display: month,
-                          icon: Icons.calendar_month_outlined,
-                          color: scheme.secondary,
-                        ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _UsageStatTile(
+                        label: 'This month',
+                        display: month,
+                        icon: Icons.calendar_month_outlined,
+                        color: scheme.secondary,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -144,117 +141,43 @@ class _UsageStatTile extends StatelessWidget {
   final IconData icon;
   final Color color;
 
-  static const double _compactRowHeight = 18;
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Icon(icon, size: 18, color: color),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  label.toUpperCase(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.6,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 52),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: _DashboardVolumeFigure(display: display),
+          Icon(icon, size: 20, color: color),
+          const SizedBox(height: 8),
+          Text(label, style: theme.textTheme.bodySmall),
+          const SizedBox(height: 2),
+          Text(
+            display.primary,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
-          SizedBox(
-            height: _compactRowHeight,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                display.compact ?? '',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: display.compact == null
-                      ? Colors.transparent
-                      : scheme.onSurfaceVariant,
-                  height: 1.2,
-                ),
+          if (display.compact != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              display.compact!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
               ),
             ),
-          ),
+          ],
         ],
       ),
-    );
-  }
-}
-
-class _DashboardVolumeFigure extends StatelessWidget {
-  const _DashboardVolumeFigure({required this.display});
-
-  final VolumeDisplay display;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final fontSize = VolumeFormatter.dashboardValueFontSize(
-          display.amount,
-          constraints.maxWidth,
-        );
-        final unitSize = (fontSize * 0.72).clamp(9.0, 14.0);
-        final baseStyle = theme.textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.w700,
-          height: 1.15,
-          color: scheme.onSurface,
-          fontFeatures: const [FontFeature.tabularFigures()],
-        );
-
-        return Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: display.amount,
-                style: baseStyle?.copyWith(fontSize: fontSize),
-              ),
-              TextSpan(
-                text: ' ${display.unit}',
-                style: baseStyle?.copyWith(
-                  fontSize: unitSize,
-                  fontWeight: FontWeight.w600,
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-          maxLines: 2,
-          softWrap: true,
-        );
-      },
     );
   }
 }
