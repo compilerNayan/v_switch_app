@@ -13,6 +13,7 @@ import 'package:water_meter_app/core/providers/app_providers.dart';
 import 'package:water_meter_app/core/providers/control_providers.dart';
 import 'package:water_meter_app/core/providers/device_tile_providers.dart';
 import 'package:water_meter_app/features/units/unit_tile.dart';
+import 'support/test_user_profile_notifier.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -44,9 +45,9 @@ void main() {
     final reading = CurrentReading(
       deviceId: 'WM000001',
       timestamp: DateTime.utc(2026, 6, 6),
-      flowRateLpm: 2.3,
+      flowRateLpm: 0,
       cumulativeLiters: 1000,
-      status: WaterDeviceStatus.flowing,
+      status: WaterDeviceStatus.idle,
     );
 
     final quota = QuotaResponse(
@@ -66,13 +67,16 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          authInitProvider.overrideWith((ref) async {}),
           userProfileProvider.overrideWith(
-            (ref) async => const UserProfile(
-              userId: 'admin',
-              email: 'admin@test.com',
-              displayName: 'Admin',
-              tenantId: 'demo',
-              onboardingComplete: true,
+            () => TestUserProfileNotifier(
+              const UserProfile(
+                userId: 'admin',
+                email: 'admin@test.com',
+                displayName: 'Admin',
+                tenantId: 'demo',
+                onboardingComplete: true,
+              ),
             ),
           ),
           isDeviceAdminProvider.overrideWith((ref) => true),

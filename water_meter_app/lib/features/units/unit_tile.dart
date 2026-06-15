@@ -67,8 +67,18 @@ class _UnitTileState extends ConsumerState<UnitTile> {
     if (widget.unit.maintenanceMode && turnOn) return;
     setState(() => _togglingValve = true);
     try {
-      await toggleDeviceValveForId(ref, widget.unit.deviceId);
+      await setDeviceValveForId(
+        ref,
+        widget.unit.deviceId,
+        turnOn: turnOn,
+      );
       invalidateHomeData(ref);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Valve control failed: $error')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _togglingValve = false);
     }

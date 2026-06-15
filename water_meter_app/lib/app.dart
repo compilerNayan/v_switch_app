@@ -47,12 +47,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: authListenable,
     redirect: (context, state) {
       final profileAsync = ref.read(userProfileProvider);
-      if (profileAsync.isLoading) {
-        const protected = {'/', '/settings', '/alerts', '/reports', '/policies', '/audit'};
-        if (protected.contains(state.matchedLocation) ||
-            state.matchedLocation.startsWith('/devices/') ||
-            state.matchedLocation.startsWith('/units/')) {
-          return '/auth';
+      if (profileAsync.isLoading && !profileAsync.hasValue) {
+        if (state.matchedLocation == '/auth' ||
+            state.matchedLocation == '/auth/confirm') {
+          return null;
         }
         return null;
       }

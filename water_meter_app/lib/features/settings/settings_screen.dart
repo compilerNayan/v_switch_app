@@ -220,6 +220,8 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: () async {
+              final prefs = await ref.read(preferencesStorageProvider.future);
+              await prefs.setCachedUserProfile(null);
               await ref.read(authServiceProvider).signOut();
               ref.invalidate(userProfileProvider);
               if (context.mounted) context.go('/auth');

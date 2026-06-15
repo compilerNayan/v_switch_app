@@ -11,6 +11,7 @@ import 'package:water_meter_app/core/providers/tenant_providers.dart';
 import 'package:water_meter_app/features/devices/water_meter/steps/device_prep_step.dart';
 import 'package:water_meter_app/features/devices/water_meter/steps/name_device_step.dart';
 import 'package:water_meter_app/features/devices/water_meter/water_meter_setup_screen.dart';
+import 'support/test_user_profile_notifier.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -65,7 +66,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          userProfileProvider.overrideWith((ref) async => null),
+          userProfileProvider.overrideWith(() => TestUserProfileNotifier(null)),
           tenantConfigProvider.overrideWith((ref) async => null),
           mockEnrollmentClientProvider
               .overrideWithValue(const MockEnrollmentClient(delayMs: 0)),

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/home_dashboard.dart';
 import '../models/alert_event.dart';
 import '../models/audit_event.dart';
 import '../models/quota_template.dart';
@@ -11,6 +12,7 @@ import '../models/bulk_valve_snapshot.dart';
 import '../models/tenant_config.dart';
 import '../models/tenant_metadata.dart';
 import '../models/top_consumers_config.dart';
+import '../models/user_profile.dart';
 import '../models/water_unit.dart';
 import '../theme/app_theme.dart';
 import '../utils/units.dart';
@@ -36,6 +38,9 @@ class PreferencesStorage {
   static const _tenantMetadataV2Prefix = 'tenant_metadata_v2_';
   static const _adminInviteCodeKey = 'admin_invite_code';
   static const _bulkValveSnapshotKey = 'bulk_valve_snapshot';
+  static const _cachedUserProfileKey = 'cached_user_profile';
+  static const _homeSnapshotV2Prefix = 'home_snapshot_v2_';
+  static const _valveLastPressurePrefix = 'valve_last_pressure_';
 
   static const maxAuditEntries = 500;
   static const maxAlertEntries = 200;
@@ -365,6 +370,52 @@ class PreferencesStorage {
       _bulkValveSnapshotKey,
       jsonEncode(snapshot.toJson()),
     );
+  }
+
+  UserProfile? getCachedUserProfile() {
+    final raw = _prefs.getString(_cachedUserProfileKey);
+    if (raw == null) return null;
+    try {
+      return UserProfile.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setCachedUserProfile(UserProfile? profile) async {
+    if (profile == null) {
+      await _prefs.remove(_cachedUserProfileKey);
+      return;
+    }
+    await _prefs.setString(_cachedUserProfileKey, jsonEncode(profile.toJson()));
+  }
+
+  HomeSnapshot? getHomeSnapshot(String tenantId) {
+    final raw = _prefs.getString('$_homeSnapshotV2Prefix$tenantId');
+    if (raw == null) return null;
+    try {
+      return HomeSnapshot.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setHomeSnapshot(String tenantId, HomeSnapshot snapshot) async {
+    await _prefs.setString(
+      '$_homeSnapshotV2Prefix$tenantId',
+      jsonEncode(snapshot.toJson()),
+    );
+  }
+
+  double getValveLastPressure(String deviceId, {double defaultPercent = 100}) {
+    final raw = _prefs.getDouble('$_valveLastPressurePrefix$deviceId');
+    if (raw == null || raw <= 0) return defaultPercent;
+    return raw;
+  }
+
+  Future<void> setValveLastPressure(String deviceId, double percent) async {
+    if (percent <= 0) return;
+    await _prefs.setDouble('$_valveLastPressurePrefix$deviceId', percent);
   }
 
   // Legacy aliases for gradual migration

@@ -4,16 +4,14 @@ import '../api/api_exceptions.dart';
 import '../api/valve_actions.dart';
 import '../models/quota_config.dart';
 import '../models/valve_state.dart';
+import '../utils/valve_pressure.dart';
 import 'app_providers.dart';
 import '../services/audit_logger.dart';
 import 'unit_providers.dart';
 
 final isDeviceAdminProvider = Provider<bool>((ref) {
-  final profile = ref.watch(userProfileProvider);
-  return profile.maybeWhen(
-    data: (p) => p?.onboardingComplete == true && p?.tenantId != null,
-    orElse: () => false,
-  );
+  final profile = ref.watch(userProfileProvider).valueOrNull;
+  return profile?.onboardingComplete == true && profile?.tenantId != null;
 });
 
 final valveStateProvider = FutureProvider.autoDispose<ValveState>((ref) async {
@@ -89,12 +87,17 @@ class ValveControlNotifier extends AutoDisposeAsyncNotifier<ValveState> {
     try {
       final client = ref.read(waterApiClientProvider);
       final deviceId = ref.read(activeDeviceApiIdProvider);
-      final percent = previous?.lastUserPressurePercent ?? 100;
+      final prefs = await ref.read(preferencesStorageProvider.future);
+      final percent = resolveRestorePressurePercent(
+        cachedPressure: prefs.getValveLastPressure(deviceId),
+        current: previous,
+      );
       final updated = await restoreDeviceValvePressure(
         client,
         deviceId,
         percent,
       );
+      await prefs.setValveLastPressure(deviceId, percent);
       state = AsyncData(updated);
       ref.invalidate(quotaStateProvider);
     } catch (e, st) {

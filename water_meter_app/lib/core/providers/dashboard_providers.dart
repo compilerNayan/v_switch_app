@@ -7,6 +7,7 @@ import '../models/tenant_metadata.dart';
 import '../utils/timezone_offset.dart';
 import 'app_providers.dart';
 import 'live_telemetry_patches_provider.dart';
+import 'valve_patches_provider.dart';
 
 final v2TenantApiClientProvider = Provider<V2TenantApiClient>((ref) {
   final auth = ref.watch(authServiceProvider);
@@ -23,6 +24,19 @@ final homeSnapshotProvider =
 class HomeSnapshotNotifier extends AsyncNotifier<HomeSnapshot?> {
   @override
   Future<HomeSnapshot?> build() async {
+    if (AppConfig.useMockApi) return null;
+
+    final profile = await ref.watch(userProfileProvider.future);
+    final tenantId = profile?.tenantId;
+    if (tenantId == null || tenantId.isEmpty) return null;
+
+    final prefs = await ref.watch(preferencesStorageProvider.future);
+    final cached = prefs.getHomeSnapshot(tenantId);
+    if (cached != null) {
+      Future.microtask(() => refresh());
+      return cached;
+    }
+
     return _loadSnapshot();
   }
 
@@ -50,12 +64,18 @@ class HomeSnapshotNotifier extends AsyncNotifier<HomeSnapshot?> {
         await prefs.setTenantMetadataV2(tenantId, metadata);
       }
 
-      return HomeSnapshot(metadata: metadata, dashboard: dashboard);
+      final snapshot = HomeSnapshot(metadata: metadata, dashboard: dashboard);
+      await prefs.setHomeSnapshot(tenantId, snapshot);
+      return snapshot;
     } catch (error) {
-      final cached = prefs.getTenantMetadataV2(tenantId);
+      final cached = prefs.getHomeSnapshot(tenantId);
       if (cached != null) {
+        return cached;
+      }
+      final metadataOnly = prefs.getTenantMetadataV2(tenantId);
+      if (metadataOnly != null) {
         return HomeSnapshot(
-          metadata: cached,
+          metadata: metadataOnly,
           dashboard: const HomeDashboardResponse(
             metadataHash: '',
             generatedAt: '',
@@ -68,7 +88,11 @@ class HomeSnapshotNotifier extends AsyncNotifier<HomeSnapshot?> {
   }
 
   Future<void> refresh() async {
-    state = const AsyncLoading<HomeSnapshot?>().copyWithPrevious(state);
+    if (!state.hasValue) {
+      state = const AsyncLoading<HomeSnapshot?>();
+    } else {
+      state = const AsyncLoading<HomeSnapshot?>().copyWithPrevious(state);
+    }
     state = await AsyncValue.guard(_loadSnapshot);
   }
 }
@@ -99,7 +123,15 @@ final deviceHomeTelemetryProvider =
     }),
   );
   final patch = ref.watch(liveTelemetryPatchProvider(deviceId));
-  return mergeTelemetryPatch(base, patch);
+  final valvePatch = ref.watch(valvePatchProvider(deviceId));
+  var merged = mergeTelemetryPatch(base, patch);
+  if (merged != null && valvePatch != null) {
+    merged = merged.copyWith(
+      valveIsOff: valvePatch.isOff,
+      valveOpenPercent: valvePatch.openPercent,
+    );
+  }
+  return merged;
 });
 
 /// True only on the initial v2 snapshot load (not during background refresh).

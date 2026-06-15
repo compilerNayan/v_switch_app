@@ -21,7 +21,7 @@ class AppConfig {
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue:
-        'http://water-meter-data-injection-env.eba-udmynr49.ap-south-1.elasticbeanstalk.com',
+        'https://water-meter-data-injection-env.eba-udmynr49.ap-south-1.elasticbeanstalk.com',
   );
 
   static const String cognitoUserPoolId = String.fromEnvironment(
@@ -53,7 +53,7 @@ class AppConfig {
   static const String injectionApiBaseUrl = String.fromEnvironment(
     'INJECTION_API_BASE_URL',
     defaultValue:
-        'http://water-meter-data-injection-env.eba-udmynr49.ap-south-1.elasticbeanstalk.com',
+        'https://water-meter-data-injection-env.eba-udmynr49.ap-south-1.elasticbeanstalk.com',
   );
 
   static const String liveUpdatesWsUrl = String.fromEnvironment(

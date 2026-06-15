@@ -163,9 +163,25 @@ class HomeSnapshot {
     required this.dashboard,
   });
 
+  factory HomeSnapshot.fromJson(Map<String, dynamic> json) {
+    return HomeSnapshot(
+      metadata: TenantMetadataResponse.fromJson(
+        json['metadata'] as Map<String, dynamic>,
+      ),
+      dashboard: HomeDashboardResponse.fromJson(
+        json['dashboard'] as Map<String, dynamic>,
+      ),
+    );
+  }
+
   final TenantMetadataResponse metadata;
   final HomeDashboardResponse dashboard;
 
   Map<String, DashboardTelemetryDevice> get telemetryByDeviceId =>
       dashboard.byDeviceId;
+
+  Map<String, dynamic> toJson() => {
+        'metadata': metadata.toJson(),
+        'dashboard': dashboard.toJson(),
+      };
 }

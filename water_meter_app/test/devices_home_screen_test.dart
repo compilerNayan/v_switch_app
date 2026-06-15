@@ -18,6 +18,7 @@ import 'package:water_meter_app/core/providers/control_providers.dart';
 import 'package:water_meter_app/core/providers/device_tile_providers.dart';
 import 'package:water_meter_app/core/providers/unit_providers.dart';
 import 'package:water_meter_app/features/building/building_home_screen.dart';
+import 'support/test_user_profile_notifier.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -30,8 +31,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          authInitProvider.overrideWith((ref) async {}),
           waterUnitsProvider.overrideWith((ref) async => []),
-          userProfileProvider.overrideWith((ref) async => null),
+          userProfileProvider.overrideWith(() => TestUserProfileNotifier(null)),
         ],
         child: const MaterialApp(home: BuildingHomeScreen()),
       ),
@@ -67,9 +69,9 @@ void main() {
     final reading = CurrentReading(
       deviceId: '001',
       timestamp: DateTime.utc(2026, 6, 6),
-      flowRateLpm: 2.3,
+      flowRateLpm: 0,
       cumulativeLiters: 1000,
-      status: WaterDeviceStatus.flowing,
+      status: WaterDeviceStatus.idle,
     );
 
     final quota = QuotaResponse(
@@ -89,14 +91,17 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          authInitProvider.overrideWith((ref) async {}),
           waterUnitsProvider.overrideWith((ref) async => units),
           userProfileProvider.overrideWith(
-            (ref) async => const UserProfile(
-              userId: 'admin',
-              email: 'a@test.com',
-              displayName: 'Admin',
-              tenantId: 't1',
-              onboardingComplete: true,
+            () => TestUserProfileNotifier(
+              const UserProfile(
+                userId: 'admin',
+                email: 'a@test.com',
+                displayName: 'Admin',
+                tenantId: 't1',
+                onboardingComplete: true,
+              ),
             ),
           ),
           waterApiClientProvider.overrideWithValue(MockWaterApiClient(seed: 1)),

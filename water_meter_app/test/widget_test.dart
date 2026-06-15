@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:water_meter_app/app.dart';
 import 'package:water_meter_app/core/auth/mock_auth_service.dart';
 import 'package:water_meter_app/core/providers/app_providers.dart';
+import 'support/test_user_profile_notifier.dart';
 
 void main() {
   testWidgets('App shows sign-in when not authenticated', (tester) async {
@@ -13,7 +14,7 @@ void main() {
         overrides: [
           authServiceProvider.overrideWithValue(MockAuthService()),
           authInitProvider.overrideWith((ref) async {}),
-          userProfileProvider.overrideWith((ref) async => null),
+          userProfileProvider.overrideWith(() => TestUserProfileNotifier(null)),
         ],
         child: const WaterMeterApp(),
       ),

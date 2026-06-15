@@ -32,26 +32,73 @@ final authInitProvider = FutureProvider<void>((ref) async {
   await auth.initialize();
 });
 
-final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
-  await ref.watch(authInitProvider.future);
-  final auth = ref.watch(authServiceProvider);
-  final token = await auth.getIdToken();
-  if (token == null) return null;
+final userProfileProvider =
+    AsyncNotifierProvider<UserProfileNotifier, UserProfile?>(
+  UserProfileNotifier.new,
+);
 
-  if (AppConfig.useMockAuth) {
-    return auth.getCurrentUser();
-  }
+class UserProfileNotifier extends AsyncNotifier<UserProfile?> {
+  @override
+  Future<UserProfile?> build() async {
+    await ref.watch(authInitProvider.future);
+    final auth = ref.watch(authServiceProvider);
+    final token = await auth.getIdToken();
+    if (token == null) {
+      final prefs = await ref.watch(preferencesStorageProvider.future);
+      await prefs.setCachedUserProfile(null);
+      return null;
+    }
 
-  final client = ref.watch(tenantApiClientProvider);
-  try {
-    return await client.getMe();
-  } on ApiException catch (e) {
-    if (e.statusCode == 404) {
+    if (AppConfig.useMockAuth) {
       return auth.getCurrentUser();
     }
-    rethrow;
+
+    final prefs = await ref.watch(preferencesStorageProvider.future);
+    final cached = prefs.getCachedUserProfile();
+    if (cached != null) {
+      Future.microtask(() => refresh());
+      return cached;
+    }
+
+    final cognitoProfile = await auth.getCurrentUser();
+    if (cognitoProfile != null) {
+      Future.microtask(() => refresh());
+      return cognitoProfile;
+    }
+
+    return _fetchAndCache();
   }
-});
+
+  Future<void> refresh() async {
+    if (!state.hasValue) {
+      state = const AsyncLoading<UserProfile?>();
+    } else {
+      state = const AsyncLoading<UserProfile?>().copyWithPrevious(state);
+    }
+    state = await AsyncValue.guard(_fetchAndCache);
+  }
+
+  Future<UserProfile?> _fetchAndCache() async {
+    final auth = ref.read(authServiceProvider);
+    final client = ref.read(tenantApiClientProvider);
+    final prefs = await ref.read(preferencesStorageProvider.future);
+
+    try {
+      final profile = await client.getMe();
+      await prefs.setCachedUserProfile(profile);
+      return profile;
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) {
+        final profile = await auth.getCurrentUser();
+        if (profile != null) {
+          await prefs.setCachedUserProfile(profile);
+        }
+        return profile;
+      }
+      rethrow;
+    }
+  }
+}
 
 final pendingRegistrationProvider =
     StateProvider<PendingRegistration?>((ref) => null);
@@ -98,8 +145,9 @@ final appThemeProvider = Provider<ThemeData>((ref) {
 });
 
 Future<String?> _tenantIdForRef(Ref ref) async {
-  final profile = await ref.read(userProfileProvider.future);
-  return profile?.tenantId;
+  final profile = ref.read(userProfileProvider).valueOrNull;
+  if (profile?.tenantId != null) return profile!.tenantId;
+  return ref.read(userProfileProvider.future).then((p) => p?.tenantId);
 }
 
 final buildingApiClientProvider = Provider<BuildingApiClient>((ref) {
