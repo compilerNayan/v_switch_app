@@ -19,6 +19,25 @@ sealed class LiveUpdateMessage {
           cumulativeLiters: (json['cumulativeLiters'] as num?)?.toDouble(),
           status: json['status'] as String? ?? 'flowing',
         );
+      case 'water_flow_tick':
+        final rawDevices = json['devices'];
+        final devices = <WaterFlowTickDevice>[];
+        if (rawDevices is List) {
+          for (final item in rawDevices) {
+            if (item is Map<String, dynamic>) {
+              devices.add(WaterFlowTickDevice.fromJson(item));
+            } else if (item is Map) {
+              devices.add(
+                WaterFlowTickDevice.fromJson(Map<String, dynamic>.from(item)),
+              );
+            }
+          }
+        }
+        return LiveUpdateWaterFlowTick(
+          tenantId: json['tenantId'] as String? ?? '',
+          ts: json['ts'] as String? ?? '',
+          devices: devices,
+        );
       case 'bucket_30m':
         return LiveUpdateBucket30m(
           tenantId: json['tenantId'] as String? ?? '',
@@ -50,6 +69,50 @@ class LiveUpdateSubscribed extends LiveUpdateMessage {
   const LiveUpdateSubscribed({required this.tenantId});
 
   final String tenantId;
+}
+
+class WaterFlowTickDevice {
+  const WaterFlowTickDevice({
+    required this.deviceId,
+    required this.unitId,
+    required this.ts,
+    required this.ml,
+    required this.flowRateLpm,
+    this.cumulativeLiters,
+    required this.status,
+  });
+
+  factory WaterFlowTickDevice.fromJson(Map<String, dynamic> json) {
+    return WaterFlowTickDevice(
+      deviceId: json['deviceId'] as String? ?? '',
+      unitId: json['unitId'] as String? ?? '',
+      ts: json['ts'] as String? ?? '',
+      ml: (json['ml'] as num?)?.toDouble() ?? 0,
+      flowRateLpm: (json['flowRateLpm'] as num?)?.toDouble() ?? 0,
+      cumulativeLiters: (json['cumulativeLiters'] as num?)?.toDouble(),
+      status: json['status'] as String? ?? 'flowing',
+    );
+  }
+
+  final String deviceId;
+  final String unitId;
+  final String ts;
+  final double ml;
+  final double flowRateLpm;
+  final double? cumulativeLiters;
+  final String status;
+}
+
+class LiveUpdateWaterFlowTick extends LiveUpdateMessage {
+  const LiveUpdateWaterFlowTick({
+    required this.tenantId,
+    required this.ts,
+    required this.devices,
+  });
+
+  final String tenantId;
+  final String ts;
+  final List<WaterFlowTickDevice> devices;
 }
 
 class LiveUpdateWaterFlow extends LiveUpdateMessage {

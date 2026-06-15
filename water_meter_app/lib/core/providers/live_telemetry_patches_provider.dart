@@ -8,7 +8,7 @@ import '../models/home_dashboard.dart';
 /// How long to keep showing the last live flow reading after updates stop.
 const Duration liveFlowStaleAfter = Duration(seconds: 3);
 
-/// Ephemeral per-device telemetry overlay from WebSocket `water_flow` events.
+/// Ephemeral per-device telemetry overlay from WebSocket `water_flow_tick` events.
 final liveTelemetryPatchesProvider =
     NotifierProvider<LiveTelemetryPatchesNotifier, Map<String, LiveTelemetryPatch>>(
   LiveTelemetryPatchesNotifier.new,
@@ -55,21 +55,51 @@ class LiveTelemetryPatchesNotifier
   }
 
   void applyWaterFlow(LiveUpdateWaterFlow event) {
-    final key = normalizeDeviceId(event.deviceId);
-    _scheduleStaleTimer(key);
-    final existing = state[key];
-    final next = Map<String, LiveTelemetryPatch>.from(state);
-    next[key] = LiveTelemetryPatch(
+    _applyDeviceFlow(
+      deviceId: event.deviceId,
       flowRateLpm: event.flowRateLpm,
       status: event.status,
-      isOnline: true,
-      lastSeenAt: event.ts,
+      ts: event.ts,
       cumulativeLiters: event.cumulativeLiters,
     );
-    state = next;
-    if (existing == null) {
-      // Keep patch object stable for selectors when only flow changes.
+  }
+
+  void applyWaterFlowTick(LiveUpdateWaterFlowTick event) {
+    if (event.devices.isEmpty) return;
+
+    final next = Map<String, LiveTelemetryPatch>.from(state);
+    for (final device in event.devices) {
+      final key = normalizeDeviceId(device.deviceId);
+      _scheduleStaleTimer(key);
+      next[key] = LiveTelemetryPatch(
+        flowRateLpm: device.flowRateLpm,
+        status: device.status,
+        isOnline: true,
+        lastSeenAt: device.ts,
+        cumulativeLiters: device.cumulativeLiters,
+      );
     }
+    state = next;
+  }
+
+  void _applyDeviceFlow({
+    required String deviceId,
+    required double flowRateLpm,
+    required String status,
+    required String ts,
+    double? cumulativeLiters,
+  }) {
+    final key = normalizeDeviceId(deviceId);
+    _scheduleStaleTimer(key);
+    final next = Map<String, LiveTelemetryPatch>.from(state);
+    next[key] = LiveTelemetryPatch(
+      flowRateLpm: flowRateLpm,
+      status: status,
+      isOnline: true,
+      lastSeenAt: ts,
+      cumulativeLiters: cumulativeLiters,
+    );
+    state = next;
   }
 
   void applyDevicePresence(LiveUpdateDevicePresence event) {

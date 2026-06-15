@@ -4,7 +4,43 @@ import 'package:water_meter_app/core/live/live_update_message.dart';
 
 void main() {
   group('LiveUpdateMessage', () {
-    test('parses water_flow payload', () {
+    test('parses water_flow_tick payload', () {
+      final message = LiveUpdateMessage.fromJson({
+        'type': 'water_flow_tick',
+        'tenantId': 'tenant-1',
+        'ts': '2026-06-09T10:30:05Z',
+        'devices': [
+          {
+            'deviceId': 'WM000001',
+            'unitId': 'wm-WM000001',
+            'ts': '2026-06-09T10:30:05Z',
+            'ml': 45,
+            'flowRateLpm': 2.7,
+            'cumulativeLiters': 123.45,
+            'status': 'flowing',
+          },
+          {
+            'deviceId': 'WM000002',
+            'unitId': 'wm-WM000002',
+            'ts': '2026-06-09T10:30:05Z',
+            'ml': 30,
+            'flowRateLpm': 1.8,
+            'cumulativeLiters': 88.1,
+            'status': 'flowing',
+          },
+        ],
+      });
+
+      expect(message, isA<LiveUpdateWaterFlowTick>());
+      final tick = message as LiveUpdateWaterFlowTick;
+      expect(tick.tenantId, 'tenant-1');
+      expect(tick.devices, hasLength(2));
+      expect(tick.devices.first.deviceId, 'WM000001');
+      expect(tick.devices.first.flowRateLpm, 2.7);
+      expect(tick.devices.last.deviceId, 'WM000002');
+    });
+
+    test('parses legacy water_flow payload', () {
       final message = LiveUpdateMessage.fromJson({
         'type': 'water_flow',
         'tenantId': 'tenant-1',

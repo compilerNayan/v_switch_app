@@ -28,6 +28,47 @@ DashboardTelemetryDevice _device({
 }
 
 void main() {
+  test('applyWaterFlowTick updates multiple devices in one state write', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    container.read(liveTelemetryPatchesProvider.notifier).applyWaterFlowTick(
+          const LiveUpdateWaterFlowTick(
+            tenantId: 'tenant-1',
+            ts: '2026-06-09T10:30:05Z',
+            devices: [
+              WaterFlowTickDevice(
+                deviceId: 'WM000001',
+                unitId: 'wm-WM000001',
+                ts: '2026-06-09T10:30:05Z',
+                ml: 45,
+                flowRateLpm: 2.7,
+                cumulativeLiters: 88.2,
+                status: 'flowing',
+              ),
+              WaterFlowTickDevice(
+                deviceId: 'WM000002',
+                unitId: 'wm-WM000002',
+                ts: '2026-06-09T10:30:05Z',
+                ml: 30,
+                flowRateLpm: 1.8,
+                cumulativeLiters: 50.1,
+                status: 'flowing',
+              ),
+            ],
+          ),
+        );
+
+    expect(
+      container.read(liveTelemetryPatchProvider('WM000001'))?.flowRateLpm,
+      2.7,
+    );
+    expect(
+      container.read(liveTelemetryPatchProvider('WM000002'))?.flowRateLpm,
+      1.8,
+    );
+  });
+
   test('zeros flow after stale timeout when updates stop', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);

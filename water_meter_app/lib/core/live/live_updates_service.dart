@@ -109,6 +109,8 @@ class LiveUpdatesService {
     switch (message) {
       case LiveUpdateWaterFlow():
         _ref.read(liveTelemetryPatchesProvider.notifier).applyWaterFlow(message);
+      case LiveUpdateWaterFlowTick():
+        _ref.read(liveTelemetryPatchesProvider.notifier).applyWaterFlowTick(message);
       case LiveUpdateDevicePresence():
         _ref.read(liveTelemetryPatchesProvider.notifier).applyDevicePresence(message);
       case LiveUpdateBucket30m():
