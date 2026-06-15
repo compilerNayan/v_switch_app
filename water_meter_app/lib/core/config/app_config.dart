@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 /// Compile-time configuration for API, auth, and build flavors.
 class AppConfig {
   AppConfig._();
@@ -68,4 +70,7 @@ class AppConfig {
 
   static bool get isAmplifyConfigured =>
       cognitoUserPoolId.isNotEmpty && cognitoClientId.isNotEmpty;
+
+  /// Browser build: sign-in only, building home + unit dashboard/usage.
+  static bool get isWebDashboard => kIsWeb;
 }

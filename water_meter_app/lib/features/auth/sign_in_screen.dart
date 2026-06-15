@@ -49,9 +49,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 2,
+      length: AppConfig.isWebDashboard ? 1 : 2,
       vsync: this,
-      initialIndex: widget.initialSignUp ? 1 : 0,
+      initialIndex: widget.initialSignUp && !AppConfig.isWebDashboard ? 1 : 0,
     );
   }
 
@@ -90,7 +90,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
           final profile = await api.getMe();
           ref.invalidate(userProfileProvider);
           if (!mounted) return;
-          if (profile.needsOnboarding) {
+          if (profile.needsOnboarding && !AppConfig.isWebDashboard) {
             context.go('/onboarding/admin-invite');
           } else {
             context.go('/');
@@ -121,8 +121,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
               }
             }
             await auth.signOut();
-            setState(() =>
-                _error = 'Account not registered. Please sign up first.');
+            setState(() => _error = AppConfig.isWebDashboard
+                ? 'Account not registered. Sign up using the mobile app, or ask your administrator.'
+                : 'Account not registered. Please sign up first.');
             return;
           }
           rethrow;
@@ -137,7 +138,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
         setState(() => _error = 'Sign-in failed');
         return;
       }
-      if (profile.needsOnboarding) {
+      if (profile.needsOnboarding && !AppConfig.isWebDashboard) {
         context.go('/onboarding/admin-invite');
       } else {
         context.go('/');
@@ -245,21 +246,25 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Sign in to view and manage your water usage.',
+                    AppConfig.isWebDashboard
+                        ? 'Sign in to view water usage for your building.'
+                        : 'Sign in to view and manage your water usage.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: scheme.onSurfaceVariant,
                         ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
-                  TabBar(
-                    controller: _tabController,
-                    tabs: const [
-                      Tab(text: 'Sign in'),
-                      Tab(text: 'Sign up'),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
+                  if (!AppConfig.isWebDashboard) ...[
+                    TabBar(
+                      controller: _tabController,
+                      tabs: const [
+                        Tab(text: 'Sign in'),
+                        Tab(text: 'Sign up'),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   if (_error != null) ...[
                     Text(
                       _error!,
@@ -268,16 +273,19 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
                     ),
                     const SizedBox(height: 16),
                   ],
-                  SizedBox(
-                    height: 480,
-                    child: TabBarView(
-                      controller: _tabController,
-                      children: [
-                        _buildSignInForm(scheme),
-                        _buildSignUpForm(scheme),
-                      ],
+                  if (AppConfig.isWebDashboard)
+                    _buildSignInForm(scheme)
+                  else
+                    SizedBox(
+                      height: 480,
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _buildSignInForm(scheme),
+                          _buildSignUpForm(scheme),
+                        ],
+                      ),
                     ),
-                  ),
                   if (AppConfig.useMockAuth) ...[
                     const SizedBox(height: 8),
                     Text(

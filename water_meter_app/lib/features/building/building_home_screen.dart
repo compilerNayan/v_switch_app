@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/config/app_config.dart';
 import '../../core/models/water_unit.dart';
 import '../../core/models/home_dashboard.dart';
 import '../../core/providers/app_providers.dart';
@@ -52,6 +53,7 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
         tenantConfigAsync.valueOrNull?.name.trim().isNotEmpty == true
             ? tenantConfigAsync.valueOrNull!.name.trim()
             : 'Building';
+    final showProvisioning = !AppConfig.isWebDashboard;
 
     return Scaffold(
       appBar: AppBar(
@@ -60,7 +62,7 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
           child: Text(buildingLabel),
         ),
         actions: [
-          if (isAdmin)
+          if (isAdmin && showProvisioning)
             IconButton(
               icon: Badge(
                 isLabelVisible: unread > 0,
@@ -69,7 +71,7 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
               ),
               onPressed: () => context.push('/alerts'),
             ),
-          if (isAdmin)
+          if (isAdmin && showProvisioning)
             IconButton(
               icon: const Icon(Icons.policy_outlined),
               onPressed: () => context.push('/policies'),
@@ -91,7 +93,9 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
             data: (units) {
               if (units.isEmpty) {
                 return _EmptyState(
-                  onAdd: () => context.push('/devices/water-meter/setup'),
+                  onAdd: showProvisioning
+                      ? () => context.push('/devices/water-meter/setup')
+                      : null,
                 );
               }
               final filtered = _applyFilters(
@@ -146,7 +150,7 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
                           ),
                           delegate: SliverChildBuilderDelegate(
                             (context, index) {
-                              if (index == sorted.length) {
+                              if (showProvisioning && index == sorted.length) {
                                 return AddUnitTile(
                                   onTap: () =>
                                       context.push('/devices/water-meter/setup'),
@@ -157,7 +161,7 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
                                 unit: sorted[index],
                               );
                             },
-                            childCount: sorted.length + 1,
+                            childCount: sorted.length + (showProvisioning ? 1 : 0),
                           ),
                         ),
                       )
@@ -167,7 +171,9 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
                         sliver: SliverList(
                           delegate: SliverChildBuilderDelegate(
                             (context, index) {
-                              final child = index == sorted.length
+                              final isAddTile =
+                                  showProvisioning && index == sorted.length;
+                              final child = isAddTile
                                   ? AddUnitTile(
                                       onTap: () => context
                                           .push('/devices/water-meter/setup'),
@@ -178,13 +184,12 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
                                     );
                               return Padding(
                                 padding: EdgeInsets.only(
-                                  bottom:
-                                      index == sorted.length ? 0 : 10,
+                                  bottom: isAddTile ? 0 : 10,
                                 ),
                                 child: child,
                               );
                             },
-                            childCount: sorted.length + 1,
+                            childCount: sorted.length + (showProvisioning ? 1 : 0),
                           ),
                         ),
                       ),
@@ -202,7 +207,7 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
           ),
         ],
       ),
-      floatingActionButton: isAdmin
+      floatingActionButton: isAdmin && showProvisioning
           ? FloatingActionButton.extended(
               onPressed: () => context.push('/reports'),
               icon: const Icon(Icons.receipt_long),
@@ -473,9 +478,9 @@ class _HomeSnapshotErrorBanner extends ConsumerWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.onAdd});
+  const _EmptyState({this.onAdd});
 
-  final VoidCallback onAdd;
+  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -492,18 +497,22 @@ class _EmptyState extends StatelessWidget {
                 style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 8),
             Text(
-              'Add your first unit to start monitoring water consumption.',
+              onAdd == null
+                  ? 'No units are linked to this account yet. Add water meters using the mobile app.'
+                  : 'Add your first unit to start monitoring water consumption.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
             ),
-            const SizedBox(height: 32),
-            FilledButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add),
-              label: const Text('Add water meter'),
-            ),
+            if (onAdd != null) ...[
+              const SizedBox(height: 32),
+              FilledButton.icon(
+                onPressed: onAdd,
+                icon: const Icon(Icons.add),
+                label: const Text('Add water meter'),
+              ),
+            ],
           ],
         ),
       ),

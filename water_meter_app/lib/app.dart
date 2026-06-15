@@ -27,6 +27,48 @@ import 'features/units/edit_unit_screen.dart';
 import 'features/usage/usage_screen.dart';
 import 'shared/widgets/live_connection_banner.dart';
 
+List<StatefulShellBranch> _unitShellBranches() {
+  final branches = <StatefulShellBranch>[
+    StatefulShellBranch(
+      routes: [
+        GoRoute(
+          path: 'dashboard',
+          builder: (context, state) => const DashboardScreen(),
+        ),
+      ],
+    ),
+    StatefulShellBranch(
+      routes: [
+        GoRoute(
+          path: 'usage',
+          builder: (context, state) => const UsageScreen(),
+        ),
+      ],
+    ),
+  ];
+  if (!AppConfig.isWebDashboard) {
+    branches.addAll([
+      StatefulShellBranch(
+        routes: [
+          GoRoute(
+            path: 'insights',
+            builder: (context, state) => const InsightsScreen(),
+          ),
+        ],
+      ),
+      StatefulShellBranch(
+        routes: [
+          GoRoute(
+            path: 'control',
+            builder: (context, state) => const ControlScreen(),
+          ),
+        ],
+      ),
+    ]);
+  }
+  return branches;
+}
+
 class WaterMeterApp extends ConsumerWidget {
   const WaterMeterApp({super.key});
 
@@ -167,40 +209,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               // Only mount the active tab (avoids firing all tab APIs at once).
               return children[navigationShell.currentIndex];
             },
-            branches: [
-              StatefulShellBranch(
-                routes: [
-                  GoRoute(
-                    path: 'dashboard',
-                    builder: (context, state) => const DashboardScreen(),
-                  ),
-                ],
-              ),
-              StatefulShellBranch(
-                routes: [
-                  GoRoute(
-                    path: 'usage',
-                    builder: (context, state) => const UsageScreen(),
-                  ),
-                ],
-              ),
-              StatefulShellBranch(
-                routes: [
-                  GoRoute(
-                    path: 'insights',
-                    builder: (context, state) => const InsightsScreen(),
-                  ),
-                ],
-              ),
-              StatefulShellBranch(
-                routes: [
-                  GoRoute(
-                    path: 'control',
-                    builder: (context, state) => const ControlScreen(),
-                  ),
-                ],
-              ),
-            ],
+            branches: _unitShellBranches(),
           ),
         ],
       ),
@@ -245,28 +254,41 @@ class _UnitShellState extends ConsumerState<_UnitShell> {
   @override
   Widget build(BuildContext context) {
     listenForLiveConnectionSnackbars(context, ref);
-    const destinations = [
-      NavigationDestination(
-        icon: Icon(Icons.dashboard_outlined),
-        selectedIcon: Icon(Icons.dashboard),
-        label: 'Dashboard',
-      ),
-      NavigationDestination(
-        icon: Icon(Icons.bar_chart_outlined),
-        selectedIcon: Icon(Icons.bar_chart),
-        label: 'Usage',
-      ),
-      NavigationDestination(
-        icon: Icon(Icons.insights_outlined),
-        selectedIcon: Icon(Icons.insights),
-        label: 'Insights',
-      ),
-      NavigationDestination(
-        icon: Icon(Icons.tune_outlined),
-        selectedIcon: Icon(Icons.tune),
-        label: 'Control',
-      ),
-    ];
+    final destinations = AppConfig.isWebDashboard
+        ? const [
+            NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined),
+              selectedIcon: Icon(Icons.dashboard),
+              label: 'Dashboard',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.bar_chart_outlined),
+              selectedIcon: Icon(Icons.bar_chart),
+              label: 'Usage',
+            ),
+          ]
+        : const [
+            NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined),
+              selectedIcon: Icon(Icons.dashboard),
+              label: 'Dashboard',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.bar_chart_outlined),
+              selectedIcon: Icon(Icons.bar_chart),
+              label: 'Usage',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.insights_outlined),
+              selectedIcon: Icon(Icons.insights),
+              label: 'Insights',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.tune_outlined),
+              selectedIcon: Icon(Icons.tune),
+              label: 'Control',
+            ),
+          ];
 
     return Scaffold(
       body: Column(
