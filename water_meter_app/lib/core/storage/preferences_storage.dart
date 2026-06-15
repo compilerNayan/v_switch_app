@@ -454,6 +454,32 @@ class PreferencesStorage {
     await _prefs.setDouble('$_valveLastPressurePrefix$deviceId', percent);
   }
 
+  /// Clears tenant/account data so the app returns to a fresh sign-up state.
+  Future<void> clearAccountData({required String tenantId}) async {
+    await setCachedUserProfile(null);
+    await setPendingRegistration(null);
+    await _prefs.remove(_tenantConfigKey);
+    await saveWaterUnits([]);
+    await saveAlerts([]);
+    await setBulkValveSnapshot(null);
+    await _prefs.remove(_adminInviteCodeKey);
+    await setTenantAdmins([]);
+    await _prefs.remove(_auditKey);
+    await _prefs.remove(_userDevicesKey);
+    await _prefs.remove(_enrolledDeviceSerialKey);
+    await _prefs.remove('$_tenantMetadataV2Prefix$tenantId');
+    await _prefs.remove('$_homeSnapshotV2Prefix$tenantId');
+
+    final keys = _prefs.getKeys().toList();
+    for (final key in keys) {
+      if (key.startsWith(_tenantMetadataV2Prefix) ||
+          key.startsWith(_homeSnapshotV2Prefix) ||
+          key.startsWith(_valveLastPressurePrefix)) {
+        await _prefs.remove(key);
+      }
+    }
+  }
+
   // Legacy aliases for gradual migration
   List<WaterUnit> getUserDevices() => getWaterUnits();
   Future<void> saveUserDevices(List<WaterUnit> devices) => saveWaterUnits(devices);

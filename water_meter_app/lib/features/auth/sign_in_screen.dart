@@ -10,7 +10,9 @@ import '../../core/providers/app_providers.dart';
 import 'registration_flow.dart';
 
 class SignInScreen extends ConsumerStatefulWidget {
-  const SignInScreen({super.key});
+  const SignInScreen({super.key, this.initialSignUp = false});
+
+  final bool initialSignUp;
 
   @override
   ConsumerState<SignInScreen> createState() => _SignInScreenState();
@@ -46,7 +48,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.initialSignUp ? 1 : 0,
+    );
   }
 
   @override

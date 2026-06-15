@@ -14,7 +14,10 @@ import '../../core/services/alert_evaluator.dart';
 import '../../core/utils/unit_filters.dart';
 import '../../shared/widgets/live_connection_banner.dart';
 import '../units/unit_tile.dart';
+import '../../core/providers/tenant_providers.dart';
+import '../../core/utils/secret_tap_detector.dart';
 import 'building_summary_header.dart';
+import 'tenant_wipe_dialog.dart';
 
 class BuildingHomeScreen extends ConsumerStatefulWidget {
   const BuildingHomeScreen({super.key});
@@ -44,10 +47,18 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
     final sort = ref.watch(unitSortModeProvider);
     final selectedBlocks = ref.watch(selectedBlocksProvider);
     final selectedWings = ref.watch(selectedWingsProvider);
+    final tenantConfigAsync = ref.watch(tenantConfigProvider);
+    final buildingLabel =
+        tenantConfigAsync.valueOrNull?.name.trim().isNotEmpty == true
+            ? tenantConfigAsync.valueOrNull!.name.trim()
+            : 'Building';
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Building'),
+        title: SecretTapDetector(
+          onActivated: () => showTenantWipeDialog(context, ref),
+          child: Text(buildingLabel),
+        ),
         actions: [
           if (isAdmin)
             IconButton(

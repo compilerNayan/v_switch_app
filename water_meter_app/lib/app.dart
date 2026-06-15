@@ -73,7 +73,9 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/auth',
-        builder: (context, state) => const SignInScreen(),
+        builder: (context, state) => SignInScreen(
+          initialSignUp: state.uri.queryParameters['signup'] == '1',
+        ),
       ),
       GoRoute(
         path: '/auth/confirm',

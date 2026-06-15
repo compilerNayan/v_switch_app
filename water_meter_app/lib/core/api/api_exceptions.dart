@@ -5,10 +5,22 @@ class ApiError {
   });
 
   factory ApiError.fromJson(Map<String, dynamic> json) {
-    final error = json['error'] as Map<String, dynamic>? ?? json;
+    final nested = json['error'];
+    if (nested is Map<String, dynamic>) {
+      return ApiError(
+        code: nested['code'] as String? ?? 'UNKNOWN',
+        message: nested['message'] as String? ?? 'An unknown error occurred',
+      );
+    }
+    if (nested is String && nested.isNotEmpty) {
+      return ApiError(
+        code: (json['status'] ?? json['code'] ?? 'UNKNOWN').toString(),
+        message: nested,
+      );
+    }
     return ApiError(
-      code: error['code'] as String? ?? 'UNKNOWN',
-      message: error['message'] as String? ?? 'An unknown error occurred',
+      code: json['code'] as String? ?? json['status']?.toString() ?? 'UNKNOWN',
+      message: json['message'] as String? ?? 'An unknown error occurred',
     );
   }
 

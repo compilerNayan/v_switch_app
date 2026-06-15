@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../config/app_config.dart';
 import '../models/bulk_dummy_enroll_response.dart';
 import '../models/tenant_config.dart';
+import '../models/tenant_deletion_response.dart';
 import '../models/user_profile.dart';
 import '../models/water_unit.dart';
 import '../auth/auth_service.dart';
@@ -326,6 +327,26 @@ class TenantApiClient {
     return data['inviteCode'] as String;
   }
 
+  Future<TenantDeletionResponse> deleteTenant(String tenantId) async {
+    if (AppConfig.useMockApi || AppConfig.useMockAuth) {
+      final prefs = await _prefsProvider();
+      final units = prefs.getWaterUnits();
+      await prefs.clearAccountData(tenantId: tenantId);
+      return TenantDeletionResponse(
+        tenantId: tenantId,
+        unitsDeleted: units.length,
+        deviceDataSetsDeleted: units.length,
+        preEnrollmentsDeleted: 0,
+        dummyDevicesDeleted: 0,
+        usersDeleted: 1,
+        cognitoUsersDeleted: 0,
+        tenantDeleted: true,
+      );
+    }
+    final data = await _delete<Map<String, dynamic>>('/v2/tenants/$tenantId');
+    return TenantDeletionResponse.fromJson(data);
+  }
+
   Future<UserProfile> joinAsAdmin(String inviteCode) async {
     if (AppConfig.useMockAuth && _authService is MockAuthService) {
       final prefs = await _prefsProvider();
@@ -381,6 +402,29 @@ class TenantApiClient {
     }
   }
 
+  Future<T> _delete<T>(String path) async {
+    try {
+      final response = await _dio.delete(path);
+      final data = response.data;
+      if (data == null) {
+        throw ApiException(
+          statusCode: response.statusCode ?? 0,
+          error: const ApiError(
+            code: 'EMPTY_RESPONSE',
+            message: 'Server returned an empty response for delete tenant.',
+          ),
+        );
+      }
+      if (data is T) return data;
+      if (data is Map) {
+        return Map<String, dynamic>.from(data) as T;
+      }
+      return data as T;
+    } on DioException catch (e) {
+      throw _mapError(e);
+    }
+  }
+
   Exception _mapError(DioException e) {
     if (e.type == DioExceptionType.connectionError ||
         e.type == DioExceptionType.connectionTimeout ||
@@ -412,6 +456,28 @@ class TenantApiClient {
         ),
       );
     }
+    if (status == 404) {
+      return const ApiException(
+        statusCode: 404,
+        error: ApiError(
+          code: 'NOT_FOUND',
+          message:
+              'Delete tenant is not available on the server yet. '
+              'Deploy the latest backend and try again.',
+        ),
+      );
+    }
+    if (status == 405) {
+      return const ApiException(
+        statusCode: 405,
+        error: ApiError(
+          code: 'METHOD_NOT_ALLOWED',
+          message:
+              'Delete tenant is not supported by this server version. '
+              'Deploy the latest backend and try again.',
+        ),
+      );
+    }
     if (status >= 500) {
       return ApiException(
         statusCode: status,
@@ -422,6 +488,10 @@ class TenantApiClient {
         ),
       );
     }
-    return NetworkException(e.message ?? 'Request failed');
+    return NetworkException(
+      status > 0
+          ? 'Request failed (HTTP $status). ${e.message ?? ''}'.trim()
+          : (e.message ?? 'Request failed'),
+    );
   }
 }
