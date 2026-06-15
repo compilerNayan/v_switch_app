@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_exceptions.dart';
+import '../../core/auth/auth_error_message.dart';
 import '../../core/auth/pending_registration.dart';
 import '../../core/config/app_config.dart';
 import '../../core/providers/app_providers.dart';
+import 'registration_flow.dart';
 
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
@@ -90,6 +92,28 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
           return;
         } on ApiException catch (e) {
           if (e.statusCode == 404) {
+            final cognito = await auth.getCurrentUser();
+            if (cognito != null &&
+                cognito.email.isNotEmpty &&
+                cognito.firstName != null &&
+                cognito.lastName != null) {
+              try {
+                await api.registerUser(
+                  email: cognito.email,
+                  phone: cognito.phone ?? '',
+                  firstName: cognito.firstName!,
+                  lastName: cognito.lastName!,
+                );
+                ref.invalidate(userProfileProvider);
+                if (!mounted) return;
+                context.go('/onboarding/building-setup');
+                return;
+              } on ApiException catch (registerError) {
+                setState(() =>
+                    _error = 'Finish account setup: ${registerError.error.message}');
+                return;
+              }
+            }
             await auth.signOut();
             setState(() =>
                 _error = 'Account not registered. Please sign up first.');
@@ -115,7 +139,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
     } on ApiException catch (e) {
       setState(() => _error = e.error.message);
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = formatAuthError(e));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -150,6 +174,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
       );
+      await savePendingRegistration(ref, ref.read(pendingRegistrationProvider)!);
 
       if (!mounted) return;
       if (result.requiresConfirmation) {
@@ -185,7 +210,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
       lastName: pending.lastName,
     );
 
-    ref.read(pendingRegistrationProvider.notifier).state = null;
+    await clearPendingRegistration(ref);
     ref.invalidate(userProfileProvider);
 
     if (mounted) context.go('/onboarding/building-setup');

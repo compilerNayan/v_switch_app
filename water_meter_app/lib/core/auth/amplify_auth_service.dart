@@ -85,10 +85,13 @@ class AmplifyAuthService implements AuthService {
     required String email,
     required String code,
   }) async {
-    await Amplify.Auth.confirmSignUp(
+    final result = await Amplify.Auth.confirmSignUp(
       username: email.trim(),
       confirmationCode: code.trim(),
     );
+    if (!result.isSignUpComplete) {
+      throw Exception('Email verification is not complete yet');
+    }
   }
 
   @override
@@ -106,8 +109,16 @@ class AmplifyAuthService implements AuthService {
       password: password,
     );
     if (!result.isSignedIn) {
-      throw Exception('Sign-in was not completed');
+      final step = result.nextStep.signInStep;
+      throw Exception(
+        step == AuthSignInStep.confirmSignInWithSmsMfaCode
+            ? 'Phone verification is required. Contact support to finish setup.'
+            : 'Sign-in requires an extra step ($step). Try again or contact support.',
+      );
     }
+    await Amplify.Auth.fetchAuthSession(
+      options: const FetchAuthSessionOptions(forceRefresh: true),
+    );
     final profile = await getCurrentUser();
     if (profile == null) {
       throw Exception('Failed to load user profile');

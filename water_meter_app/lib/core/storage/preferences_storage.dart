@@ -14,6 +14,7 @@ import '../models/tenant_metadata.dart';
 import '../models/top_consumers_config.dart';
 import '../models/user_profile.dart';
 import '../models/water_unit.dart';
+import '../auth/pending_registration.dart';
 import '../theme/app_theme.dart';
 import '../utils/units.dart';
 
@@ -39,6 +40,7 @@ class PreferencesStorage {
   static const _adminInviteCodeKey = 'admin_invite_code';
   static const _bulkValveSnapshotKey = 'bulk_valve_snapshot';
   static const _cachedUserProfileKey = 'cached_user_profile';
+  static const _pendingRegistrationKey = 'pending_registration';
   static const _homeSnapshotV2Prefix = 'home_snapshot_v2_';
   static const _valveLastPressurePrefix = 'valve_last_pressure_';
 
@@ -388,6 +390,40 @@ class PreferencesStorage {
       return;
     }
     await _prefs.setString(_cachedUserProfileKey, jsonEncode(profile.toJson()));
+  }
+
+  PendingRegistration? getPendingRegistration() {
+    final raw = _prefs.getString(_pendingRegistrationKey);
+    if (raw == null) return null;
+    try {
+      final json = jsonDecode(raw) as Map<String, dynamic>;
+      return PendingRegistration(
+        email: json['email'] as String? ?? '',
+        password: json['password'] as String? ?? '',
+        phone: json['phone'] as String? ?? '',
+        firstName: json['firstName'] as String? ?? '',
+        lastName: json['lastName'] as String? ?? '',
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setPendingRegistration(PendingRegistration? pending) async {
+    if (pending == null) {
+      await _prefs.remove(_pendingRegistrationKey);
+      return;
+    }
+    await _prefs.setString(
+      _pendingRegistrationKey,
+      jsonEncode({
+        'email': pending.email,
+        'password': pending.password,
+        'phone': pending.phone,
+        'firstName': pending.firstName,
+        'lastName': pending.lastName,
+      }),
+    );
   }
 
   HomeSnapshot? getHomeSnapshot(String tenantId) {

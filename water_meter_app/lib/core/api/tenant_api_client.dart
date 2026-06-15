@@ -334,13 +334,44 @@ class TenantApiClient {
 
   Exception _mapError(DioException e) {
     if (e.type == DioExceptionType.connectionError ||
-        e.type == DioExceptionType.connectionTimeout) {
-      return NetworkException(e.message ?? 'Network error');
+        e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout) {
+      return NetworkException(
+        'Could not reach the server. Check your internet connection and try again.',
+      );
     }
     final status = e.response?.statusCode ?? 0;
     final body = e.response?.data;
     if (body is Map<String, dynamic>) {
       return ApiException(statusCode: status, error: ApiError.fromJson(body));
+    }
+    if (status == 401) {
+      return const ApiException(
+        statusCode: 401,
+        error: ApiError(
+          code: 'UNAUTHORIZED',
+          message: 'Session expired or invalid. Sign in again.',
+        ),
+      );
+    }
+    if (status == 403) {
+      return const ApiException(
+        statusCode: 403,
+        error: ApiError(
+          code: 'FORBIDDEN',
+          message: 'You do not have permission to perform this action.',
+        ),
+      );
+    }
+    if (status >= 500) {
+      return ApiException(
+        statusCode: status,
+        error: ApiError(
+          code: 'SERVER_ERROR',
+          message:
+              'Server error ($status). Try again in a moment or contact support.',
+        ),
+      );
     }
     return NetworkException(e.message ?? 'Request failed');
   }
