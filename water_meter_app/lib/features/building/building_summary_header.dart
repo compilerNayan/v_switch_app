@@ -18,97 +18,100 @@ class BuildingSummaryHeader extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
 
     return summaryAsync.when(
-      data: (summary) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Building overview',
-                      style: Theme.of(context).textTheme.titleMedium,
+      data: (summary) {
+        final today =
+            VolumeFormatter.formatDashboard(summary.totalTodayLiters, volumeUnit);
+        final month = VolumeFormatter.formatDashboard(
+          summary.totalMonthLiters,
+          volumeUnit,
+        );
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Building overview',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                     ),
+                    const BuildingLocationFilterButton(compact: true),
+                  ],
+                ),
+                if (filterLabel != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    filterLabel,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.primary,
+                        ),
                   ),
-                  const BuildingLocationFilterButton(compact: true),
                 ],
-              ),
-              if (filterLabel != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  filterLabel,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _UsageStatTile(
+                        label: 'Today',
+                        display: today,
+                        icon: Icons.water_drop_outlined,
                         color: scheme.primary,
                       ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _UsageStatTile(
+                        label: 'This month',
+                        display: month,
+                        icon: Icons.calendar_month_outlined,
+                        color: scheme.secondary,
+                      ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _StatusChip(
+                        label: 'Online',
+                        count: summary.unitsOnline,
+                        color: Colors.green,
+                        icon: Icons.check_circle_outline,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _StatusChip(
+                        label: 'Offline',
+                        count: summary.unitsOffline,
+                        color: scheme.error,
+                        icon: Icons.cloud_off_outlined,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _StatusChip(
+                        label: 'Total',
+                        count: summary.unitsTotal,
+                        color: scheme.outline,
+                        icon: Icons.apartment_outlined,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const TopConsumersDashboard(),
               ],
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _StatTile(
-                      label: 'Today',
-                      value: VolumeFormatter.formatCompact(
-                        summary.totalTodayLiters,
-                        volumeUnit,
-                      ),
-                      icon: Icons.water_drop_outlined,
-                      color: scheme.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _StatTile(
-                      label: 'This month',
-                      value: VolumeFormatter.formatCompact(
-                        summary.totalMonthLiters,
-                        volumeUnit,
-                      ),
-                      icon: Icons.calendar_month_outlined,
-                      color: scheme.secondary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _StatusChip(
-                      label: 'Online',
-                      count: summary.unitsOnline,
-                      color: Colors.green,
-                      icon: Icons.check_circle_outline,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _StatusChip(
-                      label: 'Offline',
-                      count: summary.unitsOffline,
-                      color: scheme.error,
-                      icon: Icons.cloud_off_outlined,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _StatusChip(
-                      label: 'Total',
-                      count: summary.unitsTotal,
-                      color: scheme.outline,
-                      icon: Icons.apartment_outlined,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const TopConsumersDashboard(),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
       loading: () => const Card(
         child: Padding(
           padding: EdgeInsets.all(32),
@@ -125,40 +128,70 @@ class BuildingSummaryHeader extends ConsumerWidget {
   }
 }
 
-class _StatTile extends StatelessWidget {
-  const _StatTile({
+class _UsageStatTile extends StatelessWidget {
+  const _UsageStatTile({
     required this.label,
-    required this.value,
+    required this.display,
     required this.icon,
     required this.color,
   });
 
   final String label;
-  final String value;
+  final VolumeDisplay display;
   final IconData icon;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: color),
-          const SizedBox(height: 8),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          Row(
+            children: [
+              Icon(icon, size: 18, color: color),
+              const SizedBox(width: 6),
+              Text(
+                label.toUpperCase(),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: color,
                   fontWeight: FontWeight.w600,
+                  letterSpacing: 0.6,
                 ),
+              ),
+            ],
           ),
+          const SizedBox(height: 10),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              display.primary,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                height: 1.1,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+          if (display.compact != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              display.compact!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ],
       ),
     );
