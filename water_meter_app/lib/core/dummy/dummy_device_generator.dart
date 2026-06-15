@@ -96,9 +96,8 @@ class DummyDeviceGenerator {
         serial = randomSerial(random);
       } while (!serials.add(serial));
 
-      final firstName = kIndianFirstNames[index % kIndianFirstNames.length];
-      final lastName =
-          kIndianLastNames[(index * 7) % kIndianLastNames.length];
+      final firstName = kIndianFirstNames[random.nextInt(kIndianFirstNames.length)];
+      final lastName = kIndianLastNames[random.nextInt(kIndianLastNames.length)];
       final residentName = '$firstName $lastName';
       final flatNumber =
           '${slot.blockId}${slot.wing[0]}${slot.floor}${(index % 90) + 10}';

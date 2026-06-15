@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:water_meter_app/core/dummy/dummy_device_generator.dart';
+import 'package:water_meter_app/core/dummy/indian_names.dart';
 
 void main() {
   group('DummyDeviceGenerator', () {
@@ -29,13 +30,28 @@ void main() {
 
       expect(devices.length, 50);
       expect(devices.map((d) => d.serialNumber).toSet().length, 50);
+      final digitInName = RegExp(r'\d');
       for (final device in devices) {
         expect(device.serialNumber.length, 9);
         expect(device.residentName.trim().isNotEmpty, isTrue);
+        expect(digitInName.hasMatch(device.residentName), isFalse);
         expect(device.phoneNumber.startsWith('+91'), isTrue);
         expect(device.block.isNotEmpty, isTrue);
         expect(device.wing.isNotEmpty, isTrue);
         expect(device.floor.isNotEmpty, isTrue);
+      }
+    });
+
+    test('name pool supports many combinations without digit suffixes', () {
+      expect(kIndianFirstNames.length, greaterThanOrEqualTo(40));
+      expect(kIndianLastNames.length, greaterThanOrEqualTo(40));
+      expect(
+        kIndianFirstNames.length * kIndianLastNames.length,
+        greaterThanOrEqualTo(1000),
+      );
+      final digit = RegExp(r'\d');
+      for (final name in [...kIndianFirstNames, ...kIndianLastNames]) {
+        expect(digit.hasMatch(name), isFalse, reason: 'name "$name" has digits');
       }
     });
   });
