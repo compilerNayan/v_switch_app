@@ -92,6 +92,23 @@ void main() {
     expect(merged?.quotaUsedLiters, 25.5);
   });
 
+  test('mergeTelemetryPatch applies live month usage', () {
+    final patch = const LiveTelemetryPatch(
+      flowRateLpm: 2.7,
+      status: 'flowing',
+      isOnline: true,
+      lastSeenAt: '2026-06-09T10:30:05Z',
+      monthLiters: 14532.5,
+    );
+
+    final merged = mergeTelemetryPatch(
+      _device(deviceId: 'WM000001'),
+      patch,
+    );
+
+    expect(merged?.monthLiters, 14532.5);
+  });
+
   test('zeros flow after stale timeout when updates stop', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);

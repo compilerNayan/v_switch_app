@@ -124,4 +124,38 @@ void main() {
 
     expect(summary.totalTodayLiters, 40);
   });
+
+  test('aggregateBuildingOverview sums live month liters from merged telemetry', () {
+    final units = [_unit('u1', 'd1'), _unit('u2', 'd2')];
+    final merged = {
+      'd1': mergeTelemetryPatch(
+        _telemetry(unitId: 'u1', deviceId: 'd1', monthLiters: 1000),
+        const LiveTelemetryPatch(
+          flowRateLpm: 2.7,
+          status: 'flowing',
+          isOnline: true,
+          lastSeenAt: '2026-06-15T10:00:01Z',
+          monthLiters: 12452.0,
+        ),
+      )!,
+      'd2': mergeTelemetryPatch(
+        _telemetry(unitId: 'u2', deviceId: 'd2', monthLiters: 2000),
+        const LiveTelemetryPatch(
+          flowRateLpm: 1.8,
+          status: 'flowing',
+          isOnline: true,
+          lastSeenAt: '2026-06-15T10:00:01Z',
+          monthLiters: 14532.0,
+        ),
+      )!,
+    };
+
+    final summary = aggregateBuildingOverview(
+      units: units,
+      telemetry: merged,
+      activeAlerts: 0,
+    );
+
+    expect(summary.totalMonthLiters, 26984.0);
+  });
 }

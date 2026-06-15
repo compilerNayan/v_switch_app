@@ -18,6 +18,7 @@ void main() {
             'flowRateLpm': 2.7,
             'cumulativeLiters': 123.45,
             'todayLiters': 18.2,
+            'monthLiters': 14532.5,
             'status': 'flowing',
           },
           {
@@ -39,6 +40,7 @@ void main() {
       expect(tick.devices.first.deviceId, 'WM000001');
       expect(tick.devices.first.flowRateLpm, 2.7);
       expect(tick.devices.first.todayLiters, 18.2);
+      expect(tick.devices.first.monthLiters, 14532.5);
       expect(tick.devices.last.deviceId, 'WM000002');
     });
 

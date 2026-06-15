@@ -22,6 +22,7 @@ class LiveTelemetryPatch {
     required this.lastSeenAt,
     this.cumulativeLiters,
     this.todayLiters,
+    this.monthLiters,
   });
 
   final double flowRateLpm;
@@ -30,6 +31,7 @@ class LiveTelemetryPatch {
   final String lastSeenAt;
   final double? cumulativeLiters;
   final double? todayLiters;
+  final double? monthLiters;
 
   @override
   bool operator ==(Object other) {
@@ -39,7 +41,8 @@ class LiveTelemetryPatch {
         other.isOnline == isOnline &&
         other.lastSeenAt == lastSeenAt &&
         other.cumulativeLiters == cumulativeLiters &&
-        other.todayLiters == todayLiters;
+        other.todayLiters == todayLiters &&
+        other.monthLiters == monthLiters;
   }
 
   @override
@@ -50,6 +53,7 @@ class LiveTelemetryPatch {
         lastSeenAt,
         cumulativeLiters,
         todayLiters,
+        monthLiters,
       );
 }
 
@@ -71,6 +75,7 @@ class LiveTelemetryPatchesNotifier
       ts: event.ts,
       cumulativeLiters: event.cumulativeLiters,
       todayLiters: event.todayLiters,
+      monthLiters: event.monthLiters,
     );
   }
 
@@ -88,6 +93,7 @@ class LiveTelemetryPatchesNotifier
         lastSeenAt: device.ts,
         cumulativeLiters: device.cumulativeLiters,
         todayLiters: device.todayLiters,
+        monthLiters: device.monthLiters,
       );
     }
     state = next;
@@ -100,6 +106,7 @@ class LiveTelemetryPatchesNotifier
     required String ts,
     double? cumulativeLiters,
     double? todayLiters,
+    double? monthLiters,
   }) {
     final key = normalizeDeviceId(deviceId);
     _scheduleStaleTimer(key);
@@ -111,6 +118,7 @@ class LiveTelemetryPatchesNotifier
       lastSeenAt: ts,
       cumulativeLiters: cumulativeLiters,
       todayLiters: todayLiters,
+      monthLiters: monthLiters,
     );
     state = next;
   }
@@ -128,6 +136,7 @@ class LiveTelemetryPatchesNotifier
       lastSeenAt: event.ts,
       cumulativeLiters: existing?.cumulativeLiters,
       todayLiters: existing?.todayLiters,
+      monthLiters: existing?.monthLiters,
     );
     state = next;
     if (!event.isOnline) {
@@ -168,6 +177,7 @@ class LiveTelemetryPatchesNotifier
       lastSeenAt: existing.lastSeenAt,
       cumulativeLiters: existing.cumulativeLiters,
       todayLiters: existing.todayLiters,
+      monthLiters: existing.monthLiters,
     );
     state = next;
   }
@@ -235,6 +245,7 @@ DashboardTelemetryDevice? mergeTelemetryPatch(
     isOnline: patch.isOnline,
     lastSeenAt: patch.lastSeenAt,
     todayLiters: patch.todayLiters ?? base.todayLiters,
+    monthLiters: patch.monthLiters ?? base.monthLiters,
     quotaUsedLiters: patch.todayLiters ?? base.quotaUsedLiters,
     quotaPercent: quotaPercent,
   );
