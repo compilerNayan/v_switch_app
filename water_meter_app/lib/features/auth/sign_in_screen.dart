@@ -106,7 +106,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
                 );
                 ref.invalidate(userProfileProvider);
                 if (!mounted) return;
-                context.go('/onboarding/building-setup');
+                context.go('/onboarding/dummy-devices');
                 return;
               } on ApiException catch (registerError) {
                 setState(() =>
@@ -213,7 +213,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
     await clearPendingRegistration(ref);
     ref.invalidate(userProfileProvider);
 
-    if (mounted) context.go('/onboarding/building-setup');
+    if (mounted) context.go('/onboarding/dummy-devices');
   }
 
   @override

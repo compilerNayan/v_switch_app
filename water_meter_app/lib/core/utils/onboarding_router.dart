@@ -4,6 +4,14 @@ import '../models/user_profile.dart';
 class OnboardingRouter {
   OnboardingRouter._();
 
+  static const tenantOnboardingRoutes = {
+    '/onboarding/dummy-devices',
+    '/onboarding/dummy-devices/count',
+    '/onboarding/dummy-devices/provision',
+    '/onboarding/building-setup',
+    '/onboarding/admin-invite',
+  };
+
   static String? redirectForProfile(
     UserProfile? profile,
     String location, {
@@ -16,17 +24,14 @@ class OnboardingRouter {
     }
 
     const authRoutes = {'/auth', '/auth/confirm'};
-    const tenantOnboardingRoutes = {
-      '/onboarding/building-setup',
-      '/onboarding/admin-invite',
-    };
 
     if (profile.tenantId != null &&
         profile.isTenantOwner &&
         !profile.onboardingComplete) {
-      return location == '/onboarding/building-setup'
-          ? null
-          : '/onboarding/building-setup';
+      if (tenantOnboardingRoutes.contains(location)) {
+        return null;
+      }
+      return '/onboarding/dummy-devices';
     }
 
     if (profile.onboardingComplete && profile.tenantId != null) {

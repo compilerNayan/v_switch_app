@@ -91,7 +91,7 @@ class _ConfirmSignUpScreenState extends ConsumerState<ConfirmSignUpScreen> {
       await clearPendingRegistration(ref);
       ref.invalidate(userProfileProvider);
 
-      if (mounted) context.go('/onboarding/building-setup');
+      if (mounted) context.go('/onboarding/dummy-devices');
     } on ApiException catch (e) {
       debugPrint('[auth] registerUser failed: ${e.statusCode} ${e.error.message}');
       setState(() {

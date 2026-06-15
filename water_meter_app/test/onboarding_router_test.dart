@@ -26,7 +26,14 @@ void main() {
       );
       expect(
         OnboardingRouter.redirectForProfile(profile, '/'),
-        '/onboarding/building-setup',
+        '/onboarding/dummy-devices',
+      );
+      expect(
+        OnboardingRouter.redirectForProfile(
+          profile,
+          '/onboarding/dummy-devices',
+        ),
+        isNull,
       );
       expect(
         OnboardingRouter.redirectForProfile(

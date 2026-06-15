@@ -10,6 +10,9 @@ import 'features/alerts/alerts_screen.dart';
 import 'features/audit/audit_log_screen.dart';
 import 'features/auth/admin_invite_screen.dart';
 import 'features/auth/confirm_sign_up_screen.dart';
+import 'features/auth/dummy_devices_choice_screen.dart';
+import 'features/auth/dummy_devices_count_screen.dart';
+import 'features/auth/dummy_devices_provision_screen.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/auth/tenant_setup_screen.dart';
 import 'features/building/building_home_screen.dart';
@@ -75,6 +78,24 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/auth/confirm',
         builder: (context, state) => const ConfirmSignUpScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding/dummy-devices',
+        builder: (context, state) => const DummyDevicesChoiceScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding/dummy-devices/count',
+        builder: (context, state) => const DummyDevicesCountScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding/dummy-devices/provision',
+        builder: (context, state) {
+          final count = state.extra;
+          if (count is! int) {
+            return const DummyDevicesCountScreen();
+          }
+          return DummyDevicesProvisionScreen(deviceCount: count);
+        },
       ),
       GoRoute(
         path: '/onboarding/building-setup',

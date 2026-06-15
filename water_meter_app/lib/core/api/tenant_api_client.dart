@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../config/app_config.dart';
+import '../models/bulk_dummy_enroll_response.dart';
 import '../models/tenant_config.dart';
 import '../models/user_profile.dart';
 import '../models/water_unit.dart';
@@ -247,6 +248,54 @@ class TenantApiClient {
       },
     );
     return WaterUnit.fromJson(data);
+  }
+
+  Future<BulkDummyEnrollResponse> bulkDummyEnroll({
+    required String tenantId,
+    required List<Map<String, dynamic>> devices,
+  }) async {
+    if (AppConfig.useMockApi) {
+      final prefs = await _prefsProvider();
+      final results = <BulkDummyEnrollItemResult>[];
+      for (final device in devices) {
+        final serial = device['serialNumber'] as String;
+        final unit = WaterUnit(
+          id: 'wm-$serial',
+          name: device['name'] as String? ?? serial,
+          deviceId: serial,
+          flatNumber: device['flatNumber'] as String? ?? '',
+          floor: device['floor'] as String? ?? '',
+          block: device['block'] as String? ?? '',
+          wing: device['wing'] as String? ?? '',
+          residentName: device['residentName'] as String?,
+          phoneNumber: device['phoneNumber'] as String?,
+          enrollmentStatus: UnitEnrollmentStatus.enrolled,
+        );
+        await prefs.addWaterUnit(unit);
+        results.add(
+          BulkDummyEnrollItemResult(
+            serialNumber: serial,
+            status: 'enrolled',
+            expiresAt:
+                DateTime.now().add(const Duration(minutes: 10)).toIso8601String(),
+          ),
+        );
+      }
+      return BulkDummyEnrollResponse(
+        tenantId: tenantId,
+        requested: devices.length,
+        enrolled: results.length,
+        failed: 0,
+        results: results,
+      );
+    }
+
+    final data = await _post<Map<String, dynamic>>(
+      '/v2/tenants/$tenantId/devices/dummy-enroll/bulk',
+      {'devices': devices},
+    );
+    await _authService.refreshProfile();
+    return BulkDummyEnrollResponse.fromJson(data);
   }
 
   Future<EnrollmentStatusResult> getEnrollmentStatus({
