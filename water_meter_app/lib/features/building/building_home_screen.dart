@@ -142,7 +142,7 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
                           mainAxisSpacing: 12,
                           crossAxisSpacing: 12,
                           childAspectRatio:
-                              MediaQuery.sizeOf(context).width >= 600 ? 1.35 : 1.55,
+                              MediaQuery.sizeOf(context).width >= 600 ? 1.5 : 1.9,
                         ),
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {

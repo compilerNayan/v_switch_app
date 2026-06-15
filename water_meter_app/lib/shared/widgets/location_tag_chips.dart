@@ -3,9 +3,14 @@ import 'package:flutter/material.dart';
 import '../../core/models/water_unit.dart';
 
 class LocationTagChips extends StatelessWidget {
-  const LocationTagChips({super.key, required this.unit});
+  const LocationTagChips({
+    super.key,
+    required this.unit,
+    this.compact = false,
+  });
 
   final WaterUnit unit;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -13,11 +18,15 @@ class LocationTagChips extends StatelessWidget {
     if (tags.isEmpty) return const SizedBox.shrink();
 
     return Wrap(
-      spacing: 6,
-      runSpacing: 6,
+      spacing: compact ? 4 : 6,
+      runSpacing: compact ? 4 : 6,
       children: [
         for (final tag in tags)
-          LocationTagChip(label: tag.label, value: tag.value),
+          LocationTagChip(
+            label: tag.label,
+            value: tag.value,
+            compact: compact,
+          ),
       ],
     );
   }
@@ -28,10 +37,12 @@ class LocationTagChip extends StatelessWidget {
     super.key,
     required this.label,
     required this.value,
+    this.compact = false,
   });
 
   final String label;
   final String value;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -63,7 +74,10 @@ class LocationTagChip extends StatelessWidget {
     final fg = isDark ? foreground.withValues(alpha: 0.92) : foreground;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 6 : 8,
+        vertical: compact ? 2 : 3,
+      ),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(6),

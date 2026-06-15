@@ -61,6 +61,17 @@ void main() {
     );
   });
 
+  test('tileFlatLabel prefers flat number over unit name', () {
+    const unit = WaterUnit(
+      id: 'u1',
+      name: 'D205',
+      deviceId: 'WM000001',
+      flatNumber: '205',
+    );
+
+    expect(unit.tileFlatLabel, '205');
+  });
+
   test('topConsumerTitle combines resident name and flat number', () {
     const unit = WaterUnit(
       id: 'u1',

@@ -113,6 +113,13 @@ class WaterUnit {
     ];
   }
 
+  /// Prominent flat label for unit tiles (kept separate from resident name).
+  String get tileFlatLabel {
+    final flat = flatNumber.trim();
+    if (flat.isNotEmpty) return flat;
+    return name;
+  }
+
   /// Primary line for top-consumer rows: resident name and flat when available.
   String get topConsumerTitle {
     final owner = ownerLabel;
