@@ -28,7 +28,7 @@ DashboardTelemetryDevice _device({
 }
 
 void main() {
-  test('applyWaterFlowTick updates multiple devices in one state write', () {
+    test('applyWaterFlowTick updates multiple devices in one state write', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
 
@@ -44,6 +44,7 @@ void main() {
                 ml: 45,
                 flowRateLpm: 2.7,
                 cumulativeLiters: 88.2,
+                todayLiters: 12.5,
                 status: 'flowing',
               ),
               WaterFlowTickDevice(
@@ -64,9 +65,31 @@ void main() {
       2.7,
     );
     expect(
+      container.read(liveTelemetryPatchProvider('WM000001'))?.todayLiters,
+      12.5,
+    );
+    expect(
       container.read(liveTelemetryPatchProvider('WM000002'))?.flowRateLpm,
       1.8,
     );
+  });
+
+  test('mergeTelemetryPatch applies live today usage to tile telemetry', () {
+    final patch = const LiveTelemetryPatch(
+      flowRateLpm: 2.7,
+      status: 'flowing',
+      isOnline: true,
+      lastSeenAt: '2026-06-09T10:30:05Z',
+      todayLiters: 25.5,
+    );
+
+    final merged = mergeTelemetryPatch(
+      _device(deviceId: 'WM000001', flowRateLpm: 0),
+      patch,
+    );
+
+    expect(merged?.todayLiters, 25.5);
+    expect(merged?.quotaUsedLiters, 25.5);
   });
 
   test('zeros flow after stale timeout when updates stop', () async {

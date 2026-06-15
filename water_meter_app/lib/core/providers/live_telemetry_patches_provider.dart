@@ -21,6 +21,7 @@ class LiveTelemetryPatch {
     required this.isOnline,
     required this.lastSeenAt,
     this.cumulativeLiters,
+    this.todayLiters,
   });
 
   final double flowRateLpm;
@@ -28,6 +29,7 @@ class LiveTelemetryPatch {
   final bool isOnline;
   final String lastSeenAt;
   final double? cumulativeLiters;
+  final double? todayLiters;
 
   @override
   bool operator ==(Object other) {
@@ -36,12 +38,19 @@ class LiveTelemetryPatch {
         other.status == status &&
         other.isOnline == isOnline &&
         other.lastSeenAt == lastSeenAt &&
-        other.cumulativeLiters == cumulativeLiters;
+        other.cumulativeLiters == cumulativeLiters &&
+        other.todayLiters == todayLiters;
   }
 
   @override
-  int get hashCode =>
-      Object.hash(flowRateLpm, status, isOnline, lastSeenAt, cumulativeLiters);
+  int get hashCode => Object.hash(
+        flowRateLpm,
+        status,
+        isOnline,
+        lastSeenAt,
+        cumulativeLiters,
+        todayLiters,
+      );
 }
 
 class LiveTelemetryPatchesNotifier
@@ -61,6 +70,7 @@ class LiveTelemetryPatchesNotifier
       status: event.status,
       ts: event.ts,
       cumulativeLiters: event.cumulativeLiters,
+      todayLiters: event.todayLiters,
     );
   }
 
@@ -77,6 +87,7 @@ class LiveTelemetryPatchesNotifier
         isOnline: true,
         lastSeenAt: device.ts,
         cumulativeLiters: device.cumulativeLiters,
+        todayLiters: device.todayLiters,
       );
     }
     state = next;
@@ -88,6 +99,7 @@ class LiveTelemetryPatchesNotifier
     required String status,
     required String ts,
     double? cumulativeLiters,
+    double? todayLiters,
   }) {
     final key = normalizeDeviceId(deviceId);
     _scheduleStaleTimer(key);
@@ -98,6 +110,7 @@ class LiveTelemetryPatchesNotifier
       isOnline: true,
       lastSeenAt: ts,
       cumulativeLiters: cumulativeLiters,
+      todayLiters: todayLiters,
     );
     state = next;
   }
@@ -114,6 +127,7 @@ class LiveTelemetryPatchesNotifier
       isOnline: event.isOnline,
       lastSeenAt: event.ts,
       cumulativeLiters: existing?.cumulativeLiters,
+      todayLiters: existing?.todayLiters,
     );
     state = next;
     if (!event.isOnline) {
@@ -153,6 +167,7 @@ class LiveTelemetryPatchesNotifier
       isOnline: existing.isOnline,
       lastSeenAt: existing.lastSeenAt,
       cumulativeLiters: existing.cumulativeLiters,
+      todayLiters: existing.todayLiters,
     );
     state = next;
   }
@@ -208,10 +223,19 @@ DashboardTelemetryDevice? mergeTelemetryPatch(
 ) {
   if (base == null) return null;
   if (patch == null) return base;
+
+  final todayLiters = patch.todayLiters ?? base.todayLiters;
+  final quotaPercent = base.quotaEnabled && base.dailyLimitLiters > 0
+      ? (todayLiters / base.dailyLimitLiters).clamp(0.0, 1.0)
+      : base.quotaPercent;
+
   return base.copyWith(
     flowRateLpm: patch.flowRateLpm,
     status: patch.status,
     isOnline: patch.isOnline,
     lastSeenAt: patch.lastSeenAt,
+    todayLiters: patch.todayLiters ?? base.todayLiters,
+    quotaUsedLiters: patch.todayLiters ?? base.quotaUsedLiters,
+    quotaPercent: quotaPercent,
   );
 }

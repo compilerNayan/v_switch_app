@@ -17,6 +17,7 @@ void main() {
             'ml': 45,
             'flowRateLpm': 2.7,
             'cumulativeLiters': 123.45,
+            'todayLiters': 18.2,
             'status': 'flowing',
           },
           {
@@ -37,6 +38,7 @@ void main() {
       expect(tick.devices, hasLength(2));
       expect(tick.devices.first.deviceId, 'WM000001');
       expect(tick.devices.first.flowRateLpm, 2.7);
+      expect(tick.devices.first.todayLiters, 18.2);
       expect(tick.devices.last.deviceId, 'WM000002');
     });
 
@@ -50,6 +52,7 @@ void main() {
         'ml': 45,
         'flowRateLpm': 2.7,
         'cumulativeLiters': 123.45,
+        'todayLiters': 9.8,
         'status': 'flowing',
       });
 
@@ -58,6 +61,7 @@ void main() {
       expect(flow.deviceId, 'WM000001');
       expect(flow.flowRateLpm, 2.7);
       expect(flow.cumulativeLiters, 123.45);
+      expect(flow.todayLiters, 9.8);
       expect(flow.status, 'flowing');
     });
 

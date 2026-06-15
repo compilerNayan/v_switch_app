@@ -17,6 +17,7 @@ sealed class LiveUpdateMessage {
           ml: (json['ml'] as num?)?.toDouble() ?? 0,
           flowRateLpm: (json['flowRateLpm'] as num?)?.toDouble() ?? 0,
           cumulativeLiters: (json['cumulativeLiters'] as num?)?.toDouble(),
+          todayLiters: (json['todayLiters'] as num?)?.toDouble(),
           status: json['status'] as String? ?? 'flowing',
         );
       case 'water_flow_tick':
@@ -79,6 +80,7 @@ class WaterFlowTickDevice {
     required this.ml,
     required this.flowRateLpm,
     this.cumulativeLiters,
+    this.todayLiters,
     required this.status,
   });
 
@@ -90,6 +92,7 @@ class WaterFlowTickDevice {
       ml: (json['ml'] as num?)?.toDouble() ?? 0,
       flowRateLpm: (json['flowRateLpm'] as num?)?.toDouble() ?? 0,
       cumulativeLiters: (json['cumulativeLiters'] as num?)?.toDouble(),
+      todayLiters: (json['todayLiters'] as num?)?.toDouble(),
       status: json['status'] as String? ?? 'flowing',
     );
   }
@@ -100,6 +103,7 @@ class WaterFlowTickDevice {
   final double ml;
   final double flowRateLpm;
   final double? cumulativeLiters;
+  final double? todayLiters;
   final String status;
 }
 
@@ -124,6 +128,7 @@ class LiveUpdateWaterFlow extends LiveUpdateMessage {
     required this.ml,
     required this.flowRateLpm,
     this.cumulativeLiters,
+    this.todayLiters,
     required this.status,
   });
 
@@ -134,6 +139,7 @@ class LiveUpdateWaterFlow extends LiveUpdateMessage {
   final double ml;
   final double flowRateLpm;
   final double? cumulativeLiters;
+  final double? todayLiters;
   final String status;
 }
 
