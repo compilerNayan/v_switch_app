@@ -9,7 +9,7 @@ class DeviceHealth {
   final DateTime lastSeenAt;
   final bool isOnline;
 
-  static const offlineThreshold = Duration(minutes: 15);
+  static const offlineThreshold = Duration(seconds: 30);
 
   static DeviceHealth fromReading({
     required String unitId,

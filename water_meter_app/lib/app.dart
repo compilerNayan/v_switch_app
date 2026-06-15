@@ -22,6 +22,7 @@ import 'features/reports/reports_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/units/edit_unit_screen.dart';
 import 'features/usage/usage_screen.dart';
+import 'shared/widgets/live_connection_banner.dart';
 
 class WaterMeterApp extends ConsumerWidget {
   const WaterMeterApp({super.key});
@@ -220,6 +221,7 @@ class _UnitShellState extends ConsumerState<_UnitShell> {
 
   @override
   Widget build(BuildContext context) {
+    listenForLiveConnectionSnackbars(context, ref);
     const destinations = [
       NavigationDestination(
         icon: Icon(Icons.dashboard_outlined),
@@ -244,7 +246,13 @@ class _UnitShellState extends ConsumerState<_UnitShell> {
     ];
 
     return Scaffold(
-      body: widget.navigationShell,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const LiveConnectionBanner(),
+          Expanded(child: widget.navigationShell),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: widget.navigationShell.currentIndex,
         onDestinationSelected: widget.navigationShell.goBranch,

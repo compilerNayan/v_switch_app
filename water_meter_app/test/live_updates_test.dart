@@ -40,5 +40,34 @@ void main() {
       expect(bucket.action, 'refresh');
       expect(bucket.periodStart, '2026-06-09T10:00:00Z');
     });
+    test('parses device_presence offline payload', () {
+      final message = LiveUpdateMessage.fromJson({
+        'type': 'device_presence',
+        'tenantId': 'tenant-1',
+        'deviceId': 'WM000001',
+        'unitId': 'wm-WM000001',
+        'ts': '2026-06-09T10:30:35Z',
+        'status': 'offline',
+      });
+
+      expect(message, isA<LiveUpdateDevicePresence>());
+      final presence = message as LiveUpdateDevicePresence;
+      expect(presence.deviceId, 'WM000001');
+      expect(presence.isOnline, isFalse);
+    });
+
+    test('parses device_presence online payload', () {
+      final message = LiveUpdateMessage.fromJson({
+        'type': 'device_presence',
+        'tenantId': 'tenant-1',
+        'deviceId': 'WM000001',
+        'unitId': 'wm-WM000001',
+        'ts': '2026-06-09T10:30:36Z',
+        'status': 'online',
+      });
+
+      expect(message, isA<LiveUpdateDevicePresence>());
+      expect((message as LiveUpdateDevicePresence).isOnline, isTrue);
+    });
   });
 }

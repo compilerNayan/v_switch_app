@@ -57,6 +57,7 @@ class LiveTelemetryPatchesNotifier
   void applyWaterFlow(LiveUpdateWaterFlow event) {
     final key = normalizeDeviceId(event.deviceId);
     _scheduleStaleTimer(key);
+    final existing = state[key];
     final next = Map<String, LiveTelemetryPatch>.from(state);
     next[key] = LiveTelemetryPatch(
       flowRateLpm: event.flowRateLpm,
@@ -66,6 +67,28 @@ class LiveTelemetryPatchesNotifier
       cumulativeLiters: event.cumulativeLiters,
     );
     state = next;
+    if (existing == null) {
+      // Keep patch object stable for selectors when only flow changes.
+    }
+  }
+
+  void applyDevicePresence(LiveUpdateDevicePresence event) {
+    final key = normalizeDeviceId(event.deviceId);
+    final existing = state[key];
+    final next = Map<String, LiveTelemetryPatch>.from(state);
+    next[key] = LiveTelemetryPatch(
+      flowRateLpm: existing?.flowRateLpm ?? 0,
+      status: event.isOnline
+          ? (existing?.status ?? 'idle')
+          : 'offline',
+      isOnline: event.isOnline,
+      lastSeenAt: event.ts,
+      cumulativeLiters: existing?.cumulativeLiters,
+    );
+    state = next;
+    if (!event.isOnline) {
+      _cancelTimer(key);
+    }
   }
 
   void clear() {

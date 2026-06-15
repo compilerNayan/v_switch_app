@@ -27,6 +27,14 @@ sealed class LiveUpdateMessage {
           periodStart: json['periodStart'] as String? ?? '',
           action: json['action'] as String? ?? 'refresh',
         );
+      case 'device_presence':
+        return LiveUpdateDevicePresence(
+          tenantId: json['tenantId'] as String? ?? '',
+          deviceId: json['deviceId'] as String? ?? '',
+          unitId: json['unitId'] as String? ?? '',
+          ts: json['ts'] as String? ?? '',
+          isOnline: (json['status'] as String? ?? 'offline') == 'online',
+        );
       case 'error':
         return LiveUpdateError(
           code: json['code'] as String? ?? 'error',
@@ -80,6 +88,22 @@ class LiveUpdateBucket30m extends LiveUpdateMessage {
   final String unitId;
   final String periodStart;
   final String action;
+}
+
+class LiveUpdateDevicePresence extends LiveUpdateMessage {
+  const LiveUpdateDevicePresence({
+    required this.tenantId,
+    required this.deviceId,
+    required this.unitId,
+    required this.ts,
+    required this.isOnline,
+  });
+
+  final String tenantId;
+  final String deviceId;
+  final String unitId;
+  final String ts;
+  final bool isOnline;
 }
 
 class LiveUpdateError extends LiveUpdateMessage {

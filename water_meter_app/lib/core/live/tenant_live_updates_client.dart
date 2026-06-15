@@ -6,6 +6,10 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'live_update_message.dart';
 
 typedef LiveUpdatesMessageHandler = void Function(LiveUpdateMessage message);
+typedef LiveConnectionStateHandler = void Function({
+  required bool connected,
+  required bool reconnecting,
+});
 
 class TenantLiveUpdatesClient {
   TenantLiveUpdatesClient({
@@ -13,6 +17,7 @@ class TenantLiveUpdatesClient {
     required this.tenantId,
     required this.tokenProvider,
     this.onMessage,
+    this.onConnectionStateChanged,
     this.baseReconnectDelay = const Duration(seconds: 2),
     this.maxReconnectDelay = const Duration(seconds: 60),
     WebSocketChannel Function(Uri uri)? channelFactory,
@@ -22,6 +27,7 @@ class TenantLiveUpdatesClient {
   final String tenantId;
   final Future<String?> Function() tokenProvider;
   final LiveUpdatesMessageHandler? onMessage;
+  final LiveConnectionStateHandler? onConnectionStateChanged;
   final Duration baseReconnectDelay;
   final Duration maxReconnectDelay;
   final WebSocketChannel Function(Uri uri) _channelFactory;
@@ -40,6 +46,13 @@ class TenantLiveUpdatesClient {
     await _openChannel();
   }
 
+  Future<void> reconnectNow() async {
+    _reconnectAttempt = 0;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    await _openChannel();
+  }
+
   Future<void> disconnect() async {
     _stopped = true;
     _reconnectAttempt = 0;
@@ -50,10 +63,16 @@ class TenantLiveUpdatesClient {
     await _channel?.sink.close();
     _channel = null;
     _connected = false;
+    onConnectionStateChanged?.call(connected: false, reconnecting: false);
   }
 
   Future<void> _openChannel() async {
     if (_stopped) return;
+
+    onConnectionStateChanged?.call(
+      connected: false,
+      reconnecting: _reconnectAttempt > 0,
+    );
 
     final token = await tokenProvider();
     if (token == null || token.isEmpty) {
@@ -83,6 +102,7 @@ class TenantLiveUpdatesClient {
       );
       _connected = true;
       _reconnectAttempt = 0;
+      onConnectionStateChanged?.call(connected: true, reconnecting: false);
     } catch (_) {
       _handleDisconnect();
     }
@@ -104,7 +124,11 @@ class TenantLiveUpdatesClient {
 
   void _handleDisconnect() {
     _connected = false;
-    if (_stopped) return;
+    if (_stopped) {
+      onConnectionStateChanged?.call(connected: false, reconnecting: false);
+      return;
+    }
+    onConnectionStateChanged?.call(connected: false, reconnecting: true);
     _scheduleReconnect();
   }
 

@@ -12,6 +12,7 @@ import '../../core/providers/device_tile_providers.dart';
 import '../../core/providers/unit_providers.dart';
 import '../../core/services/alert_evaluator.dart';
 import '../../core/utils/unit_filters.dart';
+import '../../shared/widgets/live_connection_banner.dart';
 import '../units/unit_tile.dart';
 import 'building_summary_header.dart';
 
@@ -33,6 +34,7 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    listenForLiveConnectionSnackbars(context, ref);
     final profileAsync = ref.watch(userProfileProvider);
     final unitsAsync = ref.watch(waterUnitsProvider);
     final isAdmin = ref.watch(isDeviceAdminProvider);
@@ -67,7 +69,12 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
           ),
         ],
       ),
-      body: profileAsync.when(
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const LiveConnectionBanner(),
+          Expanded(
+            child: profileAsync.when(
         data: (_) {
           return unitsAsync.when(
             data: (units) {
@@ -153,6 +160,9 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: isAdmin
           ? FloatingActionButton.extended(
