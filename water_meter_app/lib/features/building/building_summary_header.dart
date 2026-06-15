@@ -53,26 +53,29 @@ class BuildingSummaryHeader extends ConsumerWidget {
                   ),
                 ],
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _UsageStatTile(
-                        label: 'Today',
-                        display: today,
-                        icon: Icons.water_drop_outlined,
-                        color: scheme.primary,
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _UsageStatTile(
+                          label: 'Today',
+                          display: today,
+                          icon: Icons.water_drop_outlined,
+                          color: scheme.primary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _UsageStatTile(
-                        label: 'This month',
-                        display: month,
-                        icon: Icons.calendar_month_outlined,
-                        color: scheme.secondary,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _UsageStatTile(
+                          label: 'This month',
+                          display: month,
+                          icon: Icons.calendar_month_outlined,
+                          color: scheme.secondary,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -141,6 +144,8 @@ class _UsageStatTile extends StatelessWidget {
   final IconData icon;
   final Color color;
 
+  static const double _compactRowHeight = 18;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -154,46 +159,102 @@ class _UsageStatTile extends StatelessWidget {
         border: Border.all(color: color.withValues(alpha: 0.18)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
               Icon(icon, size: 18, color: color),
               const SizedBox(width: 6),
-              Text(
-                label.toUpperCase(),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.6,
+              Expanded(
+                child: Text(
+                  label.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.6,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              display.primary,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-                height: 1.1,
-                fontFeatures: const [FontFeature.tabularFigures()],
+          const SizedBox(height: 12),
+          ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 52),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: _DashboardVolumeFigure(display: display),
+            ),
+          ),
+          SizedBox(
+            height: _compactRowHeight,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                display.compact ?? '',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: display.compact == null
+                      ? Colors.transparent
+                      : scheme.onSurfaceVariant,
+                  height: 1.2,
+                ),
               ),
             ),
           ),
-          if (display.compact != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              display.compact!,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-          ],
         ],
       ),
+    );
+  }
+}
+
+class _DashboardVolumeFigure extends StatelessWidget {
+  const _DashboardVolumeFigure({required this.display});
+
+  final VolumeDisplay display;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final fontSize = VolumeFormatter.dashboardValueFontSize(
+          display.amount,
+          constraints.maxWidth,
+        );
+        final unitSize = (fontSize * 0.72).clamp(9.0, 14.0);
+        final baseStyle = theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w700,
+          height: 1.15,
+          color: scheme.onSurface,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        );
+
+        return Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: display.amount,
+                style: baseStyle?.copyWith(fontSize: fontSize),
+              ),
+              TextSpan(
+                text: ' ${display.unit}',
+                style: baseStyle?.copyWith(
+                  fontSize: unitSize,
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          maxLines: 2,
+          softWrap: true,
+        );
+      },
     );
   }
 }

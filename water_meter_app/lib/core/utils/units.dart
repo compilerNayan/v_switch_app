@@ -44,12 +44,21 @@ enum VolumeUnit {
 /// Primary + optional compact labels for dashboard stat tiles.
 class VolumeDisplay {
   const VolumeDisplay({
-    required this.primary,
+    required this.amount,
+    required this.unit,
     this.compact,
   });
 
-  final String primary;
+  /// Formatted numeric portion, e.g. `1,420.33` or `45,000,000.00`.
+  final String amount;
+
+  /// Unit suffix, e.g. `L`.
+  final String unit;
+
+  /// Shorthand such as `1.4k L` shown below the full figure.
   final String? compact;
+
+  String get primary => '$amount $unit';
 }
 
 class VolumeFormatter {
@@ -76,14 +85,24 @@ class VolumeFormatter {
   /// Full precision for dashboard totals; compact k-label when large.
   static VolumeDisplay formatDashboard(double liters, VolumeUnit unit) {
     final value = fromLiters(liters, unit);
-    final primary = '${_dashboardFull.format(value)} ${unit.symbol}';
+    final amount = _dashboardFull.format(value);
     final String? compact;
     if (value.abs() >= 1000) {
       compact = '${_dashboardCompactK.format(value / 1000)}k ${unit.symbol}';
     } else {
       compact = null;
     }
-    return VolumeDisplay(primary: primary, compact: compact);
+    return VolumeDisplay(amount: amount, unit: unit.symbol, compact: compact);
+  }
+
+  /// Picks a font size so full-precision dashboard values fit without shrinking
+  /// one tile differently from its neighbour (tested up to ~45,000,000.00 L).
+  static double dashboardValueFontSize(String amount, double maxWidth) {
+    const minSize = 11.0;
+    const maxSize = 19.0;
+    if (maxWidth <= 0) return maxSize;
+    final estimated = maxWidth / (amount.length * 0.56 + 3);
+    return estimated.clamp(minSize, maxSize);
   }
 
   static String formatCompact(double liters, VolumeUnit unit) {
