@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/models/device_health.dart';
 import '../../core/models/home_dashboard.dart';
 import '../../core/models/water_unit.dart';
 import '../../core/providers/app_providers.dart';
@@ -13,6 +14,7 @@ import '../../core/providers/live_telemetry_patches_provider.dart';
 import '../../core/utils/contact_launcher.dart';
 import '../../core/utils/units.dart';
 import '../../shared/widgets/flow_status_indicator.dart';
+import '../../shared/widgets/location_tag_chips.dart';
 
 class UnitTile extends ConsumerStatefulWidget {
   const UnitTile({super.key, required this.unit});
@@ -86,7 +88,6 @@ class _UnitTileState extends ConsumerState<UnitTile> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final isAdmin = ref.watch(isDeviceAdminProvider);
     final isPending = widget.unit.isEnrollmentPending;
     final usesV2Home = !AppConfig.useMockApi;
@@ -100,195 +101,75 @@ class _UnitTileState extends ConsumerState<UnitTile> {
         ? ref.watch(deviceHealthProvider(widget.unit.deviceId))
         : null;
     final hasPhone = hasCallablePhone(widget.unit.phoneNumber);
+    final hasTags = widget.unit.locationTagEntries.isNotEmpty;
 
     return Card(
       clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.zero,
       child: InkWell(
         onTap: () => context.go('/devices/${widget.unit.id}/dashboard'),
         child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Row(
-                children: [
-                  if (isPending)
-                    Icon(Icons.circle, size: 10, color: scheme.outline)
-                  else if (usesV2Home)
-                    Icon(
-                      Icons.circle,
-                      size: 10,
-                      color: homeTelemetry?.isOnline == true
-                          ? Colors.green
-                          : scheme.outline,
-                    )
-                  else
-                    healthAsync!.when(
-                      data: (h) => Icon(
-                        Icons.circle,
-                        size: 10,
-                        color: h.isOnline ? Colors.green : scheme.outline,
-                      ),
-                      loading: () => const SizedBox(width: 10, height: 10),
-                      error: (_, __) =>
-                          Icon(Icons.circle, size: 10, color: scheme.error),
-                    ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      widget.unit.name,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (isPending)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: scheme.secondaryContainer,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        'Enrolling…',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: scheme.onSecondaryContainer,
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                    ),
-                  if (isAdmin && !isPending) ...[
-                    _ContactIconButton(
-                      icon: Icons.phone_outlined,
-                      tooltip: 'Call resident',
-                      enabled: hasPhone,
-                      onPressed: _onCallPressed,
-                    ),
-                    _ContactIconButton(
-                      icon: Icons.chat_outlined,
-                      tooltip: 'WhatsApp',
-                      enabled: hasPhone,
-                      onPressed: _onWhatsAppPressed,
-                    ),
-                  ],
-                  if (isAdmin && !isPending)
-                    PopupMenuButton<String>(
-                      onSelected: (v) {
-                        if (v == 'edit') {
-                          context.push('/units/${widget.unit.id}/edit');
-                        }
-                      },
-                      itemBuilder: (_) => [
-                        const PopupMenuItem(value: 'edit', child: Text('Edit unit')),
-                      ],
-                    ),
-                  if (isAdmin && !isPending)
-                    _ValveSwitch(
-                      deviceId: widget.unit.deviceId,
-                      maintenanceMode: widget.unit.maintenanceMode,
-                      toggling: _togglingValve,
-                      valveIsOff: homeTelemetry?.valveIsOff,
+              if (isPending) _PendingSerialBadge(deviceId: widget.unit.deviceId),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _UnitTileHeader(
+                      unit: widget.unit,
+                      isPending: isPending,
+                      isAdmin: isAdmin,
+                      hasPhone: hasPhone,
+                      usesV2Home: usesV2Home,
+                      homeTelemetry: homeTelemetry,
+                      healthAsync: healthAsync,
                       usePerDeviceApis: usePerDeviceApis,
                       homeSnapshotLoading: showTelemetryLoading,
-                      onChanged: _onValveToggle,
+                      togglingValve: _togglingValve,
+                      onCall: _onCallPressed,
+                      onWhatsApp: _onWhatsAppPressed,
+                      onValveToggle: _onValveToggle,
                     ),
-                ],
-              ),
-              if (widget.unit.maintenanceMode)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    'Maintenance mode',
-                    style: TextStyle(
-                      color: scheme.tertiary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 4),
-              _UnitIdentitySection(unit: widget.unit),
-              if (isPending)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    'Enrollment in progress — readings unavailable',
-                    style: TextStyle(
-                      color: scheme.onSurfaceVariant,
-                      fontSize: 11,
-                    ),
-                  ),
-                )
-              else if (showTelemetryLoading)
-                Text(
-                  'Loading…',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: scheme.outline,
-                      ),
-                )
-              else if (homeTelemetry != null)
-                Text(
-                  homeTelemetry.isOnline ? 'Online' : 'Offline',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: homeTelemetry.isOnline
-                            ? Colors.green.shade700
-                            : scheme.outline,
-                      ),
-                )
-              else if (usesV2Home)
-                Text(
-                  'Offline',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: scheme.outline,
-                      ),
-                )
-              else
-                healthAsync!.when(
-                  data: (h) => Text(
-                    h.isOnline
-                        ? 'Online'
-                        : 'Last seen ${h.lastSeenLabel(DateTime.now())}',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color:
-                              h.isOnline ? Colors.green.shade700 : scheme.outline,
+                    if (widget.unit.maintenanceMode)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Maintenance mode',
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: Theme.of(context).colorScheme.tertiary,
+                                fontWeight: FontWeight.w600,
+                              ),
                         ),
-                  ),
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
+                      ),
+                    if (hasTags) ...[
+                      const SizedBox(height: 6),
+                      LocationTagChips(unit: widget.unit),
+                    ],
+                    if (isPending) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Enrollment in progress',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                      ),
+                    ] else ...[
+                      const SizedBox(height: 8),
+                      _UnitTelemetryStrip(
+                        deviceId: widget.unit.deviceId,
+                        homeTelemetry: homeTelemetry,
+                        homeSnapshotLoading: showTelemetryLoading,
+                        usePerDeviceApis: usePerDeviceApis,
+                      ),
+                    ],
+                  ],
                 ),
-              if (!isPending) ...[
-                const SizedBox(height: 12),
-                _LiveReadingRow(
-                  deviceId: widget.unit.deviceId,
-                  homeTelemetry: homeTelemetry,
-                  homeSnapshotLoading: showTelemetryLoading,
-                  usePerDeviceApis: usePerDeviceApis,
-                ),
-                const SizedBox(height: 4),
-                _MeterReadingRow(
-                  deviceId: widget.unit.deviceId,
-                  homeSnapshotLoading: showTelemetryLoading,
-                  usePerDeviceApis: usePerDeviceApis,
-                ),
-                const SizedBox(height: 8),
-                _QuotaUsageRow(
-                  deviceId: widget.unit.deviceId,
-                  homeTelemetry: homeTelemetry,
-                  homeSnapshotLoading: showTelemetryLoading,
-                  usePerDeviceApis: usePerDeviceApis,
-                ),
-              ],
-              const SizedBox(height: 8),
-              Text(
-                'Tap for details →',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: scheme.outline,
-                    ),
               ),
             ],
           ),
@@ -298,59 +179,463 @@ class _UnitTileState extends ConsumerState<UnitTile> {
   }
 }
 
-class _UnitIdentitySection extends StatelessWidget {
-  const _UnitIdentitySection({required this.unit});
+class _PendingSerialBadge extends StatelessWidget {
+  const _PendingSerialBadge({required this.deviceId});
 
-  final WaterUnit unit;
+  final String deviceId;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final muted = Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: scheme.onSurfaceVariant,
-        );
-    final location = unit.locationLabel;
-    final owner = unit.ownerLabel;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (location.isNotEmpty)
-          Text(
-            location,
-            style: muted,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        if (owner != null) ...[
-          if (location.isNotEmpty) const SizedBox(height: 2),
-          Row(
-            children: [
-              Icon(
-                Icons.person_outline,
-                size: 14,
+    return Padding(
+      padding: const EdgeInsets.only(right: 10),
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 52),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          deviceId,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.w600,
                 color: scheme.onSurfaceVariant,
+                fontFeatures: const [FontFeature.tabularFigures()],
+                height: 1.15,
               ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  owner,
-                  style: muted,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+  }
+}
+
+class _UnitTileHeader extends StatelessWidget {
+  const _UnitTileHeader({
+    required this.unit,
+    required this.isPending,
+    required this.isAdmin,
+    required this.hasPhone,
+    required this.usesV2Home,
+    required this.homeTelemetry,
+    required this.healthAsync,
+    required this.usePerDeviceApis,
+    required this.homeSnapshotLoading,
+    required this.togglingValve,
+    required this.onCall,
+    required this.onWhatsApp,
+    required this.onValveToggle,
+  });
+
+  final WaterUnit unit;
+  final bool isPending;
+  final bool isAdmin;
+  final bool hasPhone;
+  final bool usesV2Home;
+  final DashboardTelemetryDevice? homeTelemetry;
+  final AsyncValue<DeviceHealth>? healthAsync;
+  final bool usePerDeviceApis;
+  final bool homeSnapshotLoading;
+  final bool togglingValve;
+  final VoidCallback onCall;
+  final VoidCallback onWhatsApp;
+  final ValueChanged<bool> onValveToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        _OnlineDot(
+          isPending: isPending,
+          usesV2Home: usesV2Home,
+          homeTelemetry: homeTelemetry,
+          healthAsync: healthAsync,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            unit.topConsumerTitle,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  height: 1.2,
                 ),
-              ),
-            ],
-          ),
-        ],
-        if (location.isEmpty && owner == null && unit.isEnrollmentPending) ...[
-          Text(
-            'Meter ${unit.deviceId}',
-            style: muted,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
+        ),
+        if (isPending)
+          Container(
+            margin: const EdgeInsets.only(left: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: scheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              'Enrolling',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: scheme.onSecondaryContainer,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+        if (isAdmin && !isPending) ...[
+          _ContactIconButton(
+            icon: Icons.phone_outlined,
+            tooltip: 'Call resident',
+            enabled: hasPhone,
+            onPressed: onCall,
+          ),
+          _ContactIconButton(
+            icon: Icons.chat_outlined,
+            tooltip: 'WhatsApp',
+            enabled: hasPhone,
+            onPressed: onWhatsApp,
+          ),
+          PopupMenuButton<String>(
+            padding: EdgeInsets.zero,
+            iconSize: 20,
+            onSelected: (v) {
+              if (v == 'edit') {
+                context.push('/units/${unit.id}/edit');
+              }
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(value: 'edit', child: Text('Edit unit')),
+            ],
+          ),
+          _ValveSwitch(
+            deviceId: unit.deviceId,
+            maintenanceMode: unit.maintenanceMode,
+            toggling: togglingValve,
+            valveIsOff: homeTelemetry?.valveIsOff,
+            usePerDeviceApis: usePerDeviceApis,
+            homeSnapshotLoading: homeSnapshotLoading,
+            onChanged: onValveToggle,
+          ),
         ],
+      ],
+    );
+  }
+}
+
+class _OnlineDot extends StatelessWidget {
+  const _OnlineDot({
+    required this.isPending,
+    required this.usesV2Home,
+    required this.homeTelemetry,
+    required this.healthAsync,
+  });
+
+  final bool isPending;
+  final bool usesV2Home;
+  final DashboardTelemetryDevice? homeTelemetry;
+  final AsyncValue<DeviceHealth>? healthAsync;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    Color color = scheme.outline;
+
+    if (isPending) {
+      color = scheme.outline;
+    } else if (usesV2Home) {
+      color = homeTelemetry?.isOnline == true ? Colors.green : scheme.outline;
+    } else if (healthAsync != null) {
+      return healthAsync!.when(
+        data: (h) => Icon(
+          Icons.circle,
+          size: 9,
+          color: h.isOnline ? Colors.green : scheme.outline,
+        ),
+        loading: () => const SizedBox(width: 9, height: 9),
+        error: (_, __) => Icon(Icons.circle, size: 9, color: scheme.error),
+      );
+    }
+
+    return Icon(Icons.circle, size: 9, color: color);
+  }
+}
+
+class _UnitTelemetryStrip extends ConsumerWidget {
+  const _UnitTelemetryStrip({
+    required this.deviceId,
+    this.homeTelemetry,
+    this.homeSnapshotLoading = false,
+    this.usePerDeviceApis = true,
+  });
+
+  final String deviceId;
+  final DashboardTelemetryDevice? homeTelemetry;
+  final bool homeSnapshotLoading;
+  final bool usePerDeviceApis;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final muted = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+      height: 1.2,
+    );
+
+    if (homeSnapshotLoading) {
+      return const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ShimmerLine(width: double.infinity),
+          SizedBox(height: 6),
+          _ShimmerLine(width: 120),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            _FlowSnippet(
+              deviceId: deviceId,
+              homeTelemetry: homeTelemetry,
+              usePerDeviceApis: usePerDeviceApis,
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text('·', style: muted),
+            ),
+            Expanded(
+              child: _ReadingSnippet(
+                deviceId: deviceId,
+                usePerDeviceApis: usePerDeviceApis,
+                style: muted,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        _QuotaSnippet(
+          deviceId: deviceId,
+          homeTelemetry: homeTelemetry,
+          usePerDeviceApis: usePerDeviceApis,
+        ),
+      ],
+    );
+  }
+}
+
+class _FlowSnippet extends ConsumerWidget {
+  const _FlowSnippet({
+    required this.deviceId,
+    this.homeTelemetry,
+    this.usePerDeviceApis = true,
+  });
+
+  final String deviceId;
+  final DashboardTelemetryDevice? homeTelemetry;
+  final bool usePerDeviceApis;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unit = ref.watch(volumeUnitProvider);
+
+    if (homeTelemetry != null) {
+      return _flowRow(
+        context,
+        valveOff: homeTelemetry!.valveIsOff,
+        flowRateLpm: homeTelemetry!.flowRateLpm,
+        status: homeTelemetry!.status,
+        volumeUnit: unit,
+      );
+    }
+
+    if (!usePerDeviceApis) {
+      return _flowRow(
+        context,
+        valveOff: true,
+        flowRateLpm: 0,
+        status: 'idle',
+        volumeUnit: unit,
+      );
+    }
+
+    final readingAsync = ref.watch(deviceCurrentReadingProvider(deviceId));
+    final valveAsync = ref.watch(deviceValveProvider(deviceId));
+    return readingAsync.when(
+      data: (reading) => _flowRow(
+        context,
+        valveOff: valveAsync.valueOrNull?.isOff ?? false,
+        flowRateLpm: reading.flowRateLpm,
+        status: reading.status.name,
+        volumeUnit: unit,
+      ),
+      loading: () => const _ShimmerLine(width: 72),
+      error: (_, __) => const Text('—', style: TextStyle(fontSize: 12)),
+    );
+  }
+
+  Widget _flowRow(
+    BuildContext context, {
+    required bool valveOff,
+    required double flowRateLpm,
+    required String status,
+    required VolumeUnit volumeUnit,
+  }) {
+    final flowing = isWaterFlowing(
+      valveOff: valveOff,
+      flowRateLpm: flowRateLpm,
+      status: status,
+    );
+    final label = valveOff
+        ? 'Off'
+        : '${VolumeFormatter.fromLiters(flowRateLpm, volumeUnit).toStringAsFixed(1)} ${volumeUnit.symbol}/m';
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        FlowStatusIndicator(isFlowing: flowing, size: 16),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.2),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReadingSnippet extends ConsumerWidget {
+  const _ReadingSnippet({
+    required this.deviceId,
+    this.usePerDeviceApis = true,
+    this.style,
+  });
+
+  final String deviceId;
+  final bool usePerDeviceApis;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final patch = ref.watch(liveTelemetryPatchProvider(deviceId));
+    final cumulative = patch?.cumulativeLiters;
+    if (cumulative != null && cumulative > 0) {
+      return _text(ref, cumulative);
+    }
+
+    if (!usePerDeviceApis) return const SizedBox.shrink();
+
+    final readingAsync = ref.watch(deviceCurrentReadingProvider(deviceId));
+    return readingAsync.when(
+      data: (reading) => _text(ref, reading.cumulativeLiters),
+      loading: () => const _ShimmerLine(width: 100),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _text(WidgetRef ref, double liters) {
+    final unit = ref.watch(volumeUnitProvider);
+    return Text(
+      VolumeFormatter.format(liters, unit, decimals: 2),
+      style: style,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
+class _QuotaSnippet extends ConsumerWidget {
+  const _QuotaSnippet({
+    required this.deviceId,
+    this.homeTelemetry,
+    this.usePerDeviceApis = true,
+  });
+
+  final String deviceId;
+  final DashboardTelemetryDevice? homeTelemetry;
+  final bool usePerDeviceApis;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unit = ref.watch(volumeUnitProvider);
+    final labelStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          height: 1.2,
+        );
+
+    if (homeTelemetry != null) {
+      return _quotaFromValues(
+        context,
+        used: homeTelemetry!.todayLiters,
+        quotaEnabled: homeTelemetry!.quotaEnabled,
+        dailyLimit: homeTelemetry!.dailyLimitLiters,
+        unit: unit,
+        labelStyle: labelStyle,
+      );
+    }
+
+    if (!usePerDeviceApis) {
+      return _quotaFromValues(
+        context,
+        used: 0,
+        quotaEnabled: false,
+        dailyLimit: 0,
+        unit: unit,
+        labelStyle: labelStyle,
+      );
+    }
+
+    final usageAsync = ref.watch(deviceTodayUsageProvider(deviceId));
+    final quotaAsync = ref.watch(deviceQuotaProvider(deviceId));
+    return usageAsync.when(
+      data: (used) {
+        final quota = quotaAsync.valueOrNull;
+        return _quotaFromValues(
+          context,
+          used: used,
+          quotaEnabled: quota?.enabled ?? false,
+          dailyLimit: quota?.dailyLimitLiters ?? 0,
+          unit: unit,
+          labelStyle: labelStyle,
+        );
+      },
+      loading: () => const _ShimmerLine(width: 140),
+      error: (_, __) => Text('Usage unavailable', style: labelStyle),
+    );
+  }
+
+  Widget _quotaFromValues(
+    BuildContext context, {
+    required double used,
+    required bool quotaEnabled,
+    required double dailyLimit,
+    required VolumeUnit unit,
+    required TextStyle? labelStyle,
+  }) {
+    final hasQuota = quotaEnabled && dailyLimit > 0;
+    final progress =
+        hasQuota ? (used / dailyLimit).clamp(0.0, 1.0).toDouble() : null;
+    final usageLabel = hasQuota
+        ? '${VolumeFormatter.format(used, unit, decimals: 0)} / '
+            '${VolumeFormatter.format(dailyLimit, unit, decimals: 0)} today'
+        : '${VolumeFormatter.format(used, unit, decimals: 0)} today';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (progress != null)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: LinearProgressIndicator(value: progress, minHeight: 3),
+          ),
+        if (progress != null) const SizedBox(height: 4),
+        Text(usageLabel, style: labelStyle),
       ],
     );
   }
@@ -375,13 +660,13 @@ class _ContactIconButton extends StatelessWidget {
     return IconButton(
       icon: Icon(
         icon,
-        size: 20,
+        size: 18,
         color: enabled ? scheme.primary : scheme.outline,
       ),
       tooltip: tooltip,
       visualDensity: VisualDensity.compact,
       padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
       onPressed: onPressed,
     );
   }
@@ -411,240 +696,40 @@ class _ValveSwitch extends ConsumerWidget {
     final isAdmin = ref.watch(isDeviceAdminProvider);
     if (homeSnapshotLoading) {
       return const SizedBox(
-        width: 24,
-        height: 24,
+        width: 20,
+        height: 20,
         child: CircularProgressIndicator(strokeWidth: 2),
       );
     }
     if (valveIsOff != null || !usePerDeviceApis) {
       final isOff = valveIsOff ?? true;
-      return Switch(
-        value: !isOff,
-        onChanged: isAdmin && !toggling && !maintenanceMode ? onChanged : null,
+      return Transform.scale(
+        scale: 0.82,
+        child: Switch(
+          value: !isOff,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          onChanged:
+              isAdmin && !toggling && !maintenanceMode ? onChanged : null,
+        ),
       );
     }
     final valveAsync = ref.watch(deviceValveProvider(deviceId));
     return valveAsync.when(
-      data: (valve) => Switch(
-        value: !valve.isOff,
-        onChanged: isAdmin && !toggling && !maintenanceMode ? onChanged : null,
+      data: (valve) => Transform.scale(
+        scale: 0.82,
+        child: Switch(
+          value: !valve.isOff,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          onChanged:
+              isAdmin && !toggling && !maintenanceMode ? onChanged : null,
+        ),
       ),
       loading: () => const SizedBox(
-        width: 24,
-        height: 24,
+        width: 20,
+        height: 20,
         child: CircularProgressIndicator(strokeWidth: 2),
       ),
-      error: (_, __) => const Icon(Icons.error_outline, size: 20),
-    );
-  }
-}
-
-class _LiveReadingRow extends ConsumerWidget {
-  const _LiveReadingRow({
-    required this.deviceId,
-    this.homeTelemetry,
-    this.homeSnapshotLoading = false,
-    this.usePerDeviceApis = true,
-  });
-
-  final String deviceId;
-  final DashboardTelemetryDevice? homeTelemetry;
-  final bool homeSnapshotLoading;
-  final bool usePerDeviceApis;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final unit = ref.watch(volumeUnitProvider);
-    if (homeSnapshotLoading) {
-      return const _ShimmerLine(width: 120);
-    }
-    if (homeTelemetry != null) {
-      final valveOff = homeTelemetry!.valveIsOff;
-      final flowRateLpm = homeTelemetry!.flowRateLpm;
-      final flowing = isWaterFlowing(
-        valveOff: valveOff,
-        flowRateLpm: flowRateLpm,
-        status: homeTelemetry!.status,
-      );
-      final label = valveOff
-          ? 'Water off'
-          : '${VolumeFormatter.fromLiters(flowRateLpm, unit).toStringAsFixed(1)} ${unit.symbol}/min';
-      return Row(
-        children: [
-          FlowStatusIndicator(isFlowing: flowing, size: 22),
-          const SizedBox(width: 8),
-          Expanded(child: Text(label)),
-        ],
-      );
-    }
-
-    if (!usePerDeviceApis) {
-      return Row(
-        children: [
-          const FlowStatusIndicator(isFlowing: false, size: 22),
-          const SizedBox(width: 8),
-          const Expanded(child: Text('Water off')),
-        ],
-      );
-    }
-
-    final readingAsync = ref.watch(deviceCurrentReadingProvider(deviceId));
-    final valveAsync = ref.watch(deviceValveProvider(deviceId));
-    return readingAsync.when(
-      data: (reading) {
-        final valveOff = valveAsync.valueOrNull?.isOff ?? false;
-        final flowing = isWaterFlowing(
-          valveOff: valveOff,
-          flowRateLpm: reading.flowRateLpm,
-          status: reading.status.name,
-        );
-        final label = valveOff
-            ? 'Water off'
-            : '${VolumeFormatter.fromLiters(reading.flowRateLpm, unit).toStringAsFixed(1)} ${unit.symbol}/min';
-        return Row(
-          children: [
-            FlowStatusIndicator(isFlowing: flowing, size: 22),
-            const SizedBox(width: 8),
-            Expanded(child: Text(label)),
-          ],
-        );
-      },
-      loading: () => const _ShimmerLine(width: 120),
-      error: (_, __) => const Text('Flow unavailable'),
-    );
-  }
-}
-
-class _MeterReadingRow extends ConsumerWidget {
-  const _MeterReadingRow({
-    required this.deviceId,
-    this.homeSnapshotLoading = false,
-    this.usePerDeviceApis = true,
-  });
-
-  final String deviceId;
-  final bool homeSnapshotLoading;
-  final bool usePerDeviceApis;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (homeSnapshotLoading) {
-      return const _ShimmerLine(width: 140);
-    }
-
-    final patch = ref.watch(liveTelemetryPatchProvider(deviceId));
-    final cumulative = patch?.cumulativeLiters;
-    if (cumulative != null && cumulative > 0) {
-      return _readingText(context, ref, cumulative);
-    }
-
-    if (!usePerDeviceApis) {
-      return const SizedBox.shrink();
-    }
-
-    final readingAsync = ref.watch(deviceCurrentReadingProvider(deviceId));
-    return readingAsync.when(
-      data: (reading) => _readingText(context, ref, reading.cumulativeLiters),
-      loading: () => const _ShimmerLine(width: 140),
-      error: (_, __) => const SizedBox.shrink(),
-    );
-  }
-
-  Widget _readingText(BuildContext context, WidgetRef ref, double liters) {
-    final unit = ref.watch(volumeUnitProvider);
-    return Text(
-      'Reading: ${VolumeFormatter.format(liters, unit, decimals: 2)}',
-      style: Theme.of(context).textTheme.bodySmall,
-    );
-  }
-}
-
-class _QuotaUsageRow extends ConsumerWidget {
-  const _QuotaUsageRow({
-    required this.deviceId,
-    this.homeTelemetry,
-    this.homeSnapshotLoading = false,
-    this.usePerDeviceApis = true,
-  });
-
-  final String deviceId;
-  final DashboardTelemetryDevice? homeTelemetry;
-  final bool homeSnapshotLoading;
-  final bool usePerDeviceApis;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final unit = ref.watch(volumeUnitProvider);
-    if (homeSnapshotLoading) {
-      return const _ShimmerLine(width: 160);
-    }
-    if (homeTelemetry != null) {
-      final used = homeTelemetry!.todayLiters;
-      final quotaEnabled = homeTelemetry!.quotaEnabled;
-      final dailyLimit = homeTelemetry!.dailyLimitLiters;
-      if (quotaEnabled && dailyLimit > 0) {
-        final progress = (used / dailyLimit).clamp(0.0, 1.0).toDouble();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(value: progress, minHeight: 6),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${VolumeFormatter.format(used, unit, decimals: 0)} / '
-              '${VolumeFormatter.format(dailyLimit, unit, decimals: 0)} today',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        );
-      }
-      return Text(
-        '${VolumeFormatter.format(used, unit, decimals: 0)} used today',
-        style: Theme.of(context).textTheme.bodySmall,
-      );
-    }
-
-    if (!usePerDeviceApis) {
-      return Text(
-        '${VolumeFormatter.format(0, unit, decimals: 0)} used today',
-        style: Theme.of(context).textTheme.bodySmall,
-      );
-    }
-
-    final usageAsync = ref.watch(deviceTodayUsageProvider(deviceId));
-    final quotaAsync = ref.watch(deviceQuotaProvider(deviceId));
-    return usageAsync.when(
-      data: (used) {
-        final quota = quotaAsync.valueOrNull;
-        if (quota != null && quota.enabled) {
-          final progress = quota.dailyLimitLiters == 0
-              ? 0.0
-              : (used / quota.dailyLimitLiters).clamp(0.0, 1.0).toDouble();
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(value: progress, minHeight: 6),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${VolumeFormatter.format(used, unit, decimals: 0)} / '
-                '${VolumeFormatter.format(quota.dailyLimitLiters, unit, decimals: 0)} today',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-          );
-        }
-        return Text(
-          '${VolumeFormatter.format(used, unit, decimals: 0)} used today',
-          style: Theme.of(context).textTheme.bodySmall,
-        );
-      },
-      loading: () => const _ShimmerLine(width: 160),
-      error: (_, __) => const Text('Usage unavailable'),
+      error: (_, __) => const Icon(Icons.error_outline, size: 18),
     );
   }
 }
@@ -657,7 +742,7 @@ class _ShimmerLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: width,
-      height: 14,
+      height: 12,
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(4),
@@ -676,17 +761,22 @@ class AddUnitTile extends StatelessWidget {
     return Card(
       child: InkWell(
         onTap: onTap,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.add_circle_outline, size: 40, color: scheme.primary),
-              const SizedBox(height: 8),
-              Text('Add water meter',
+        child: SizedBox(
+          height: 88,
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.add_circle_outline, size: 22, color: scheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'Add water meter',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         color: scheme.primary,
-                      )),
-            ],
+                      ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

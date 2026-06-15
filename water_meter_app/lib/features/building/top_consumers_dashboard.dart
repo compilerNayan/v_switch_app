@@ -7,6 +7,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/providers/building_providers.dart';
 import '../../core/utils/top_consumers_rankings.dart';
 import '../../core/utils/units.dart';
+import '../../shared/widgets/location_tag_chips.dart';
 
 class TopConsumersDashboard extends ConsumerWidget {
   const TopConsumersDashboard({super.key});
@@ -231,7 +232,7 @@ class _TopConsumerRow extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             _RankBadge(rank: rank),
             const SizedBox(width: 12),
@@ -249,8 +250,8 @@ class _TopConsumerRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (unit.locationTagEntries.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    _LocationTagRow(tags: unit.locationTagEntries),
+                    const SizedBox(height: 6),
+                    LocationTagChips(unit: unit),
                   ],
                 ],
               ),
@@ -310,92 +311,6 @@ class _RankBadge extends StatelessWidget {
               fontWeight: FontWeight.w600,
               color: isLeader ? scheme.primary : scheme.onSurfaceVariant,
               fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-      ),
-    );
-  }
-}
-
-enum _LocationTagKind { wing, block, floor }
-
-class _LocationTagRow extends StatelessWidget {
-  const _LocationTagRow({required this.tags});
-
-  final List<({String label, String value})> tags;
-
-  static _LocationTagKind _kindFor(String label) {
-    return switch (label) {
-      'Wing' => _LocationTagKind.wing,
-      'Block' => _LocationTagKind.block,
-      _ => _LocationTagKind.floor,
-    };
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: [
-        for (final tag in tags)
-          _LocationTag(
-            label: tag.label,
-            value: tag.value,
-            kind: _kindFor(tag.label),
-          ),
-      ],
-    );
-  }
-}
-
-class _LocationTag extends StatelessWidget {
-  const _LocationTag({
-    required this.label,
-    required this.value,
-    required this.kind,
-  });
-
-  final String label;
-  final String value;
-  final _LocationTagKind kind;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final (background, foreground) = switch (kind) {
-      _LocationTagKind.wing => (
-          const Color(0xFFE0F2F1),
-          const Color(0xFF00695C),
-        ),
-      _LocationTagKind.block => (
-          const Color(0xFFFFF3E0),
-          const Color(0xFFE65100),
-        ),
-      _LocationTagKind.floor => (
-          const Color(0xFFF3E5F5),
-          const Color(0xFF6A1B9A),
-        ),
-    };
-
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark
-        ? Color.alphaBlend(foreground.withValues(alpha: 0.18), scheme.surface)
-        : background;
-    final fg = isDark ? foreground.withValues(alpha: 0.92) : foreground;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        '$label $value',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: fg,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.1,
-              height: 1.2,
             ),
       ),
     );

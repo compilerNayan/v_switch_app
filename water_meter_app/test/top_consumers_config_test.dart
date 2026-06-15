@@ -13,6 +13,12 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
+  test('TopConsumersDashboardConfig defaults to top 3', () {
+    const config = TopConsumersDashboardConfig();
+    expect(config.topCount, 3);
+    expect(TopConsumersDashboardConfig.fromJson({}).topCount, 3);
+  });
+
   test('TopConsumersDashboardConfig JSON round-trip', () {
     const config = TopConsumersDashboardConfig(topCount: 10);
     final decoded = TopConsumersDashboardConfig.fromJson(config.toJson());

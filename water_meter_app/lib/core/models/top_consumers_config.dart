@@ -1,11 +1,11 @@
 class TopConsumersDashboardConfig {
   const TopConsumersDashboardConfig({
-    this.topCount = 5,
+    this.topCount = 3,
   });
 
   factory TopConsumersDashboardConfig.fromJson(Map<String, dynamic> json) {
     return TopConsumersDashboardConfig(
-      topCount: json['topCount'] as int? ?? 5,
+      topCount: json['topCount'] as int? ?? 3,
     );
   }
 
