@@ -109,8 +109,8 @@ class _BuildingHomeScreenState extends ConsumerState<BuildingHomeScreen> {
                   invalidateHomeData(ref);
                   ref.invalidate(waterUnitsProvider);
                   ref.invalidate(buildingSummaryProvider);
-                  ref.invalidate(filteredBuildingOverviewProvider);
-                  ref.invalidate(topConsumersRankingsProvider);
+                  ref.invalidate(filteredBuildingOverviewLegacyProvider);
+                  ref.invalidate(topConsumersRankingsLegacyProvider);
                   await ref.read(alertEvaluatorProvider).evaluateAll();
                 },
                 child: CustomScrollView(

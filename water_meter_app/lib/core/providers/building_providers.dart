@@ -32,20 +32,26 @@ enum UnitFilter {
   hasAlert,
 }
 
+final activeAlertsCountProvider = Provider<int>((ref) {
+  final prefs = ref.watch(preferencesStorageProvider);
+  return prefs.maybeWhen(
+    data: (storage) => storage
+        .getAlerts()
+        .where((alert) => !alert.isRead && !alert.isResolved)
+        .length,
+    orElse: () => 0,
+  );
+});
+
 final buildingSummaryProvider = FutureProvider<BuildingSummary>((ref) async {
   if (!AppConfig.useMockApi) {
     final snapshot = ref.watch(homeSnapshotProvider).valueOrNull;
     if (snapshot != null) {
       final units = snapshot.metadata.devices.map((d) => d.toWaterUnit()).toList();
-      final prefs = await ref.watch(preferencesStorageProvider.future);
-      final activeAlerts = prefs
-          .getAlerts()
-          .where((a) => !a.isRead && !a.isResolved)
-          .length;
       return aggregateBuildingOverview(
         units: units,
-        telemetry: snapshot.telemetryByDeviceId,
-        activeAlerts: activeAlerts,
+        telemetry: ref.watch(mergedTelemetryByDeviceProvider),
+        activeAlerts: ref.watch(activeAlertsCountProvider),
       );
     }
   }
@@ -70,6 +76,34 @@ final filteredUnitsProvider = Provider<List<WaterUnit>>((ref) {
 });
 
 final filteredBuildingOverviewProvider =
+    Provider<AsyncValue<BuildingSummary>>((ref) {
+  if (!AppConfig.useMockApi) {
+    final snapshotAsync = ref.watch(homeSnapshotProvider);
+    final snapshot = snapshotAsync.valueOrNull;
+    if (snapshot != null) {
+      return AsyncValue.data(
+        aggregateBuildingOverview(
+          units: ref.watch(filteredUnitsProvider),
+          telemetry: ref.watch(mergedTelemetryByDeviceProvider),
+          activeAlerts: ref.watch(activeAlertsCountProvider),
+        ),
+      );
+    }
+    if (snapshotAsync.isLoading) {
+      return const AsyncValue.loading();
+    }
+    if (snapshotAsync.hasError) {
+      return AsyncValue.error(
+        snapshotAsync.error!,
+        snapshotAsync.stackTrace ?? StackTrace.empty,
+      );
+    }
+  }
+
+  return ref.watch(filteredBuildingOverviewLegacyProvider);
+});
+
+final filteredBuildingOverviewLegacyProvider =
     FutureProvider<BuildingSummary>((ref) async {
   final units = ref.watch(filteredUnitsProvider);
   final prefs = await ref.watch(preferencesStorageProvider.future);
@@ -77,17 +111,6 @@ final filteredBuildingOverviewProvider =
       .getAlerts()
       .where((a) => !a.isRead && !a.isResolved)
       .length;
-
-  if (!AppConfig.useMockApi) {
-    final snapshot = ref.watch(homeSnapshotProvider).valueOrNull;
-    if (snapshot != null) {
-      return aggregateBuildingOverview(
-        units: units,
-        telemetry: snapshot.telemetryByDeviceId,
-        activeAlerts: activeAlerts,
-      );
-    }
-  }
 
   if (!ref.watch(hasLocationFilterProvider)) {
     return ref.watch(buildingSummaryProvider.future);
@@ -247,19 +270,29 @@ final topConsumersConfigProvider = StateNotifierProvider<
   return TopConsumersConfigNotifier(ref);
 });
 
-final topConsumersRankingsProvider =
-    FutureProvider<List<UnitUsage>>((ref) async {
-  final units = ref.watch(filteredUnitsProvider);
-
+final topConsumersRankingsProvider = Provider<AsyncValue<List<UnitUsage>>>((ref) {
   if (!AppConfig.useMockApi) {
     final snapshot = ref.watch(homeSnapshotProvider).valueOrNull;
     if (snapshot != null) {
-      return rankingsFromTelemetry(
-        units: units,
-        telemetry: snapshot.telemetryByDeviceId,
+      return AsyncValue.data(
+        rankingsFromTelemetry(
+          units: ref.watch(filteredUnitsProvider),
+          telemetry: ref.watch(mergedTelemetryByDeviceProvider),
+        ),
       );
     }
+    final snapshotAsync = ref.watch(homeSnapshotProvider);
+    if (snapshotAsync.isLoading) {
+      return const AsyncValue.loading();
+    }
   }
+
+  return ref.watch(topConsumersRankingsLegacyProvider);
+});
+
+final topConsumersRankingsLegacyProvider =
+    FutureProvider<List<UnitUsage>>((ref) async {
+  final units = ref.watch(filteredUnitsProvider);
 
   final rankings = <UnitUsage>[];
   for (final unit in units) {

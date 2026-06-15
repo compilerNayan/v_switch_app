@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:water_meter_app/core/models/home_dashboard.dart';
 import 'package:water_meter_app/core/models/water_unit.dart';
+import 'package:water_meter_app/core/providers/live_telemetry_patches_provider.dart';
 import 'package:water_meter_app/core/utils/home_dashboard_aggregation.dart';
 
 WaterUnit _unit(String id, String deviceId) {
@@ -84,5 +85,43 @@ void main() {
     expect(rankings.first.unit.id, 'u2');
     expect(rankings.first.liters, 15);
     expect(rankings.last.unit.id, 'u1');
+  });
+
+  test('aggregateBuildingOverview reflects live today usage from merged telemetry', () {
+    final units = [_unit('u1', 'd1'), _unit('u2', 'd2')];
+    final base = {
+      'd1': _telemetry(unitId: 'u1', deviceId: 'd1', todayLiters: 10),
+      'd2': _telemetry(unitId: 'u2', deviceId: 'd2', todayLiters: 20),
+    };
+    final merged = {
+      'd1': mergeTelemetryPatch(
+        base['d1'],
+        const LiveTelemetryPatch(
+          flowRateLpm: 2.7,
+          status: 'flowing',
+          isOnline: true,
+          lastSeenAt: '2026-06-15T10:00:01Z',
+          todayLiters: 15,
+        ),
+      )!,
+      'd2': mergeTelemetryPatch(
+        base['d2'],
+        const LiveTelemetryPatch(
+          flowRateLpm: 1.8,
+          status: 'flowing',
+          isOnline: true,
+          lastSeenAt: '2026-06-15T10:00:01Z',
+          todayLiters: 25,
+        ),
+      )!,
+    };
+
+    final summary = aggregateBuildingOverview(
+      units: units,
+      telemetry: merged,
+      activeAlerts: 0,
+    );
+
+    expect(summary.totalTodayLiters, 40);
   });
 }

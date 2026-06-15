@@ -57,18 +57,21 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         buildingSummaryProvider.overrideWith((ref) async => summary),
+        filteredBuildingOverviewProvider.overrideWith(
+          (ref) => ref.watch(filteredBuildingOverviewLegacyProvider),
+        ),
       ],
     );
     addTearDown(container.dispose);
 
-    final result =
-        await container.read(filteredBuildingOverviewProvider.future);
-    expect(result.totalTodayLiters, 500);
-    expect(result.unitsTotal, 5);
-    expect(result.activeAlerts, 2);
+    await container.read(filteredBuildingOverviewLegacyProvider.future);
+    final result = container.read(filteredBuildingOverviewProvider);
+    expect(result.value?.totalTodayLiters, 500);
+    expect(result.value?.unitsTotal, 5);
+    expect(result.value?.activeAlerts, 2);
   });
 
-  test('filteredBuildingOverviewProvider aggregates filtered units', () async {
+  test('filteredBuildingOverviewLegacyProvider aggregates filtered units', () async {
     final units = [
       _unit(id: 'a1', deviceId: 'd1', block: 'A', wing: 'East'),
       _unit(id: 'a2', deviceId: 'd2', block: 'A', wing: 'West'),
@@ -90,13 +93,16 @@ void main() {
             .overrideWith((ref) async => _reading('d2')),
         deviceCurrentReadingProvider('d3')
             .overrideWith((ref) async => _reading('d3')),
+        filteredBuildingOverviewProvider.overrideWith(
+          (ref) => ref.watch(filteredBuildingOverviewLegacyProvider),
+        ),
       ],
     );
     addTearDown(container.dispose);
 
     await container.read(waterUnitsProvider.future);
     final result =
-        await container.read(filteredBuildingOverviewProvider.future);
+        await container.read(filteredBuildingOverviewLegacyProvider.future);
     expect(result.totalTodayLiters, 30);
     expect(result.unitsTotal, 2);
     expect(result.unitsOnline, 2);

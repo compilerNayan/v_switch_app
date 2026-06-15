@@ -128,7 +128,9 @@ void main() {
               topConsumers: [],
             ),
           ),
-          topConsumersRankingsProvider.overrideWith((ref) async => []),
+          topConsumersRankingsProvider.overrideWith(
+            (ref) => const AsyncValue.data([]),
+          ),
         ],
         child: MaterialApp.router(
           routerConfig: GoRouter(

@@ -147,6 +147,26 @@ final homeSnapshotErrorProvider = Provider<Object?>((ref) {
   return async.hasError ? async.error : null;
 });
 
+/// Dashboard telemetry merged with live WebSocket patches (flow, today usage, presence).
+final mergedTelemetryByDeviceProvider =
+    Provider<Map<String, DashboardTelemetryDevice>>((ref) {
+  if (AppConfig.useMockApi) return const {};
+
+  final snapshot = ref.watch(homeSnapshotProvider).valueOrNull;
+  if (snapshot == null) return const {};
+
+  final patches = ref.watch(liveTelemetryPatchesProvider);
+  final merged = <String, DashboardTelemetryDevice>{};
+
+  for (final device in snapshot.dashboard.devices) {
+    final patch = patches[normalizeDeviceId(device.deviceId)];
+    final value = mergeTelemetryPatch(device, patch) ?? device;
+    merged[device.deviceId.trim()] = value;
+  }
+
+  return merged;
+});
+
 void invalidateHomeData(WidgetRef ref) {
   ref.invalidate(homeSnapshotProvider);
 }
