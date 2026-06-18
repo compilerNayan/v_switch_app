@@ -56,6 +56,44 @@ sealed class LiveUpdateMessage {
           ts: json['ts'] as String? ?? '',
           isOnline: (json['status'] as String? ?? 'offline') == 'online',
         );
+      case 'device_log':
+        return LiveUpdateDeviceLog(
+          tenantId: json['tenantId'] as String? ?? '',
+          deviceId: json['deviceId'] as String? ?? '',
+          seq: (json['seq'] as num?)?.toInt() ?? 0,
+          ts: json['ts'] as String? ?? '',
+          message: json['message'] as String? ?? '',
+          receivedAt: json['receivedAt'] as String?,
+          serialNumber: json['serialNumber'] as String?,
+        );
+      case 'device_log_batch':
+        final rawEntries = json['entries'];
+        final entries = <DeviceLogEntryMessage>[];
+        if (rawEntries is List) {
+          for (final item in rawEntries) {
+            if (item is Map<String, dynamic>) {
+              entries.add(DeviceLogEntryMessage.fromJson(item));
+            } else if (item is Map) {
+              entries.add(
+                DeviceLogEntryMessage.fromJson(Map<String, dynamic>.from(item)),
+              );
+            }
+          }
+        }
+        return LiveUpdateDeviceLogBatch(
+          tenantId: json['tenantId'] as String? ?? '',
+          deviceId: json['deviceId'] as String? ?? '',
+          fromSeq: (json['fromSeq'] as num?)?.toInt(),
+          toSeq: (json['toSeq'] as num?)?.toInt(),
+          entries: entries,
+        );
+      case 'device_log_reset':
+        return LiveUpdateDeviceLogReset(
+          tenantId: json['tenantId'] as String? ?? '',
+          deviceId: json['deviceId'] as String? ?? '',
+          nextSeq: (json['nextSeq'] as num?)?.toInt() ?? 1,
+          reason: json['reason'] as String? ?? 'size_limit',
+        );
       case 'error':
         return LiveUpdateError(
           code: json['code'] as String? ?? 'error',
@@ -186,4 +224,80 @@ class LiveUpdateError extends LiveUpdateMessage {
 
   final String code;
   final String message;
+}
+
+class DeviceLogEntryMessage {
+  const DeviceLogEntryMessage({
+    required this.seq,
+    required this.ts,
+    required this.message,
+    this.receivedAt,
+    this.serialNumber,
+  });
+
+  factory DeviceLogEntryMessage.fromJson(Map<String, dynamic> json) {
+    return DeviceLogEntryMessage(
+      seq: (json['seq'] as num?)?.toInt() ?? 0,
+      ts: json['ts'] as String? ?? '',
+      message: json['message'] as String? ?? '',
+      receivedAt: json['receivedAt'] as String?,
+      serialNumber: json['serialNumber'] as String?,
+    );
+  }
+
+  final int seq;
+  final String ts;
+  final String message;
+  final String? receivedAt;
+  final String? serialNumber;
+}
+
+class LiveUpdateDeviceLog extends LiveUpdateMessage {
+  const LiveUpdateDeviceLog({
+    required this.tenantId,
+    required this.deviceId,
+    required this.seq,
+    required this.ts,
+    required this.message,
+    this.receivedAt,
+    this.serialNumber,
+  });
+
+  final String tenantId;
+  final String deviceId;
+  final int seq;
+  final String ts;
+  final String message;
+  final String? receivedAt;
+  final String? serialNumber;
+}
+
+class LiveUpdateDeviceLogBatch extends LiveUpdateMessage {
+  const LiveUpdateDeviceLogBatch({
+    required this.tenantId,
+    required this.deviceId,
+    this.fromSeq,
+    this.toSeq,
+    required this.entries,
+  });
+
+  final String tenantId;
+  final String deviceId;
+  final int? fromSeq;
+  final int? toSeq;
+  final List<DeviceLogEntryMessage> entries;
+}
+
+class LiveUpdateDeviceLogReset extends LiveUpdateMessage {
+  const LiveUpdateDeviceLogReset({
+    required this.tenantId,
+    required this.deviceId,
+    required this.nextSeq,
+    required this.reason,
+  });
+
+  final String tenantId;
+  final String deviceId;
+  final int nextSeq;
+  final String reason;
 }

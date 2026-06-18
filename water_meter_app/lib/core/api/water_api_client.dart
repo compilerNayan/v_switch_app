@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../models/current_reading.dart';
 import '../models/daily_summary.dart';
 import '../models/quota_config.dart';
@@ -42,4 +44,6 @@ abstract class WaterApiClient {
     required DateTime to,
     required String timezone,
   });
+
+  Future<Uint8List> downloadDeviceLogs(String deviceId);
 }

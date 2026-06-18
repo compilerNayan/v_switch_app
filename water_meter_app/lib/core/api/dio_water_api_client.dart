@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'dart:typed_data';
 
 import '../config/app_config.dart';
 import '../models/current_reading.dart';
@@ -228,6 +229,25 @@ class DioWaterApiClient implements WaterApiClient {
       timezone: timezone,
     );
     return UsageAggregation.buildHourlyPattern(history);
+  }
+
+  @override
+  Future<Uint8List> downloadDeviceLogs(String deviceId) async {
+    if (!_useV2) {
+      throw NetworkException('Device log download requires v2 API');
+    }
+    final tenantId = await _tenantIdProvider();
+    if (tenantId == null || tenantId.isEmpty) {
+      throw NetworkException('No tenant configured');
+    }
+    final path = '/v2/tenants/$tenantId/devices/$deviceId/logs/download';
+    final data = await _request<List<int>>(
+      () => _dio.get<List<int>>(
+        path,
+        options: Options(responseType: ResponseType.bytes),
+      ),
+    );
+    return Uint8List.fromList(data);
   }
 
   Future<T> _get<T>(

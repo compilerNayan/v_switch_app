@@ -41,6 +41,11 @@ class TenantLiveUpdatesClient {
 
   bool get isConnected => _connected;
 
+  void sendJson(Map<String, dynamic> payload) {
+    if (!_connected || _channel == null) return;
+    _channel!.sink.add(jsonEncode(payload));
+  }
+
   Future<void> connect() async {
     _stopped = false;
     await _openChannel();

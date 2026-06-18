@@ -43,6 +43,7 @@ class PreferencesStorage {
   static const _pendingRegistrationKey = 'pending_registration';
   static const _homeSnapshotV2Prefix = 'home_snapshot_v2_';
   static const _valveLastPressurePrefix = 'valve_last_pressure_';
+  static const _deviceLogLastSeqPrefix = 'device_log_last_seq_';
 
   static const maxAuditEntries = 500;
   static const maxAlertEntries = 200;
@@ -452,6 +453,14 @@ class PreferencesStorage {
   Future<void> setValveLastPressure(String deviceId, double percent) async {
     if (percent <= 0) return;
     await _prefs.setDouble('$_valveLastPressurePrefix$deviceId', percent);
+  }
+
+  int getDeviceLogLastSeq(String deviceId) {
+    return _prefs.getInt('$_deviceLogLastSeqPrefix$deviceId') ?? 0;
+  }
+
+  Future<void> setDeviceLogLastSeq(String deviceId, int lastSeq) async {
+    await _prefs.setInt('$_deviceLogLastSeqPrefix$deviceId', lastSeq);
   }
 
   /// Clears tenant/account data so the app returns to a fresh sign-up state.

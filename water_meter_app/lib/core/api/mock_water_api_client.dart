@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:typed_data';
 
 import '../models/current_reading.dart';
 import '../models/daily_summary.dart';
@@ -350,4 +351,12 @@ class MockWaterApiClient implements WaterApiClient {
   Future<void> _delay() => Future<void>.delayed(
         Duration(milliseconds: 200 + _random.nextInt(300)),
       );
+
+  @override
+  Future<Uint8List> downloadDeviceLogs(String deviceId) async {
+    await _delay();
+    final sample =
+        '{"seq":1,"deviceId":"$deviceId","ts":"2026-06-17 10:00:00","message":"mock log"}\n';
+    return Uint8List.fromList(sample.codeUnits);
+  }
 }

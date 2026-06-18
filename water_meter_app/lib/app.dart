@@ -20,6 +20,7 @@ import 'features/control/control_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/devices/water_meter/water_meter_setup_screen.dart';
 import 'features/insights/insights_screen.dart';
+import 'features/logs/logs_screen.dart';
 import 'features/policies/policies_screen.dart';
 import 'features/reports/reports_screen.dart';
 import 'features/settings/settings_screen.dart';
@@ -61,6 +62,14 @@ List<StatefulShellBranch> _unitShellBranches() {
           GoRoute(
             path: 'control',
             builder: (context, state) => const ControlScreen(),
+          ),
+        ],
+      ),
+      StatefulShellBranch(
+        routes: [
+          GoRoute(
+            path: 'logs',
+            builder: (context, state) => const LogsScreen(),
           ),
         ],
       ),
@@ -287,6 +296,11 @@ class _UnitShellState extends ConsumerState<_UnitShell> {
               icon: Icon(Icons.tune_outlined),
               selectedIcon: Icon(Icons.tune),
               label: 'Control',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.article_outlined),
+              selectedIcon: Icon(Icons.article),
+              label: 'Logs',
             ),
           ];
 

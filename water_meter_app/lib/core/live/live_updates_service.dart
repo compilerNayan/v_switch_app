@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
 import '../models/user_profile.dart';
 import '../providers/app_providers.dart';
+import '../providers/device_logs_provider.dart';
 import '../providers/dashboard_providers.dart';
 import '../providers/live_telemetry_patches_provider.dart';
 import '../providers/unit_providers.dart';
@@ -34,6 +35,8 @@ class LiveUpdatesService {
   final Ref _ref;
   TenantLiveUpdatesClient? _client;
   String? _activeTenantId;
+  String? _logWatchDeviceId;
+  int _logWatchLastSeq = 0;
 
   static bool get shouldEnable =>
       !AppConfig.useMockApi &&
@@ -65,6 +68,28 @@ class LiveUpdatesService {
 
   void dispose() {
     _disconnect();
+  }
+
+  void watchDeviceLogs(String deviceId, {int lastSeq = 0}) {
+    _logWatchDeviceId = deviceId.trim().toUpperCase();
+    _logWatchLastSeq = lastSeq;
+    _sendLogWatch();
+  }
+
+  void unwatchDeviceLogs() {
+    _logWatchDeviceId = null;
+    _logWatchLastSeq = 0;
+    _client?.sendJson({'type': 'log_unwatch'});
+  }
+
+  void _sendLogWatch() {
+    final deviceId = _logWatchDeviceId;
+    if (deviceId == null || deviceId.isEmpty) return;
+    _client?.sendJson({
+      'type': 'log_watch',
+      'deviceId': deviceId,
+      'lastSeq': _logWatchLastSeq,
+    });
   }
 
   Future<void> _connect(String tenantId) async {
@@ -128,6 +153,19 @@ class LiveUpdatesService {
         }
       case LiveUpdateSubscribed():
         _ref.read(liveConnectionStatusProvider.notifier).setConnected();
+        _sendLogWatch();
+      case LiveUpdateDeviceLog():
+        _ref
+            .read(deviceLogsProvider(message.deviceId).notifier)
+            .applyDeviceLog(message);
+      case LiveUpdateDeviceLogBatch():
+        _ref
+            .read(deviceLogsProvider(message.deviceId).notifier)
+            .applyDeviceLogBatch(message);
+      case LiveUpdateDeviceLogReset():
+        _ref
+            .read(deviceLogsProvider(message.deviceId).notifier)
+            .applyDeviceLogReset(message);
       case LiveUpdateError():
         break;
     }
