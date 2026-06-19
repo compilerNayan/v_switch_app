@@ -415,12 +415,25 @@ class MockWaterApiClient implements WaterApiClient {
         date: todayKey,
         onlineSeconds: 10 * 3600,
         offlineSeconds: 10 * 60,
+        bootCount: 1,
         segments: [
           PresenceSegment(
             status: 'offline',
             start: offsetIso(DateTime(today.year, today.month, today.day, 0, 0)),
+            end: offsetIso(DateTime(today.year, today.month, today.day, 0, 5)),
+            durationSeconds: 5 * 60,
+          ),
+          PresenceSegment(
+            status: 'boot',
+            start: offsetIso(DateTime(today.year, today.month, today.day, 0, 5)),
+            end: offsetIso(DateTime(today.year, today.month, today.day, 0, 5)),
+            durationSeconds: 0,
+          ),
+          PresenceSegment(
+            status: 'offline',
+            start: offsetIso(DateTime(today.year, today.month, today.day, 0, 5)),
             end: offsetIso(DateTime(today.year, today.month, today.day, 0, 10)),
-            durationSeconds: 10 * 60,
+            durationSeconds: 5 * 60,
           ),
           PresenceSegment(
             status: 'online',

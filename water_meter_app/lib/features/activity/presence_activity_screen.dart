@@ -161,14 +161,23 @@ class _SegmentTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    if (segment.isBoot) {
+      return ListTile(
+        leading: Icon(Icons.restart_alt, color: Colors.orange.shade700, size: 20),
+        title: const Text('Restarted'),
+        subtitle: Text('Restarted at ${segment.bootTimeLabel}'),
+      );
+    }
+
     final color = segment.isOnline ? Colors.green.shade600 : colorScheme.outline;
     final label = segment.isOnline ? 'Online' : 'Offline';
+    final duration = formatPresenceDuration(segment.durationSeconds);
 
     return ListTile(
       leading: Icon(Icons.circle, color: color, size: 14),
       title: Text(label),
       subtitle: Text(
-        '${segment.timeRangeLabel} (${formatPresenceDuration(segment.durationSeconds)})',
+        '$label for $duration (${segment.timeRangeLabel})',
       ),
     );
   }
