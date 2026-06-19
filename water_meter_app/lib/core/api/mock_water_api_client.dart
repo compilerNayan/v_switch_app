@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import '../models/current_reading.dart';
 import '../models/daily_summary.dart';
+import '../models/presence_activity.dart';
 import '../models/quota_config.dart';
 import '../models/usage_response.dart';
 import '../models/valve_state.dart';
@@ -358,5 +359,103 @@ class MockWaterApiClient implements WaterApiClient {
     final sample =
         '{"seq":1,"deviceId":"$deviceId","ts":"2026-06-17 10:00:00","message":"mock log"}\n';
     return Uint8List.fromList(sample.codeUnits);
+  }
+
+  @override
+  Future<PresenceActivityResponse> getPresenceActivity({
+    required String deviceId,
+    String? date,
+    String? from,
+    String? to,
+    int? days,
+    String? timezone,
+  }) async {
+    await _delay();
+    final zone = timezone ?? 'Asia/Kolkata';
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    String fmt(DateTime dt) {
+      final y = dt.year.toString().padLeft(4, '0');
+      final m = dt.month.toString().padLeft(2, '0');
+      final d = dt.day.toString().padLeft(2, '0');
+      return '$y-$m-$d';
+    }
+
+    String offsetIso(DateTime dt) {
+      final local = dt.toIso8601String();
+      return local.length >= 19 ? '${local.substring(0, 19)}+05:30' : local;
+    }
+
+    final todayKey = fmt(today);
+    final yesterdayKey = fmt(yesterday);
+
+    final mockDays = <DayPresenceActivity>[
+      DayPresenceActivity(
+        date: yesterdayKey,
+        onlineSeconds: 22 * 3600,
+        offlineSeconds: 2 * 3600,
+        segments: [
+          PresenceSegment(
+            status: 'online',
+            start: offsetIso(DateTime(yesterday.year, yesterday.month, yesterday.day, 0, 0)),
+            end: offsetIso(DateTime(yesterday.year, yesterday.month, yesterday.day, 23, 50)),
+            durationSeconds: 22 * 3600 + 50 * 60,
+          ),
+          PresenceSegment(
+            status: 'offline',
+            start: offsetIso(DateTime(yesterday.year, yesterday.month, yesterday.day, 23, 50)),
+            end: offsetIso(DateTime(today.year, today.month, today.day)),
+            durationSeconds: 10 * 60,
+          ),
+        ],
+      ),
+      DayPresenceActivity(
+        date: todayKey,
+        onlineSeconds: 10 * 3600,
+        offlineSeconds: 10 * 60,
+        segments: [
+          PresenceSegment(
+            status: 'offline',
+            start: offsetIso(DateTime(today.year, today.month, today.day, 0, 0)),
+            end: offsetIso(DateTime(today.year, today.month, today.day, 0, 10)),
+            durationSeconds: 10 * 60,
+          ),
+          PresenceSegment(
+            status: 'online',
+            start: offsetIso(DateTime(today.year, today.month, today.day, 0, 10)),
+            end: offsetIso(DateTime(today.year, today.month, today.day, 10, 10)),
+            durationSeconds: 10 * 3600,
+          ),
+        ],
+      ),
+    ];
+
+    if (date != null && date.isNotEmpty) {
+      final match = mockDays.where((day) => day.date == date).toList();
+      return PresenceActivityResponse(
+        deviceId: deviceId,
+        timezone: zone,
+        from: date,
+        to: date,
+        days: match,
+      );
+    }
+
+    final resolvedFrom = from ?? yesterdayKey;
+    final resolvedTo = to ?? todayKey;
+    final filtered = mockDays
+        .where((day) => day.date.compareTo(resolvedFrom) >= 0)
+        .where((day) => day.date.compareTo(resolvedTo) <= 0)
+        .toList();
+
+    return PresenceActivityResponse(
+      deviceId: deviceId,
+      timezone: zone,
+      from: resolvedFrom,
+      to: resolvedTo,
+      days: filtered,
+    );
   }
 }

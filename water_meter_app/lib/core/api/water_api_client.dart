@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../models/current_reading.dart';
 import '../models/daily_summary.dart';
+import '../models/presence_activity.dart';
 import '../models/quota_config.dart';
 import '../models/usage_response.dart';
 import '../models/valve_state.dart';
@@ -46,4 +47,13 @@ abstract class WaterApiClient {
   });
 
   Future<Uint8List> downloadDeviceLogs(String deviceId);
+
+  Future<PresenceActivityResponse> getPresenceActivity({
+    required String deviceId,
+    String? date,
+    String? from,
+    String? to,
+    int? days,
+    String? timezone,
+  });
 }

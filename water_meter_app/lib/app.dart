@@ -8,6 +8,7 @@ import 'core/providers/unit_providers.dart';
 import 'core/utils/onboarding_router.dart';
 import 'features/alerts/alerts_screen.dart';
 import 'features/audit/audit_log_screen.dart';
+import 'features/activity/presence_activity_screen.dart';
 import 'features/auth/admin_invite_screen.dart';
 import 'features/auth/confirm_sign_up_screen.dart';
 import 'features/auth/dummy_devices_choice_screen.dart';
@@ -70,6 +71,14 @@ List<StatefulShellBranch> _unitShellBranches() {
           GoRoute(
             path: 'logs',
             builder: (context, state) => const LogsScreen(),
+          ),
+        ],
+      ),
+      StatefulShellBranch(
+        routes: [
+          GoRoute(
+            path: 'activity',
+            builder: (context, state) => const PresenceActivityScreen(),
           ),
         ],
       ),
@@ -301,6 +310,11 @@ class _UnitShellState extends ConsumerState<_UnitShell> {
               icon: Icon(Icons.article_outlined),
               selectedIcon: Icon(Icons.article),
               label: 'Logs',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.schedule_outlined),
+              selectedIcon: Icon(Icons.schedule),
+              label: 'Activity',
             ),
           ];
 

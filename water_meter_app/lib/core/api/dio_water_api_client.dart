@@ -5,6 +5,7 @@ import '../config/app_config.dart';
 import '../models/current_reading.dart';
 import '../models/daily_summary.dart';
 import '../models/minute_series.dart';
+import '../models/presence_activity.dart';
 import '../models/quota_config.dart';
 import '../models/usage_response.dart';
 import '../models/valve_state.dart';
@@ -248,6 +249,46 @@ class DioWaterApiClient implements WaterApiClient {
       ),
     );
     return Uint8List.fromList(data);
+  }
+
+  @override
+  Future<PresenceActivityResponse> getPresenceActivity({
+    required String deviceId,
+    String? date,
+    String? from,
+    String? to,
+    int? days,
+    String? timezone,
+  }) async {
+    if (!_useV2) {
+      throw NetworkException('Presence activity requires v2 API');
+    }
+    final tenantId = await _tenantIdProvider();
+    if (tenantId == null || tenantId.isEmpty) {
+      throw NetworkException('No tenant configured');
+    }
+    final path = '/v2/tenants/$tenantId/devices/$deviceId/presence/activity';
+    final queryParameters = <String, dynamic>{};
+    if (date != null && date.isNotEmpty) {
+      queryParameters['date'] = date;
+    }
+    if (from != null && from.isNotEmpty) {
+      queryParameters['from'] = from;
+    }
+    if (to != null && to.isNotEmpty) {
+      queryParameters['to'] = to;
+    }
+    if (days != null) {
+      queryParameters['days'] = days;
+    }
+    if (timezone != null && timezone.isNotEmpty) {
+      queryParameters['timezone'] = timezone;
+    }
+    final data = await _get<Map<String, dynamic>>(
+      path,
+      queryParameters: queryParameters.isEmpty ? null : queryParameters,
+    );
+    return PresenceActivityResponse.fromJson(data);
   }
 
   Future<T> _get<T>(
